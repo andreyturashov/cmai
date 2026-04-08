@@ -36,19 +36,17 @@ class InlineComment(BaseModel):
     line: int
     severity: Optional[Severity] = None
     comment: str
-    suggestion: Optional[str] = None
+    suggestion: str
 
 
 class ReviewCreate(BaseModel):
     task_id: str
-    reviewer_name: str = Field(min_length=1, max_length=100)
     comments: List[InlineComment] = Field(default_factory=list)
 
 
 class UserReview(BaseModel):
     id: str
     task_id: str
-    reviewer_name: str
     comments: List[InlineComment]
 
 

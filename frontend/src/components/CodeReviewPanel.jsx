@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-python';
 import CommentForm from './CommentForm';
@@ -9,8 +9,6 @@ export default function CodeReviewPanel({
   comments,
   onAddComment,
   onSubmitReview,
-  reviewerName,
-  setReviewerName,
 }) {
   const [activeLine, setActiveLine] = useState(null);
   const lines = useMemo(() => (code ? code.split('\n') : []), [code]);
@@ -27,23 +25,17 @@ export default function CodeReviewPanel({
     }, {});
   }, [comments]);
 
+  const formRef = useCallback((node) => {
+    if (node) node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [activeLine]);
+
   return (
     <section className="right-panel card reveal">
       <header className="review-header">
         <h3>Code Viewer</h3>
-        <div className="reviewer-wrap">
-          <label>
-            Reviewer
-            <input
-              value={reviewerName}
-              onChange={(e) => setReviewerName(e.target.value)}
-              placeholder="Your name"
-            />
-          </label>
-          <button onClick={onSubmitReview} disabled={!comments.length || !reviewerName.trim()}>
-            Submit Review
-          </button>
-        </div>
+        <button onClick={onSubmitReview}>
+          Submit Review
+        </button>
       </header>
 
       <div className="code-scroll">
@@ -63,20 +55,22 @@ export default function CodeReviewPanel({
 
               {commentsByLine[lineNumber]?.map((c, i) => (
                 <div key={`${lineNumber}-${i}`} className="inline-comment">
-                  {c.comment}
-                  {c.suggestion ? <p>Fix: {c.suggestion}</p> : null}
+                  <span className="comment-text">{c.comment}</span>
+                  {c.suggestion ? <pre className="comment-suggestion"><code>{c.suggestion}</code></pre> : null}
                 </div>
               ))}
 
               {activeLine === lineNumber ? (
-                <CommentForm
-                  line={lineNumber}
-                  onSave={(comment) => {
-                    onAddComment(comment);
-                    setActiveLine(null);
-                  }}
-                  onCancel={() => setActiveLine(null)}
-                />
+                <div ref={formRef}>
+                  <CommentForm
+                    line={lineNumber}
+                    onSave={(comment) => {
+                      onAddComment(comment);
+                      setActiveLine(null);
+                    }}
+                    onCancel={() => setActiveLine(null)}
+                  />
+                </div>
               ) : null}
             </div>
           );

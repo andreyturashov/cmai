@@ -93,19 +93,9 @@ body {
 .review-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
   gap: 12px;
   margin-bottom: 12px;
-}
-
-.reviewer-wrap {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-}
-
-.reviewer-wrap input {
-  width: 180px;
 }
 
 .code-scroll {
@@ -115,6 +105,26 @@ body {
   border-radius: 14px;
   background: rgba(21, 27, 31, 0.94);
   color: #f8f7f3;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+.code-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.code-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.code-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+}
+
+.code-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
 }
 
 .code-line {
@@ -179,14 +189,38 @@ body {
 }
 
 .inline-comment {
-  margin: 4px 10px 10px 50px;
-  padding: 8px 10px;
-  border-radius: 8px;
+  margin: 6px 10px 10px 50px;
+  padding: 10px 12px;
+  border-radius: 10px;
   font-size: 0.88rem;
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--ink);
+  border-left: 3px solid var(--accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .inline-comment p {
   margin: 6px 0 0;
+  font-size: 0.82rem;
+  color: rgba(29, 41, 48, 0.7);
+}
+
+.comment-suggestion {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  background: transparent;
+  color: inherit;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.82rem;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.comment-suggestion code {
+  font: inherit;
+  color: inherit;
 }
 
 .comment-form {
@@ -201,8 +235,7 @@ body {
 }
 
 .comment-form textarea,
-.comment-form input,
-.reviewer-wrap input {
+.comment-form input {
   width: 100%;
   border: 1px solid rgba(29, 41, 48, 0.3);
   border-radius: 8px;
@@ -283,16 +316,6 @@ button:disabled {
   .review-header {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .reviewer-wrap {
-    width: 100%;
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .reviewer-wrap input {
-    width: 100%;
   }
 
   .code-scroll {

@@ -1,6 +1,6 @@
 # Backend
 
-FastAPI service for PR Review Trainer MVP.
+FastAPI service for Code Mentor.
 
 ## Run
 

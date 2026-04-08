@@ -6,12 +6,12 @@ export default function CommentForm({ line, onSave, onCancel }) {
 
   function submit(e) {
     e.preventDefault();
-    if (!comment.trim()) return;
+    if (!comment.trim() || !suggestion.trim()) return;
 
     onSave({
       line,
       comment: comment.trim(),
-      suggestion: suggestion.trim() || null,
+      suggestion: suggestion.trim(),
     });
   }
 
@@ -29,12 +29,13 @@ export default function CommentForm({ line, onSave, onCancel }) {
         />
       </label>
       <label>
-        Suggestion (optional)
+        Suggestion
         <textarea
           value={suggestion}
           onChange={(e) => setSuggestion(e.target.value)}
           rows={3}
           placeholder="Propose a fix"
+          required
         />
       </label>
       <div className="actions">

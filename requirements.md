@@ -1,4 +1,4 @@
-# 🧠 PR Review Trainer — Full Product & Technical Specification
+# 🧠 Code Mentor — Full Product & Technical Specification
 
 ---
 

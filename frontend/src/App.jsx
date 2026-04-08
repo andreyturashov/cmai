@@ -9,7 +9,6 @@ export default function App() {
   const [taskIndex, setTaskIndex] = useState(0);
   const [task, setTask] = useState(null);
   const [comments, setComments] = useState([]);
-  const [reviewerName, setReviewerName] = useState('');
   const [evaluation, setEvaluation] = useState(null);
   const [error, setError] = useState('');
 
@@ -58,13 +57,12 @@ export default function App() {
   }
 
   async function submitReview() {
-    if (!task || !comments.length || !reviewerName.trim()) return;
+    if (!task) return;
 
     try {
       setError('');
       const review = await api.createReview({
         task_id: task.id,
-        reviewer_name: reviewerName,
         comments,
       });
 
@@ -78,7 +76,7 @@ export default function App() {
   return (
     <main className="app-shell">
       <header className="topbar reveal">
-        <h1>PR Review Trainer</h1>
+        <h1>Code Mentor</h1>
         <p>Train your engineering judgment with realistic pull request reviews.</p>
         <div className="task-switcher">
           <button className="ghost" onClick={() => moveTask(taskIndex - 1)} disabled={taskIndex === 0}>
@@ -103,8 +101,6 @@ export default function App() {
           comments={comments}
           onAddComment={(c) => setComments((prev) => [...prev, c])}
           onSubmitReview={submitReview}
-          reviewerName={reviewerName}
-          setReviewerName={setReviewerName}
         />
       </section>
 

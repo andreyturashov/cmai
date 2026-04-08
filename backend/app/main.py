@@ -13,7 +13,7 @@ from app.seed_data import TASKS
 
 load_dotenv()
 
-app = FastAPI(title="PR Review Trainer API", version="0.1.0")
+app = FastAPI(title="Code Mentor API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -64,7 +64,6 @@ def create_review(payload: ReviewCreate) -> dict:
     review = UserReview(
         id=f"review-{uuid4().hex[:8]}",
         task_id=payload.task_id,
-        reviewer_name=payload.reviewer_name,
         comments=payload.comments,
     )
     REVIEWS[review.id] = review

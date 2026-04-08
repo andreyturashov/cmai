@@ -1,4 +1,4 @@
-# PR Review Trainer MVP
+# Code Mentor
 
 This project contains both backend and frontend for a PR review training platform.
 
