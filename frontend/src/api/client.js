@@ -30,4 +30,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  aiAnalyze: (payload) =>
+    request('/ai-analyze', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 };

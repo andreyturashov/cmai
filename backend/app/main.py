@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.ai_analyzer import analyze_review
 from app.evaluator import evaluate_review
 from app.models import EvaluationRequest, ReviewCreate, UserReview
 from app.seed_data import TASKS
@@ -83,4 +84,26 @@ def evaluate(payload: EvaluationRequest) -> dict:
         "review_id": review.id,
         "task_id": review.task_id,
         "evaluation": result.model_dump(),
+    }
+
+
+@app.post("/ai-analyze")
+async def ai_analyze(payload: EvaluationRequest) -> dict:
+    review = REVIEWS.get(payload.review_id)
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    task = TASKS_BY_ID[review.task_id]
+
+    try:
+        result = await analyze_review(task, review)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502, detail=f"Ollama unavailable: {exc}"
+        ) from exc
+
+    return {
+        "review_id": review.id,
+        "task_id": review.task_id,
+        "analysis": result.model_dump(),
     }

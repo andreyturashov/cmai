@@ -8,7 +8,8 @@ export default function App() {
   const [taskIndex, setTaskIndex] = useState(0);
   const [task, setTask] = useState(null);
   const [comments, setComments] = useState([]);
-  const [evaluation, setEvaluation] = useState(null);
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -52,7 +53,7 @@ export default function App() {
     const boundedIndex = Math.max(0, Math.min(nextIndex, taskList.length - 1));
     setTaskIndex(boundedIndex);
     setComments([]);
-    setEvaluation(null);
+    setAiAnalysis(null);
   }
 
   async function submitReview() {
@@ -65,10 +66,15 @@ export default function App() {
         comments,
       });
 
-      const result = await api.evaluate({ review_id: review.id });
-      setEvaluation(result);
+      setAiLoading(true);
+      setAiAnalysis(null);
+      const res = await api.aiAnalyze({ review_id: review.id });
+      setAiAnalysis(res);
     } catch (e) {
-      setError(e.message || 'Failed to evaluate review');
+      setAiAnalysis({ error: true });
+      setError(e.message || 'Failed to analyze review');
+    } finally {
+      setAiLoading(false);
     }
   }
 
@@ -93,7 +99,7 @@ export default function App() {
       {error ? <div className="error-banner">{error}</div> : null}
 
       <section className="layout-grid">
-        <LeftPanel task={task} evaluation={evaluation} />
+        <LeftPanel task={task} aiAnalysis={aiAnalysis} aiLoading={aiLoading} />
         <CodeReviewPanel
           code={task?.code || ''}
           language={task?.language || 'python'}

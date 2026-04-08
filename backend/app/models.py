@@ -66,3 +66,26 @@ class EvaluationResult(BaseModel):
     matched_issue_ids: List[str]
     missed_issue_ids: List[str]
     feedback: List[str]
+
+
+class AIIssueVerdict(BaseModel):
+    issue_id: str
+    title: str = ""
+    severity: str = ""
+    addressed: bool
+    explanation: str
+
+
+class AIAnalysisResult(BaseModel):
+    all_fixed: bool
+    score: float
+    detected_critical: int
+    total_critical: int
+    detected_medium: int
+    total_medium: int
+    detected_low: int
+    total_low: int
+    missed_issues: List[str]
+    feedback: List[str]
+    issues: List[AIIssueVerdict]
+    summary: str

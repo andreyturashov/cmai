@@ -1,11 +1,12 @@
 import React from 'react';
 
-export default function LeftPanel({ task, evaluation }) {
+export default function LeftPanel({ task, aiAnalysis, aiLoading }) {
   if (!task) {
     return <aside className="left-panel card">Loading task...</aside>;
   }
 
-  const e = evaluation?.evaluation;
+  const ai = aiAnalysis?.analysis;
+  const aiError = aiAnalysis?.error;
 
   return (
     <aside className="left-panel card reveal">
@@ -24,19 +25,49 @@ export default function LeftPanel({ task, evaluation }) {
         </ul>
       </section>
 
-      {e ? (
+      {aiLoading ? (
+        <section className="ai-section">
+          <p className="eyebrow">AI Analysis</p>
+          <div className="ai-loading">
+            <span className="ai-spinner" />
+            Analyzing with Ollama&hellip;
+          </div>
+        </section>
+      ) : aiError ? (
+        <section className="ai-section">
+          <p className="eyebrow">AI Analysis</p>
+          <p className="ai-error">AI analysis unavailable</p>
+        </section>
+      ) : ai ? (
         <section className="eval-section">
-          <p className="eyebrow">Evaluation</p>
-          <p className="score">Score: {e.score} / 10</p>
+          <p className="eyebrow">AI Analysis</p>
+          <div className={`ai-badge ${ai.all_fixed ? 'ai-badge-pass' : 'ai-badge-fail'}`}>
+            {ai.all_fixed ? '✓ All issues addressed' : '✗ Some issues remain'}
+          </div>
+          <p className="score">Score: {ai.score} / 10</p>
           <p className="eval-stats">
-            Critical: {e.detected_critical}/{e.total_critical} &middot; Medium: {e.detected_medium}/{e.total_medium} &middot; Low: {e.detected_low}/{e.total_low}
+            Critical: {ai.detected_critical}/{ai.total_critical} &middot; Medium: {ai.detected_medium}/{ai.total_medium} &middot; Low: {ai.detected_low}/{ai.total_low}
           </p>
-          {e.missed_issue_ids.length ? (
-            <p className="eval-missed">Missed: {e.missed_issue_ids.join(', ')}</p>
+          {ai.missed_issues.length ? (
+            <p className="eval-missed">Missed: {ai.missed_issues.join(', ')}</p>
           ) : null}
           <ul className="eval-feedback">
-            {e.feedback.map((f) => (
+            {ai.feedback.map((f) => (
               <li key={f}>{f}</li>
+            ))}
+          </ul>
+          <p className="ai-summary">{ai.summary}</p>
+          <ul className="ai-verdicts">
+            {ai.issues.map((v) => (
+              <li key={v.issue_id} className={v.addressed ? 'ai-ok' : 'ai-miss'}>
+                <span className="ai-verdict-icon">{v.addressed ? '✓' : '✗'}</span>
+                <span>
+                  <strong>{v.title || v.issue_id}</strong>
+                  {v.severity ? <span className={`verdict-severity sev-${v.severity}`}> ({v.severity})</span> : null}
+                  <br />
+                  {v.explanation}
+                </span>
+              </li>
             ))}
           </ul>
         </section>

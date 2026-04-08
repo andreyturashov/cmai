@@ -405,6 +405,107 @@ button:disabled {
   color: var(--accent-2);
 }
 
+/* ── AI Analysis section ──────────────────────────────── */
+
+.ai-section {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  margin-top: 8px;
+}
+
+.ai-badge {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin: 6px 0;
+}
+
+.ai-badge-pass {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.ai-badge-fail {
+  background: #fde9e8;
+  color: #912018;
+}
+
+.ai-summary {
+  font-size: 0.85rem;
+  color: rgba(29, 41, 48, 0.8);
+  margin: 4px 0 8px;
+}
+
+.ai-verdicts {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.ai-verdicts li {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  padding: 3px 0;
+}
+
+.ai-verdict-icon {
+  flex-shrink: 0;
+  font-weight: 700;
+  width: 16px;
+}
+
+.ai-ok .ai-verdict-icon {
+  color: #166534;
+}
+
+.ai-miss .ai-verdict-icon {
+  color: var(--critical);
+}
+
+.verdict-severity {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.sev-critical { color: var(--critical); }
+.sev-medium { color: var(--medium); }
+.sev-low { color: var(--low); }
+
+.ai-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: rgba(29, 41, 48, 0.7);
+  padding: 6px 0;
+}
+
+.ai-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent-2);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.ai-error {
+  font-size: 0.85rem;
+  color: rgba(29, 41, 48, 0.5);
+  font-style: italic;
+}
+
+/* ── end AI ───────────────────────────────────────────── */
+
 .error-banner {
   margin-top: 14px;
   background: #fde9e8;
