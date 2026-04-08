@@ -34,6 +34,7 @@ class Task(BaseModel):
 
 class InlineComment(BaseModel):
     line: int
+    end_line: Optional[int] = None
     severity: Optional[Severity] = None
     comment: str
     suggestion: str

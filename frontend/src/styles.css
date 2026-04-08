@@ -98,6 +98,60 @@ body {
   margin-bottom: 12px;
 }
 
+.review-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.review-title h3 {
+  margin: 0;
+}
+
+.info-icon-wrap {
+  position: relative;
+}
+
+.info-icon {
+  font-size: 1.1rem;
+  color: rgba(29, 41, 48, 0.5);
+  cursor: help;
+}
+
+.info-tooltip {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 6px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 12px 14px;
+  width: 260px;
+  z-index: 10;
+  font-size: 0.85rem;
+}
+
+.info-tooltip strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.info-tooltip ol {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.info-tooltip li {
+  margin-bottom: 2px;
+}
+
+.info-icon-wrap:hover .info-tooltip {
+  display: block;
+}
+
 .code-scroll {
   max-height: 58vh;
   overflow: auto;
@@ -139,6 +193,7 @@ body {
   color: inherit;
   cursor: pointer;
   padding: 4px 8px;
+  user-select: none;
 }
 
 .code-line code {
@@ -147,6 +202,14 @@ body {
 
 .code-line:hover {
   background: rgba(255, 255, 255, 0.07);
+}
+
+.code-line-selected {
+  background: rgba(255, 107, 53, 0.15);
+}
+
+.code-line-selected:hover {
+  background: rgba(255, 107, 53, 0.22);
 }
 
 .line-no {
@@ -197,6 +260,40 @@ body {
   color: var(--ink);
   border-left: 3px solid var(--accent);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.inline-comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.inline-comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.inline-comment-actions .edit-btn {
+  border-left: 1px solid var(--line);
+  padding-left: 10px;
+  border-radius: 0;
+}
+
+.edit-btn {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  font-size: 0.78rem;
+  border-radius: 6px;
+}
+
+.inline-comment .comment-meta {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  color: rgba(29, 41, 48, 0.55);
+  white-space: nowrap;
 }
 
 .inline-comment p {
@@ -274,8 +371,32 @@ button:disabled {
   cursor: not-allowed;
 }
 
-.eval-card {
-  margin-top: 16px;
+.eval-section {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  margin-top: 8px;
+}
+
+.eval-stats {
+  font-size: 0.85rem;
+  color: rgba(29, 41, 48, 0.74);
+  margin: 4px 0;
+}
+
+.eval-missed {
+  font-size: 0.85rem;
+  color: var(--critical);
+  margin: 4px 0;
+}
+
+.eval-feedback {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 0.85rem;
+}
+
+.eval-feedback li {
+  margin-bottom: 2px;
 }
 
 .score {

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { api } from './api/client';
 import LeftPanel from './components/LeftPanel';
 import CodeReviewPanel from './components/CodeReviewPanel';
-import EvaluationCard from './components/EvaluationCard';
 
 export default function App() {
   const [taskList, setTaskList] = useState([]);
@@ -94,17 +93,18 @@ export default function App() {
       {error ? <div className="error-banner">{error}</div> : null}
 
       <section className="layout-grid">
-        <LeftPanel task={task} />
+        <LeftPanel task={task} evaluation={evaluation} />
         <CodeReviewPanel
           code={task?.code || ''}
           language={task?.language || 'python'}
           comments={comments}
           onAddComment={(c) => setComments((prev) => [...prev, c])}
+          onEditComment={(idx, updated) =>
+            setComments((prev) => prev.map((c, i) => (i === idx ? updated : c)))
+          }
           onSubmitReview={submitReview}
         />
       </section>
-
-      <EvaluationCard data={evaluation} />
     </main>
   );
 }

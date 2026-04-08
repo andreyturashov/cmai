@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 
-export default function CommentForm({ line, onSave, onCancel }) {
-  const [comment, setComment] = useState('');
-  const [suggestion, setSuggestion] = useState('');
+export default function CommentForm({ line, endLine, onSave, onCancel, initial }) {
+  const [comment, setComment] = useState(initial?.comment || '');
+  const [suggestion, setSuggestion] = useState(initial?.suggestion || '');
 
   function submit(e) {
     e.preventDefault();
@@ -10,14 +10,17 @@ export default function CommentForm({ line, onSave, onCancel }) {
 
     onSave({
       line,
+      ...(endLine ? { end_line: endLine } : {}),
       comment: comment.trim(),
       suggestion: suggestion.trim(),
     });
   }
 
+  const label = endLine ? `Lines ${line}–${endLine}` : `Line ${line}`;
+
   return (
     <form className="comment-form" onSubmit={submit}>
-      <div className="comment-meta">Line {line}</div>
+      <div className="comment-meta">{label}</div>
       <label>
         Comment
         <textarea

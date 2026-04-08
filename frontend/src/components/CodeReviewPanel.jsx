@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-python';
 import CommentForm from './CommentForm';
@@ -8,9 +8,14 @@ export default function CodeReviewPanel({
   language,
   comments,
   onAddComment,
+  onEditComment,
   onSubmitReview,
 }) {
-  const [activeLine, setActiveLine] = useState(null);
+  const [selStart, setSelStart] = useState(null);
+  const [selEnd, setSelEnd] = useState(null);
+  const [dragging, setDragging] = useState(false);
+  const [editingIdx, setEditingIdx] = useState(null);
+  const dragStart = useRef(null);
   const lines = useMemo(() => (code ? code.split('\n') : []), [code]);
   const prismLanguage = useMemo(() => {
     const requested = (language || 'python').toLowerCase();
@@ -19,31 +24,87 @@ export default function CodeReviewPanel({
 
   const commentsByLine = useMemo(() => {
     return comments.reduce((acc, c) => {
-      acc[c.line] = acc[c.line] || [];
-      acc[c.line].push(c);
+      const anchor = c.end_line || c.line;
+      acc[anchor] = acc[anchor] || [];
+      acc[anchor].push(c);
       return acc;
     }, {});
   }, [comments]);
 
+  const selMin = selStart != null && selEnd != null ? Math.min(selStart, selEnd) : selStart;
+  const selMax = selStart != null && selEnd != null ? Math.max(selStart, selEnd) : selStart;
+
+  const editingComment = editingIdx != null ? comments[editingIdx] : null;
+  const editMin = editingComment?.line ?? null;
+  const editMax = editingComment?.end_line ?? editMin;
+
+  function handleMouseDown(lineNumber, e) {
+    e.preventDefault();
+    if (editingIdx != null) setEditingIdx(null);
+    dragStart.current = lineNumber;
+    setDragging(true);
+    setSelStart(lineNumber);
+    setSelEnd(null);
+  }
+
+  function handleMouseEnter(lineNumber) {
+    if (!dragging) return;
+    setSelEnd(lineNumber);
+  }
+
+  function handleMouseUp() {
+    if (!dragging) return;
+    setDragging(false);
+  }
+
+  function clearSelection() {
+    setSelStart(null);
+    setSelEnd(null);
+    setEditingIdx(null);
+  }
+
   const formRef = useCallback((node) => {
     if (node) node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [activeLine]);
+  }, [selStart, selEnd, editingIdx]);
+
+  const showForm = selStart != null && !dragging;
 
   return (
     <section className="right-panel card reveal">
       <header className="review-header">
-        <h3>Code Viewer</h3>
+        <div className="review-title">
+          <h3>Code Viewer</h3>
+          <div className="info-icon-wrap">
+            <span className="info-icon">&#9432;</span>
+            <div className="info-tooltip">
+              <strong>Instructions</strong>
+              <ol>
+                <li>Review the code</li>
+                <li>Add inline comments</li>
+                <li>Explain impact and risk</li>
+                <li>Suggest improvements</li>
+                <li>(Optional) Provide fixed code</li>
+              </ol>
+            </div>
+          </div>
+        </div>
         <button onClick={onSubmitReview}>
           Submit Review
         </button>
       </header>
 
-      <div className="code-scroll">
+      <div className="code-scroll" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
         {lines.map((line, idx) => {
           const lineNumber = idx + 1;
+          const inSelection = selMin != null && lineNumber >= selMin && lineNumber <= selMax;
+          const inEdit = editMin != null && lineNumber >= editMin && lineNumber <= editMax;
           return (
             <div key={lineNumber} className="code-line-block">
-              <button className="code-line" onClick={() => setActiveLine(lineNumber)}>
+              <button
+                className={`code-line${inSelection || inEdit ? ' code-line-selected' : ''}`}
+                onMouseDown={(e) => handleMouseDown(lineNumber, e)}
+                onMouseEnter={() => handleMouseEnter(lineNumber)}
+              >
                 <span className="line-no">{lineNumber}</span>
                 <code
                   dangerouslySetInnerHTML={{
@@ -53,22 +114,59 @@ export default function CodeReviewPanel({
                 />
               </button>
 
-              {commentsByLine[lineNumber]?.map((c, i) => (
-                <div key={`${lineNumber}-${i}`} className="inline-comment">
-                  <span className="comment-text">{c.comment}</span>
-                  {c.suggestion ? <pre className="comment-suggestion"><code>{c.suggestion}</code></pre> : null}
-                </div>
-              ))}
+              {commentsByLine[lineNumber]?.map((c, i) => {
+                const globalIdx = comments.indexOf(c);
+                if (editingIdx === globalIdx) return null;
+                const rangeLabel = c.end_line ? `Lines ${c.line}–${c.end_line}` : `Line ${c.line}`;
+                return (
+                  <div key={`${lineNumber}-${i}`} className="inline-comment">
+                    <div className="inline-comment-header">
+                      <span className="comment-text">{c.comment}</span>
+                      <div className="inline-comment-actions">
+                        <span className="comment-meta">{rangeLabel}</span>
+                        <button
+                          type="button"
+                          className="ghost edit-btn"
+                          onClick={() => {
+                            setEditingIdx(globalIdx);
+                            setSelStart(null);
+                            setSelEnd(null);
+                          }}
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    </div>
+                    {c.suggestion ? <pre className="comment-suggestion"><code>{c.suggestion}</code></pre> : null}
+                  </div>
+                );
+              })}
 
-              {activeLine === lineNumber ? (
+              {showForm && selMax === lineNumber ? (
                 <div ref={formRef}>
                   <CommentForm
-                    line={lineNumber}
+                    line={selMin}
+                    endLine={selMax !== selMin ? selMax : null}
                     onSave={(comment) => {
                       onAddComment(comment);
-                      setActiveLine(null);
+                      clearSelection();
                     }}
-                    onCancel={() => setActiveLine(null)}
+                    onCancel={clearSelection}
+                  />
+                </div>
+              ) : null}
+
+              {editingIdx != null && editMax === lineNumber ? (
+                <div ref={formRef}>
+                  <CommentForm
+                    line={editMin}
+                    endLine={editMax !== editMin ? editMax : null}
+                    initial={editingComment}
+                    onSave={(updated) => {
+                      onEditComment(editingIdx, updated);
+                      setEditingIdx(null);
+                    }}
+                    onCancel={() => setEditingIdx(null)}
                   />
                 </div>
               ) : null}
