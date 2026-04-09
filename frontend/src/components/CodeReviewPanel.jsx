@@ -122,19 +122,21 @@ export default function CodeReviewPanel({
           ].filter(Boolean).join(' ');
           return (
             <div key={lineNumber} className="code-line-block">
-              <button
+              <div
                 className={lineClasses}
-                onMouseDown={(e) => handleMouseDown(lineNumber, e)}
                 onMouseEnter={() => handleMouseEnter(lineNumber)}
               >
-                <span className="line-no">{lineNumber}</span>
+                <span
+                  className="line-no"
+                  onMouseDown={(e) => handleMouseDown(lineNumber, e)}
+                >{lineNumber}</span>
                 <code
                   dangerouslySetInnerHTML={{
                     __html:
                       Prism.highlight(line || ' ', Prism.languages[prismLanguage], prismLanguage) || '&nbsp;',
                   }}
                 />
-              </button>
+              </div>
 
               {commentsByLine[lineNumber]?.map((c, i) => {
                 const globalIdx = comments.indexOf(c);
@@ -200,8 +202,12 @@ export default function CodeReviewPanel({
                     <strong className="ref-title">{issue.title}</strong>
                   </div>
                   <p className="ref-description">{issue.description}</p>
-                  {issue.suggestion ? (
-                    <pre className="ref-suggestion"><code>{issue.suggestion}</code></pre>
+                  <p className="ref-suggestion-text">{issue.suggestion}</p>
+                  {issue.code ? (
+                    <div className="ref-code-block">
+                      <span className="ref-code-label">Corrected code</span>
+                      <pre className="ref-code"><code>{issue.code}</code></pre>
+                    </div>
                   ) : null}
                 </div>
               ))}
