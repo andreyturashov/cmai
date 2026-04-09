@@ -1,23 +1,26 @@
 import React, { useState } from 'react';
 
-export default function CommentForm({ line, onSave, onCancel }) {
-  const [comment, setComment] = useState('');
-  const [suggestion, setSuggestion] = useState('');
+export default function CommentForm({ line, endLine, onSave, onCancel, initial }) {
+  const [comment, setComment] = useState(initial?.comment || '');
+  const [suggestion, setSuggestion] = useState(initial?.suggestion || '');
 
   function submit(e) {
     e.preventDefault();
-    if (!comment.trim()) return;
+    if (!comment.trim() || !suggestion.trim()) return;
 
     onSave({
       line,
+      ...(endLine ? { end_line: endLine } : {}),
       comment: comment.trim(),
-      suggestion: suggestion.trim() || null,
+      suggestion: suggestion.trim(),
     });
   }
 
+  const label = endLine ? `Lines ${line}–${endLine}` : `Line ${line}`;
+
   return (
     <form className="comment-form" onSubmit={submit}>
-      <div className="comment-meta">Line {line}</div>
+      <div className="comment-meta">{label}</div>
       <label>
         Comment
         <textarea
@@ -29,12 +32,13 @@ export default function CommentForm({ line, onSave, onCancel }) {
         />
       </label>
       <label>
-        Suggestion (optional)
+        Suggestion
         <textarea
           value={suggestion}
           onChange={(e) => setSuggestion(e.target.value)}
           rows={3}
           placeholder="Propose a fix"
+          required
         />
       </label>
       <div className="actions">

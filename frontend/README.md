@@ -1,6 +1,6 @@
 # Frontend
 
-React + Vite UI for PR Review Trainer.
+React + Vite UI for Code Mentor.
 
 ## Run
 

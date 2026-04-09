@@ -34,21 +34,20 @@ class Task(BaseModel):
 
 class InlineComment(BaseModel):
     line: int
+    end_line: Optional[int] = None
     severity: Optional[Severity] = None
     comment: str
-    suggestion: Optional[str] = None
+    suggestion: str
 
 
 class ReviewCreate(BaseModel):
     task_id: str
-    reviewer_name: str = Field(min_length=1, max_length=100)
     comments: List[InlineComment] = Field(default_factory=list)
 
 
 class UserReview(BaseModel):
     id: str
     task_id: str
-    reviewer_name: str
     comments: List[InlineComment]
 
 
@@ -67,3 +66,26 @@ class EvaluationResult(BaseModel):
     matched_issue_ids: List[str]
     missed_issue_ids: List[str]
     feedback: List[str]
+
+
+class AIIssueVerdict(BaseModel):
+    issue_id: str
+    title: str = ""
+    severity: str = ""
+    addressed: bool
+    explanation: str
+
+
+class AIAnalysisResult(BaseModel):
+    all_fixed: bool
+    score: float
+    detected_critical: int
+    total_critical: int
+    detected_medium: int
+    total_medium: int
+    detected_low: int
+    total_low: int
+    missed_issues: List[str]
+    feedback: List[str]
+    issues: List[AIIssueVerdict]
+    summary: str

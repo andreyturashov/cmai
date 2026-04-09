@@ -2,15 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { api } from './api/client';
 import LeftPanel from './components/LeftPanel';
 import CodeReviewPanel from './components/CodeReviewPanel';
-import EvaluationCard from './components/EvaluationCard';
 
 export default function App() {
   const [taskList, setTaskList] = useState([]);
   const [taskIndex, setTaskIndex] = useState(0);
   const [task, setTask] = useState(null);
   const [comments, setComments] = useState([]);
-  const [reviewerName, setReviewerName] = useState('');
-  const [evaluation, setEvaluation] = useState(null);
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -54,31 +53,35 @@ export default function App() {
     const boundedIndex = Math.max(0, Math.min(nextIndex, taskList.length - 1));
     setTaskIndex(boundedIndex);
     setComments([]);
-    setEvaluation(null);
+    setAiAnalysis(null);
   }
 
   async function submitReview() {
-    if (!task || !comments.length || !reviewerName.trim()) return;
+    if (!task) return;
 
     try {
       setError('');
       const review = await api.createReview({
         task_id: task.id,
-        reviewer_name: reviewerName,
         comments,
       });
 
-      const result = await api.evaluate({ review_id: review.id });
-      setEvaluation(result);
+      setAiLoading(true);
+      setAiAnalysis(null);
+      const res = await api.aiAnalyze({ review_id: review.id });
+      setAiAnalysis(res);
     } catch (e) {
-      setError(e.message || 'Failed to evaluate review');
+      setAiAnalysis({ error: true });
+      setError(e.message || 'Failed to analyze review');
+    } finally {
+      setAiLoading(false);
     }
   }
 
   return (
     <main className="app-shell">
       <header className="topbar reveal">
-        <h1>PR Review Trainer</h1>
+        <h1>Code Mentor</h1>
         <p>Train your engineering judgment with realistic pull request reviews.</p>
         <div className="task-switcher">
           <button className="ghost" onClick={() => moveTask(taskIndex - 1)} disabled={taskIndex === 0}>
@@ -96,19 +99,18 @@ export default function App() {
       {error ? <div className="error-banner">{error}</div> : null}
 
       <section className="layout-grid">
-        <LeftPanel task={task} />
+        <LeftPanel task={task} aiAnalysis={aiAnalysis} aiLoading={aiLoading} />
         <CodeReviewPanel
           code={task?.code || ''}
           language={task?.language || 'python'}
           comments={comments}
           onAddComment={(c) => setComments((prev) => [...prev, c])}
+          onEditComment={(idx, updated) =>
+            setComments((prev) => prev.map((c, i) => (i === idx ? updated : c)))
+          }
           onSubmitReview={submitReview}
-          reviewerName={reviewerName}
-          setReviewerName={setReviewerName}
         />
       </section>
-
-      <EvaluationCard data={evaluation} />
     </main>
   );
 }

@@ -1,4 +1,4 @@
-# PR Review Trainer MVP
+# Code Mentor
 
 This project contains both backend and frontend for a PR review training platform.
 
@@ -18,10 +18,8 @@ This project contains both backend and frontend for a PR review training platfor
 
 ```bash
 cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+uv sync
+uv run uvicorn app.main:app --reload --port 8000
 ```
 
 ## Run Frontend
