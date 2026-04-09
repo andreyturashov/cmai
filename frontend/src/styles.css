@@ -506,6 +506,108 @@ button:disabled {
 
 /* ── end AI ───────────────────────────────────────────── */
 
+/* ── Reference / Answer overlay ───────────────────────── */
+
+.review-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toggle-ref {
+  font-size: 0.85rem;
+  padding: 7px 12px;
+}
+
+.toggle-ref-active {
+  background: #ede9fe;
+  color: #6d28d9;
+  border: 1px solid #c4b5fd;
+}
+
+.code-line-ref {
+  background: rgba(139, 92, 246, 0.12);
+}
+
+.code-line-ref:hover {
+  background: rgba(139, 92, 246, 0.18);
+}
+
+.code-line-ref.code-line-selected {
+  background: rgba(139, 92, 246, 0.22);
+}
+
+.ref-issue {
+  margin: 6px 10px 10px 50px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  background: rgba(237, 233, 254, 0.95);
+  color: var(--ink);
+  border-left: 3px solid #8b5cf6;
+  box-shadow: 0 2px 8px rgba(109, 40, 217, 0.12);
+}
+
+.ref-issue-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ref-severity {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.ref-severity.sev-critical {
+  background: #fee2e2;
+  color: var(--critical);
+}
+
+.ref-severity.sev-medium {
+  background: #fef3c7;
+  color: var(--medium);
+}
+
+.ref-severity.sev-low {
+  background: #dbeafe;
+  color: var(--low);
+}
+
+.ref-title {
+  color: #5b21b6;
+}
+
+.ref-description {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  color: rgba(29, 41, 48, 0.78);
+}
+
+.ref-suggestion {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  background: rgba(139, 92, 246, 0.06);
+  border: 1px solid #c4b5fd;
+  border-radius: 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.82rem;
+  overflow-x: auto;
+  white-space: pre;
+  color: #4c1d95;
+}
+
+.ref-suggestion code {
+  font: inherit;
+  color: inherit;
+}
+
+/* ── end Reference ────────────────────────────────────── */
+
 .error-banner {
   margin-top: 14px;
   background: #fde9e8;

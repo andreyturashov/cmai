@@ -7,6 +7,9 @@ export default function CodeReviewPanel({
   code,
   language,
   comments,
+  referenceIssues = [],
+  showReference,
+  onToggleReference,
   onAddComment,
   onEditComment,
   onSubmitReview,
@@ -30,6 +33,14 @@ export default function CodeReviewPanel({
       return acc;
     }, {});
   }, [comments]);
+
+  const refByLine = useMemo(() => {
+    return referenceIssues.reduce((acc, issue) => {
+      acc[issue.line] = acc[issue.line] || [];
+      acc[issue.line].push(issue);
+      return acc;
+    }, {});
+  }, [referenceIssues]);
 
   const selMin = selStart != null && selEnd != null ? Math.min(selStart, selEnd) : selStart;
   const selMax = selStart != null && selEnd != null ? Math.max(selStart, selEnd) : selStart;
@@ -88,9 +99,14 @@ export default function CodeReviewPanel({
             </div>
           </div>
         </div>
-        <button onClick={onSubmitReview}>
-          Submit Review
-        </button>
+        <div className="review-header-actions">
+          <button className={`ghost toggle-ref${showReference ? ' toggle-ref-active' : ''}`} onClick={onToggleReference}>
+            {showReference ? 'Hide Answer' : 'Show Answer'}
+          </button>
+          <button onClick={onSubmitReview}>
+            Submit Review
+          </button>
+        </div>
       </header>
 
       <div className="code-scroll" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
@@ -98,10 +114,16 @@ export default function CodeReviewPanel({
           const lineNumber = idx + 1;
           const inSelection = selMin != null && lineNumber >= selMin && lineNumber <= selMax;
           const inEdit = editMin != null && lineNumber >= editMin && lineNumber <= editMax;
+          const hasRef = !!refByLine[lineNumber];
+          const lineClasses = [
+            'code-line',
+            (inSelection || inEdit) && 'code-line-selected',
+            hasRef && 'code-line-ref',
+          ].filter(Boolean).join(' ');
           return (
             <div key={lineNumber} className="code-line-block">
               <button
-                className={`code-line${inSelection || inEdit ? ' code-line-selected' : ''}`}
+                className={lineClasses}
                 onMouseDown={(e) => handleMouseDown(lineNumber, e)}
                 onMouseEnter={() => handleMouseEnter(lineNumber)}
               >
@@ -170,6 +192,19 @@ export default function CodeReviewPanel({
                   />
                 </div>
               ) : null}
+
+              {refByLine[lineNumber]?.map((issue) => (
+                <div key={issue.id} className="ref-issue">
+                  <div className="ref-issue-header">
+                    <span className={`ref-severity sev-${issue.severity}`}>{issue.severity}</span>
+                    <strong className="ref-title">{issue.title}</strong>
+                  </div>
+                  <p className="ref-description">{issue.description}</p>
+                  {issue.suggestion ? (
+                    <pre className="ref-suggestion"><code>{issue.suggestion}</code></pre>
+                  ) : null}
+                </div>
+              ))}
             </div>
           );
         })}

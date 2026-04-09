@@ -10,6 +10,7 @@ export default function App() {
   const [comments, setComments] = useState([]);
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [showReference, setShowReference] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -54,6 +55,7 @@ export default function App() {
     setTaskIndex(boundedIndex);
     setComments([]);
     setAiAnalysis(null);
+    setShowReference(false);
   }
 
   async function submitReview() {
@@ -104,6 +106,9 @@ export default function App() {
           code={task?.code || ''}
           language={task?.language || 'python'}
           comments={comments}
+          referenceIssues={showReference ? task?.reference_issues || [] : []}
+          showReference={showReference}
+          onToggleReference={() => setShowReference((v) => !v)}
           onAddComment={(c) => setComments((prev) => [...prev, c])}
           onEditComment={(idx, updated) =>
             setComments((prev) => prev.map((c, i) => (i === idx ? updated : c)))
