@@ -47,6 +47,11 @@ body {
   gap: 10px;
 }
 
+.task-counter {
+  font-size: 0.85rem;
+  color: rgba(29, 41, 48, 0.6);
+}
+
 .layout-grid {
   margin-top: 20px;
   display: grid;
