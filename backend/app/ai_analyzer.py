@@ -85,7 +85,7 @@ Return ONLY valid JSON (no markdown fences, no extra text) with this exact schem
 async def analyze_review(task: Task, review: UserReview) -> AIAnalysisResult:
     prompt = _build_prompt(task, review)
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    async with httpx.AsyncClient(timeout=300.0) as client:
         resp = await client.post(
             f"{OLLAMA_BASE}/api/generate",
             json={
