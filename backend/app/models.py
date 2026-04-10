@@ -19,6 +19,7 @@ class Issue(BaseModel):
     title: str
     description: str
     suggestion: str
+    code: str = ""
 
 
 class Task(BaseModel):

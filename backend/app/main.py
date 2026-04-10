@@ -98,9 +98,13 @@ async def ai_analyze(payload: EvaluationRequest) -> dict:
     try:
         result = await analyze_review(task, review)
     except Exception as exc:
-        raise HTTPException(
-            status_code=502, detail=f"Ollama unavailable: {exc}"
-        ) from exc
+        error_type = type(exc).__name__
+        detail = (
+            f"Ollama unavailable: {error_type}"
+            if not str(exc)
+            else f"Ollama unavailable: {exc}"
+        )
+        raise HTTPException(status_code=502, detail=detail) from exc
 
     return {
         "review_id": review.id,

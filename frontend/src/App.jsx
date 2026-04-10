@@ -10,6 +10,7 @@ export default function App() {
   const [comments, setComments] = useState([]);
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [showReference, setShowReference] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -17,6 +18,11 @@ export default function App() {
       try {
         setError('');
         const tasks = await api.getTasks();
+        // Shuffle tasks randomly
+        for (let i = tasks.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [tasks[i], tasks[j]] = [tasks[j], tasks[i]];
+        }
         setTaskList(tasks);
         setTaskIndex(0);
       } catch (e) {
@@ -50,10 +56,11 @@ export default function App() {
   function moveTask(nextIndex) {
     if (!taskList.length) return;
 
-    const boundedIndex = Math.max(0, Math.min(nextIndex, taskList.length - 1));
+    const boundedIndex = nextIndex >= taskList.length ? 0 : nextIndex;
     setTaskIndex(boundedIndex);
     setComments([]);
     setAiAnalysis(null);
+    setShowReference(false);
   }
 
   async function submitReview() {
@@ -84,15 +91,13 @@ export default function App() {
         <h1>Code Mentor</h1>
         <p>Train your engineering judgment with realistic pull request reviews.</p>
         <div className="task-switcher">
-          <button className="ghost" onClick={() => moveTask(taskIndex - 1)} disabled={taskIndex === 0}>
-            Previous
-          </button>
           <button
             onClick={() => moveTask(taskIndex + 1)}
-            disabled={taskIndex === taskList.length - 1 || !taskList.length}
+            disabled={!taskList.length}
           >
-            Next
+            Next Task
           </button>
+          <span className="task-counter">{taskList.length ? `${taskIndex + 1} / ${taskList.length}` : ''}</span>
         </div>
       </header>
 
@@ -104,6 +109,9 @@ export default function App() {
           code={task?.code || ''}
           language={task?.language || 'python'}
           comments={comments}
+          referenceIssues={showReference ? task?.reference_issues || [] : []}
+          showReference={showReference}
+          onToggleReference={() => setShowReference((v) => !v)}
           onAddComment={(c) => setComments((prev) => [...prev, c])}
           onEditComment={(idx, updated) =>
             setComments((prev) => prev.map((c, i) => (i === idx ? updated : c)))
