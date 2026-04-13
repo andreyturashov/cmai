@@ -108,6 +108,12 @@ export default function App() {
             >
               JavaScript
             </button>
+            <button
+              className={language === 'go' ? 'lang-active' : ''}
+              onClick={() => setLanguage('go')}
+            >
+              Go
+            </button>
           </div>
           <button
             onClick={() => moveTask(taskIndex + 1)}
