@@ -114,6 +114,12 @@ export default function App() {
             >
               Go
             </button>
+            <button
+              className={language === 'rust' ? 'lang-active' : ''}
+              onClick={() => setLanguage('rust')}
+            >
+              Rust
+            </button>
           </div>
           <button
             onClick={() => moveTask(taskIndex + 1)}
