@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import Dict
+from typing import Dict, Optional
 from uuid import uuid4
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.ai_analyzer import analyze_review
@@ -34,7 +34,8 @@ def health() -> dict:
 
 
 @app.get("/tasks")
-def get_tasks() -> list:
+def get_tasks(language: Optional[str] = Query(None)) -> list:
+    filtered = TASKS if not language else [t for t in TASKS if t.language == language]
     return [
         {
             "id": task.id,
@@ -44,7 +45,7 @@ def get_tasks() -> list:
             "instructions": task.instructions,
             "language": task.language,
         }
-        for task in TASKS
+        for task in filtered
     ]
 
 

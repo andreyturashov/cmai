@@ -18,7 +18,10 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  getTasks: () => request('/tasks'),
+  getTasks: (language) => {
+    const params = language ? `?language=${encodeURIComponent(language)}` : '';
+    return request(`/tasks${params}`);
+  },
   getTaskById: (id) => request(`/tasks/${id}`),
   createReview: (payload) =>
     request('/reviews', {

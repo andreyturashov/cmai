@@ -1,0 +1,618 @@
+import json
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app.ai_analyzer import _build_prompt, analyze_review
+from app.main import REVIEWS, TASKS_BY_ID, app
+from app.models import InlineComment, UserReview
+from app.seed_data import TASKS
+
+
+@pytest.fixture()
+def client():
+    REVIEWS.clear()
+    return TestClient(app)
+
+
+# ---------------------------------------------------------------------------
+# Health
+# ---------------------------------------------------------------------------
+
+
+def test_health(client):
+    resp = client.get("/health")
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# GET /tasks
+# ---------------------------------------------------------------------------
+
+
+def test_get_tasks_returns_list(client):
+    resp = client.get("/tasks")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    assert len(data) == len(TASKS)
+
+
+def test_get_tasks_has_expected_fields(client):
+    resp = client.get("/tasks")
+    item = resp.json()[0]
+    for key in (
+        "id",
+        "title",
+        "description",
+        "requirements",
+        "instructions",
+        "language",
+    ):
+        assert key in item
+    # code should NOT be in the list endpoint
+    assert "code" not in item
+    assert "reference_issues" not in item
+
+
+def test_get_tasks_filter_python(client):
+    resp = client.get("/tasks", params={"language": "python"})
+    data = resp.json()
+    assert len(data) > 0
+    assert all(t["language"] == "python" for t in data)
+
+
+def test_get_tasks_filter_javascript(client):
+    resp = client.get("/tasks", params={"language": "javascript"})
+    data = resp.json()
+    assert len(data) > 0
+    assert all(t["language"] == "javascript" for t in data)
+
+
+def test_get_tasks_filter_go(client):
+    resp = client.get("/tasks", params={"language": "go"})
+    data = resp.json()
+    assert len(data) > 0
+    assert all(t["language"] == "go" for t in data)
+
+
+def test_get_tasks_filter_rust(client):
+    resp = client.get("/tasks", params={"language": "rust"})
+    data = resp.json()
+    assert len(data) > 0
+    assert all(t["language"] == "rust" for t in data)
+
+
+def test_get_tasks_filter_unknown_language(client):
+    resp = client.get("/tasks", params={"language": "cobol"})
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+def test_get_tasks_no_filter_returns_all(client):
+    all_resp = client.get("/tasks")
+    py_resp = client.get("/tasks", params={"language": "python"})
+    js_resp = client.get("/tasks", params={"language": "javascript"})
+    go_resp = client.get("/tasks", params={"language": "go"})
+    rust_resp = client.get("/tasks", params={"language": "rust"})
+    total_filtered = (
+        len(py_resp.json())
+        + len(js_resp.json())
+        + len(go_resp.json())
+        + len(rust_resp.json())
+    )
+    assert len(all_resp.json()) == total_filtered
+
+
+# ---------------------------------------------------------------------------
+# GET /tasks/{task_id}
+# ---------------------------------------------------------------------------
+
+
+def test_get_task_by_id(client):
+    resp = client.get("/tasks/task-1")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == "task-1"
+    assert "code" in data
+    assert "reference_issues" in data
+
+
+def test_get_task_not_found(client):
+    resp = client.get("/tasks/nonexistent")
+    assert resp.status_code == 404
+
+
+def test_get_task_has_reference_issues(client):
+    resp = client.get("/tasks/task-1")
+    issues = resp.json()["reference_issues"]
+    assert len(issues) > 0
+    for issue in issues:
+        assert "id" in issue
+        assert "line" in issue
+        assert "severity" in issue
+        assert "title" in issue
+
+
+# ---------------------------------------------------------------------------
+# POST /reviews
+# ---------------------------------------------------------------------------
+
+
+def test_create_review_empty_comments(client):
+    resp = client.post("/reviews", json={"task_id": "task-1", "comments": []})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["task_id"] == "task-1"
+    assert data["id"].startswith("review-")
+    assert data["comments"] == []
+
+
+def test_create_review_with_comments(client):
+    comment = {
+        "line": 6,
+        "comment": "Missing payload validation",
+        "suggestion": "Use Pydantic model",
+        "severity": "critical",
+    }
+    resp = client.post("/reviews", json={"task_id": "task-1", "comments": [comment]})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["comments"]) == 1
+    assert data["comments"][0]["line"] == 6
+
+
+def test_create_review_with_line_range(client):
+    comment = {
+        "line": 6,
+        "end_line": 10,
+        "comment": "This block has issues",
+        "suggestion": "Refactor",
+    }
+    resp = client.post("/reviews", json={"task_id": "task-1", "comments": [comment]})
+    assert resp.status_code == 200
+    assert resp.json()["comments"][0]["end_line"] == 10
+
+
+def test_create_review_invalid_task(client):
+    resp = client.post("/reviews", json={"task_id": "nonexistent", "comments": []})
+    assert resp.status_code == 404
+
+
+def test_create_review_missing_task_id(client):
+    resp = client.post("/reviews", json={"comments": []})
+    assert resp.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# POST /evaluate
+# ---------------------------------------------------------------------------
+
+
+def test_evaluate_no_comments(client):
+    review = client.post("/reviews", json={"task_id": "task-1", "comments": []}).json()
+    resp = client.post("/evaluate", json={"review_id": review["id"]})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["review_id"] == review["id"]
+    assert data["task_id"] == "task-1"
+    ev = data["evaluation"]
+    assert ev["score"] == 3.0
+    assert ev["detected_critical"] == 0
+    assert ev["total_critical"] > 0
+
+
+def test_evaluate_with_matching_comment(client):
+    comment = {
+        "line": 6,
+        "comment": "Missing payload validation, no Pydantic model used",
+        "suggestion": "Use a Pydantic request model",
+        "severity": "critical",
+    }
+    review = client.post(
+        "/reviews", json={"task_id": "task-1", "comments": [comment]}
+    ).json()
+    resp = client.post("/evaluate", json={"review_id": review["id"]})
+    assert resp.status_code == 200
+    ev = resp.json()["evaluation"]
+    assert ev["detected_critical"] >= 1
+    assert ev["score"] > 3.0
+
+
+def test_evaluate_review_not_found(client):
+    resp = client.post("/evaluate", json={"review_id": "nonexistent"})
+    assert resp.status_code == 404
+
+
+def test_evaluate_missed_issues_listed(client):
+    review = client.post("/reviews", json={"task_id": "task-1", "comments": []}).json()
+    resp = client.post("/evaluate", json={"review_id": review["id"]})
+    ev = resp.json()["evaluation"]
+    assert len(ev["missed_issue_ids"]) == len(TASKS_BY_ID["task-1"].reference_issues)
+
+
+def test_evaluate_perfect_review(client):
+    """Submit comments that match all reference issues for task-1."""
+    task = TASKS_BY_ID["task-1"]
+    comments = [
+        {
+            "line": issue.line,
+            "comment": f"{issue.title} {issue.description}",
+            "suggestion": issue.suggestion,
+            "severity": issue.severity.value,
+        }
+        for issue in task.reference_issues
+    ]
+    review = client.post(
+        "/reviews", json={"task_id": "task-1", "comments": comments}
+    ).json()
+    resp = client.post("/evaluate", json={"review_id": review["id"]})
+    ev = resp.json()["evaluation"]
+    assert ev["score"] == 10.0
+    assert ev["missed_issue_ids"] == []
+
+
+# ---------------------------------------------------------------------------
+# Seed data integrity
+# ---------------------------------------------------------------------------
+
+
+def test_all_tasks_have_unique_ids():
+    ids = [t.id for t in TASKS]
+    assert len(ids) == len(set(ids))
+
+
+def test_all_tasks_have_reference_issues():
+    for task in TASKS:
+        assert len(task.reference_issues) >= 1, f"Task {task.id} has no issues"
+
+
+def test_all_tasks_have_valid_language():
+    valid = {"python", "javascript", "go", "rust"}
+    for task in TASKS:
+        assert (
+            task.language in valid
+        ), f"Task {task.id} has invalid language: {task.language}"
+
+
+def test_all_issues_have_valid_severity():
+    for task in TASKS:
+        for issue in task.reference_issues:
+            assert issue.severity in (
+                "critical",
+                "medium",
+                "low",
+            ), f"Issue {issue.id} in task {task.id} has invalid severity"
+
+
+def test_all_issue_ids_unique_within_task():
+    for task in TASKS:
+        ids = [i.id for i in task.reference_issues]
+        assert len(ids) == len(set(ids)), f"Duplicate issue IDs in task {task.id}"
+
+
+def test_each_language_has_tasks():
+    languages = {t.language for t in TASKS}
+    assert "python" in languages
+    assert "javascript" in languages
+    assert "go" in languages
+    assert "rust" in languages
+
+
+# ---------------------------------------------------------------------------
+# AI Analyzer – unit tests (mocked Ollama)
+# ---------------------------------------------------------------------------
+
+TASK_1 = TASKS_BY_ID["task-1"]
+
+
+def _make_review(task_id="task-1", comments=None):
+    return UserReview(
+        id="review-test",
+        task_id=task_id,
+        comments=comments or [],
+    )
+
+
+def _ollama_json_response(data: dict):
+    """Create a mock httpx.Response with Ollama JSON payload."""
+    import httpx
+
+    return httpx.Response(
+        status_code=200,
+        json={"response": json.dumps(data)},
+        request=httpx.Request("POST", "http://localhost/api/generate"),
+    )
+
+
+def _build_ollama_result(task, addressed_ids=None, score=None):
+    """Build a valid Ollama-style JSON result for a task."""
+    addressed_ids = addressed_ids or set()
+    issues = []
+    for issue in task.reference_issues:
+        issues.append(
+            {
+                "issue_id": issue.id,
+                "title": issue.title,
+                "severity": issue.severity.value,
+                "addressed": issue.id in addressed_ids,
+                "explanation": "Test explanation",
+            }
+        )
+    all_fixed = all(i["addressed"] for i in issues)
+    return {
+        "all_fixed": all_fixed,
+        "score": score if score is not None else (10.0 if all_fixed else 3.0),
+        "issues": issues,
+        "summary": "Test summary",
+    }
+
+
+def test_build_prompt_with_comments():
+    review = _make_review(
+        comments=[
+            InlineComment(line=6, comment="Bad validation", suggestion="Fix it"),
+        ]
+    )
+    prompt = _build_prompt(TASK_1, review)
+    assert "Bad validation" in prompt
+    assert "Fix it" in prompt
+    assert "Known issues" in prompt
+
+
+def test_build_prompt_no_comments():
+    review = _make_review()
+    prompt = _build_prompt(TASK_1, review)
+    assert "(no comments submitted)" in prompt
+
+
+def test_build_prompt_with_line_range():
+    review = _make_review(
+        comments=[
+            InlineComment(
+                line=6, end_line=10, comment="Range comment", suggestion="Fix"
+            ),
+        ]
+    )
+    prompt = _build_prompt(TASK_1, review)
+    assert "Line 6-10" in prompt
+
+
+@pytest.mark.anyio
+async def test_analyze_review_all_addressed():
+    review = _make_review()
+    all_ids = {i.id for i in TASK_1.reference_issues}
+    data = _build_ollama_result(TASK_1, addressed_ids=all_ids, score=10.0)
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        result = await analyze_review(TASK_1, review)
+
+    assert result.all_fixed is True
+    assert result.score == 10.0
+    assert result.missed_issues == []
+    assert len(result.issues) == len(TASK_1.reference_issues)
+
+
+@pytest.mark.anyio
+async def test_analyze_review_none_addressed():
+    review = _make_review()
+    data = _build_ollama_result(TASK_1, addressed_ids=set(), score=0.0)
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        result = await analyze_review(TASK_1, review)
+
+    assert result.all_fixed is False
+    assert result.score == 0.0
+    assert len(result.missed_issues) == len(TASK_1.reference_issues)
+
+
+@pytest.mark.anyio
+async def test_analyze_review_partial():
+    review = _make_review()
+    first_id = TASK_1.reference_issues[0].id
+    data = _build_ollama_result(TASK_1, addressed_ids={first_id}, score=5.0)
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        result = await analyze_review(TASK_1, review)
+
+    assert result.all_fixed is False
+    assert result.detected_critical >= 1
+    assert len(result.missed_issues) == len(TASK_1.reference_issues) - 1
+
+
+@pytest.mark.anyio
+async def test_analyze_review_invalid_json_response():
+    import httpx as httpx_mod
+
+    review = _make_review()
+
+    mock_resp = httpx_mod.Response(
+        status_code=200,
+        json={"response": "not valid json {{{"},
+        request=httpx_mod.Request("POST", "http://localhost/api/generate"),
+    )
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=mock_resp)
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        result = await analyze_review(TASK_1, review)
+
+    assert result.all_fixed is False
+    assert result.score == 3.0
+    assert "could not parse" in result.summary.lower()
+
+
+@pytest.mark.anyio
+async def test_analyze_review_markdown_fenced_response():
+    import httpx as httpx_mod
+
+    review = _make_review()
+    data = _build_ollama_result(TASK_1, addressed_ids=set(), score=2.0)
+    fenced = f"```json\n{json.dumps(data)}\n```"
+
+    mock_resp = httpx_mod.Response(
+        status_code=200,
+        json={"response": fenced},
+        request=httpx_mod.Request("POST", "http://localhost/api/generate"),
+    )
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=mock_resp)
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        result = await analyze_review(TASK_1, review)
+
+    assert result.score == 2.0
+    assert result.summary == "Test summary"
+
+
+@pytest.mark.anyio
+async def test_analyze_review_no_score_computes_from_verdicts():
+    review = _make_review()
+    data = _build_ollama_result(TASK_1, addressed_ids=set())
+    del data["score"]
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        result = await analyze_review(TASK_1, review)
+
+    assert result.score == 0.0
+
+
+@pytest.mark.anyio
+async def test_analyze_review_no_score_with_addressed_issues():
+    """When AI omits score, it should be computed from addressed reference issues."""
+    review = _make_review()
+    all_ids = {i.id for i in TASK_1.reference_issues}
+    data = _build_ollama_result(TASK_1, addressed_ids=all_ids)
+    del data["score"]
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        result = await analyze_review(TASK_1, review)
+
+    assert result.score == 10.0
+
+
+@pytest.mark.anyio
+async def test_analyze_review_invalid_score_type():
+    review = _make_review()
+    data = _build_ollama_result(TASK_1, addressed_ids=set())
+    data["score"] = "not a number"
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        result = await analyze_review(TASK_1, review)
+
+    assert result.score == 0.0
+
+
+@pytest.mark.anyio
+async def test_analyze_review_unknown_issue_id_in_response():
+    review = _make_review()
+    data = _build_ollama_result(TASK_1, addressed_ids=set())
+    data["issues"].append(
+        {
+            "issue_id": "unknown-999",
+            "title": "Made up issue",
+            "severity": "low",
+            "addressed": True,
+            "explanation": "Phantom issue",
+        }
+    )
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        result = await analyze_review(TASK_1, review)
+
+    # Unknown issue should appear in verdicts but not affect missed count
+    verdict_ids = {v.issue_id for v in result.issues}
+    assert "unknown-999" in verdict_ids
+
+
+# ---------------------------------------------------------------------------
+# POST /ai-analyze endpoint (mocked Ollama)
+# ---------------------------------------------------------------------------
+
+
+def test_ai_analyze_success(client):
+    import httpx as httpx_mod
+
+    review = client.post("/reviews", json={"task_id": "task-1", "comments": []}).json()
+    data = _build_ollama_result(TASK_1, addressed_ids=set(), score=3.0)
+
+    mock_resp = httpx_mod.Response(
+        status_code=200,
+        json={"response": json.dumps(data)},
+        request=httpx_mod.Request("POST", "http://localhost/api/generate"),
+    )
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=mock_resp)
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        resp = client.post("/ai-analyze", json={"review_id": review["id"]})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["review_id"] == review["id"]
+    assert body["task_id"] == "task-1"
+    assert "analysis" in body
+    assert body["analysis"]["score"] == 3.0
+
+
+def test_ai_analyze_review_not_found(client):
+    resp = client.post("/ai-analyze", json={"review_id": "nonexistent"})
+    assert resp.status_code == 404
+
+
+def test_ai_analyze_ollama_unavailable(client):
+    review = client.post("/reviews", json={"task_id": "task-1", "comments": []}).json()
+
+    with patch(
+        "app.ai_analyzer.httpx.AsyncClient", side_effect=ConnectionError("refused")
+    ):
+        resp = client.post("/ai-analyze", json={"review_id": review["id"]})
+
+    assert resp.status_code == 502
+    assert "unavailable" in resp.json()["detail"].lower()

@@ -11,3 +11,10 @@ dependencies = [
     "python-dotenv==1.0.1",
     "uvicorn[standard]==0.32.1",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=6.0",
+    "anyio[trio]>=4.0",
+]
