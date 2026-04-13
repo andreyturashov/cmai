@@ -54,29 +54,24 @@ body {
 
 .language-toggle {
   display: flex;
-  gap: 0;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  overflow: hidden;
+  gap: 8px;
 }
 
 .language-toggle button {
   padding: 6px 14px;
   font-size: 0.85rem;
-  border: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
   background: transparent;
   color: var(--ink);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-
-.language-toggle button:not(:last-child) {
-  border-right: 1px solid var(--line);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .language-toggle button.lang-active {
   background: var(--accent);
   color: #fff;
+  border-color: var(--accent);
 }
 
 .language-toggle button:hover:not(.lang-active) {

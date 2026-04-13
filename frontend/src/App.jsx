@@ -127,7 +127,6 @@ export default function App() {
           >
             Next Task
           </button>
-          <span className="task-counter">{taskList.length ? `${taskIndex + 1} / ${taskList.length}` : ''}</span>
         </div>
       </header>
 
