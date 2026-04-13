@@ -1,0 +1,46 @@
+name: Frontend Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npx vitest run --coverage --reporter=default --reporter=junit --outputFile=junit.xml
+
+      - name: Coverage comment
+        if: github.event_name == 'pull_request' && always()
+        uses: MishaKav/pytest-coverage-comment@main
+        with:
+          coverage-path-prefix: frontend/src/
+          junitxml-path: frontend/junit.xml
+          junitxml-title: Frontend Tests
+          title: Frontend Coverage
+          cobertura-path: frontend/coverage/cobertura-coverage.xml
