@@ -1,7 +1,12 @@
+import json
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
 
+from app.ai_analyzer import _build_prompt, analyze_review
 from app.main import REVIEWS, TASKS_BY_ID, app
+from app.models import InlineComment, UserReview
 from app.seed_data import TASKS
 
 
@@ -294,3 +299,301 @@ def test_each_language_has_tasks():
     assert "javascript" in languages
     assert "go" in languages
     assert "rust" in languages
+
+
+# ---------------------------------------------------------------------------
+# AI Analyzer – unit tests (mocked Ollama)
+# ---------------------------------------------------------------------------
+
+TASK_1 = TASKS_BY_ID["task-1"]
+
+
+def _make_review(task_id="task-1", comments=None):
+    return UserReview(
+        id="review-test",
+        task_id=task_id,
+        comments=comments or [],
+    )
+
+
+def _ollama_json_response(data: dict):
+    """Create a mock httpx.Response with Ollama JSON payload."""
+    import httpx
+
+    return httpx.Response(
+        status_code=200,
+        json={"response": json.dumps(data)},
+        request=httpx.Request("POST", "http://localhost/api/generate"),
+    )
+
+
+def _build_ollama_result(task, addressed_ids=None, score=None):
+    """Build a valid Ollama-style JSON result for a task."""
+    addressed_ids = addressed_ids or set()
+    issues = []
+    for issue in task.reference_issues:
+        issues.append(
+            {
+                "issue_id": issue.id,
+                "title": issue.title,
+                "severity": issue.severity.value,
+                "addressed": issue.id in addressed_ids,
+                "explanation": "Test explanation",
+            }
+        )
+    all_fixed = all(i["addressed"] for i in issues)
+    return {
+        "all_fixed": all_fixed,
+        "score": score if score is not None else (10.0 if all_fixed else 3.0),
+        "issues": issues,
+        "summary": "Test summary",
+    }
+
+
+def test_build_prompt_with_comments():
+    review = _make_review(
+        comments=[
+            InlineComment(line=6, comment="Bad validation", suggestion="Fix it"),
+        ]
+    )
+    prompt = _build_prompt(TASK_1, review)
+    assert "Bad validation" in prompt
+    assert "Fix it" in prompt
+    assert "Known issues" in prompt
+
+
+def test_build_prompt_no_comments():
+    review = _make_review()
+    prompt = _build_prompt(TASK_1, review)
+    assert "(no comments submitted)" in prompt
+
+
+def test_build_prompt_with_line_range():
+    review = _make_review(
+        comments=[
+            InlineComment(
+                line=6, end_line=10, comment="Range comment", suggestion="Fix"
+            ),
+        ]
+    )
+    prompt = _build_prompt(TASK_1, review)
+    assert "Line 6-10" in prompt
+
+
+@pytest.mark.anyio
+async def test_analyze_review_all_addressed():
+    review = _make_review()
+    all_ids = {i.id for i in TASK_1.reference_issues}
+    data = _build_ollama_result(TASK_1, addressed_ids=all_ids, score=10.0)
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        result = await analyze_review(TASK_1, review)
+
+    assert result.all_fixed is True
+    assert result.score == 10.0
+    assert result.missed_issues == []
+    assert len(result.issues) == len(TASK_1.reference_issues)
+
+
+@pytest.mark.anyio
+async def test_analyze_review_none_addressed():
+    review = _make_review()
+    data = _build_ollama_result(TASK_1, addressed_ids=set(), score=0.0)
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        result = await analyze_review(TASK_1, review)
+
+    assert result.all_fixed is False
+    assert result.score == 0.0
+    assert len(result.missed_issues) == len(TASK_1.reference_issues)
+
+
+@pytest.mark.anyio
+async def test_analyze_review_partial():
+    review = _make_review()
+    first_id = TASK_1.reference_issues[0].id
+    data = _build_ollama_result(TASK_1, addressed_ids={first_id}, score=5.0)
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        result = await analyze_review(TASK_1, review)
+
+    assert result.all_fixed is False
+    assert result.detected_critical >= 1
+    assert len(result.missed_issues) == len(TASK_1.reference_issues) - 1
+
+
+@pytest.mark.anyio
+async def test_analyze_review_invalid_json_response():
+    import httpx as httpx_mod
+
+    review = _make_review()
+
+    mock_resp = httpx_mod.Response(
+        status_code=200,
+        json={"response": "not valid json {{{"},
+        request=httpx_mod.Request("POST", "http://localhost/api/generate"),
+    )
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=mock_resp)
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        result = await analyze_review(TASK_1, review)
+
+    assert result.all_fixed is False
+    assert result.score == 3.0
+    assert "could not parse" in result.summary.lower()
+
+
+@pytest.mark.anyio
+async def test_analyze_review_markdown_fenced_response():
+    import httpx as httpx_mod
+
+    review = _make_review()
+    data = _build_ollama_result(TASK_1, addressed_ids=set(), score=2.0)
+    fenced = f"```json\n{json.dumps(data)}\n```"
+
+    mock_resp = httpx_mod.Response(
+        status_code=200,
+        json={"response": fenced},
+        request=httpx_mod.Request("POST", "http://localhost/api/generate"),
+    )
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=mock_resp)
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        result = await analyze_review(TASK_1, review)
+
+    assert result.score == 2.0
+    assert result.summary == "Test summary"
+
+
+@pytest.mark.anyio
+async def test_analyze_review_no_score_computes_from_verdicts():
+    review = _make_review()
+    data = _build_ollama_result(TASK_1, addressed_ids=set())
+    del data["score"]
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        result = await analyze_review(TASK_1, review)
+
+    assert result.score == 0.0
+
+
+@pytest.mark.anyio
+async def test_analyze_review_invalid_score_type():
+    review = _make_review()
+    data = _build_ollama_result(TASK_1, addressed_ids=set())
+    data["score"] = "not a number"
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        result = await analyze_review(TASK_1, review)
+
+    assert result.score == 0.0
+
+
+@pytest.mark.anyio
+async def test_analyze_review_unknown_issue_id_in_response():
+    review = _make_review()
+    data = _build_ollama_result(TASK_1, addressed_ids=set())
+    data["issues"].append(
+        {
+            "issue_id": "unknown-999",
+            "title": "Made up issue",
+            "severity": "low",
+            "addressed": True,
+            "explanation": "Phantom issue",
+        }
+    )
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        result = await analyze_review(TASK_1, review)
+
+    # Unknown issue should appear in verdicts but not affect missed count
+    verdict_ids = {v.issue_id for v in result.issues}
+    assert "unknown-999" in verdict_ids
+
+
+# ---------------------------------------------------------------------------
+# POST /ai-analyze endpoint (mocked Ollama)
+# ---------------------------------------------------------------------------
+
+
+def test_ai_analyze_success(client):
+    import httpx as httpx_mod
+
+    review = client.post("/reviews", json={"task_id": "task-1", "comments": []}).json()
+    data = _build_ollama_result(TASK_1, addressed_ids=set(), score=3.0)
+
+    mock_resp = httpx_mod.Response(
+        status_code=200,
+        json={"response": json.dumps(data)},
+        request=httpx_mod.Request("POST", "http://localhost/api/generate"),
+    )
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=mock_resp)
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        resp = client.post("/ai-analyze", json={"review_id": review["id"]})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["review_id"] == review["id"]
+    assert body["task_id"] == "task-1"
+    assert "analysis" in body
+    assert body["analysis"]["score"] == 3.0
+
+
+def test_ai_analyze_review_not_found(client):
+    resp = client.post("/ai-analyze", json={"review_id": "nonexistent"})
+    assert resp.status_code == 404
+
+
+def test_ai_analyze_ollama_unavailable(client):
+    review = client.post("/reviews", json={"task_id": "task-1", "comments": []}).json()
+
+    with patch(
+        "app.ai_analyzer.httpx.AsyncClient", side_effect=ConnectionError("refused")
+    ):
+        resp = client.post("/ai-analyze", json={"review_id": review["id"]})
+
+    assert resp.status_code == 502
+    assert "unavailable" in resp.json()["detail"].lower()
