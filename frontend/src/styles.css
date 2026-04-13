@@ -52,6 +52,37 @@ body {
   color: rgba(29, 41, 48, 0.6);
 }
 
+.language-toggle {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.language-toggle button {
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.language-toggle button:not(:last-child) {
+  border-right: 1px solid var(--line);
+}
+
+.language-toggle button.lang-active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.language-toggle button:hover:not(.lang-active) {
+  background: rgba(29, 41, 48, 0.06);
+}
+
 .layout-grid {
   margin-top: 20px;
   display: grid;

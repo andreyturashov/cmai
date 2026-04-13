@@ -12,12 +12,13 @@ export default function App() {
   const [aiLoading, setAiLoading] = useState(false);
   const [showReference, setShowReference] = useState(false);
   const [error, setError] = useState('');
+  const [language, setLanguage] = useState('python');
 
   useEffect(() => {
     async function loadTasks() {
       try {
         setError('');
-        const tasks = await api.getTasks();
+        const tasks = await api.getTasks(language);
         // Shuffle tasks randomly
         for (let i = tasks.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
@@ -25,13 +26,16 @@ export default function App() {
         }
         setTaskList(tasks);
         setTaskIndex(0);
+        setComments([]);
+        setAiAnalysis(null);
+        setShowReference(false);
       } catch (e) {
         setError(e.message || 'Failed to load task');
       }
     }
 
     loadTasks();
-  }, []);
+  }, [language]);
 
   useEffect(() => {
     async function loadSelectedTask() {
@@ -91,6 +95,20 @@ export default function App() {
         <h1>Code Mentor</h1>
         <p>Train your engineering judgment with realistic pull request reviews.</p>
         <div className="task-switcher">
+          <div className="language-toggle">
+            <button
+              className={language === 'python' ? 'lang-active' : ''}
+              onClick={() => setLanguage('python')}
+            >
+              Python
+            </button>
+            <button
+              className={language === 'javascript' ? 'lang-active' : ''}
+              onClick={() => setLanguage('javascript')}
+            >
+              JavaScript
+            </button>
+          </div>
           <button
             onClick={() => moveTask(taskIndex + 1)}
             disabled={!taskList.length}
