@@ -506,6 +506,25 @@ async def test_analyze_review_no_score_computes_from_verdicts():
 
 
 @pytest.mark.anyio
+async def test_analyze_review_no_score_with_addressed_issues():
+    """When AI omits score, it should be computed from addressed reference issues."""
+    review = _make_review()
+    all_ids = {i.id for i in TASK_1.reference_issues}
+    data = _build_ollama_result(TASK_1, addressed_ids=all_ids)
+    del data["score"]
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        result = await analyze_review(TASK_1, review)
+
+    assert result.score == 10.0
+
+
+@pytest.mark.anyio
 async def test_analyze_review_invalid_score_type():
     review = _make_review()
     data = _build_ollama_result(TASK_1, addressed_ids=set())
