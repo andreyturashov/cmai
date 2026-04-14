@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -26,30 +25,30 @@ class Task(BaseModel):
     id: str
     title: str
     description: str
-    requirements: List[str]
-    instructions: List[str]
+    requirements: list[str]
+    instructions: list[str]
     language: str
     code: str
-    reference_issues: List[Issue] = Field(default_factory=list)
+    reference_issues: list[Issue] = Field(default_factory=list)
 
 
 class InlineComment(BaseModel):
     line: int
-    end_line: Optional[int] = None
-    severity: Optional[Severity] = None
+    end_line: int | None = None
+    severity: Severity | None = None
     comment: str
     suggestion: str
 
 
 class ReviewCreate(BaseModel):
     task_id: str
-    comments: List[InlineComment] = Field(default_factory=list)
+    comments: list[InlineComment] = Field(default_factory=list)
 
 
 class UserReview(BaseModel):
     id: str
     task_id: str
-    comments: List[InlineComment]
+    comments: list[InlineComment]
 
 
 class EvaluationRequest(BaseModel):
@@ -64,9 +63,9 @@ class EvaluationResult(BaseModel):
     total_medium: int
     detected_low: int
     total_low: int
-    matched_issue_ids: List[str]
-    missed_issue_ids: List[str]
-    feedback: List[str]
+    matched_issue_ids: list[str]
+    missed_issue_ids: list[str]
+    feedback: list[str]
 
 
 class AIIssueVerdict(BaseModel):
@@ -86,7 +85,7 @@ class AIAnalysisResult(BaseModel):
     total_medium: int
     detected_low: int
     total_low: int
-    missed_issues: List[str]
-    feedback: List[str]
-    issues: List[AIIssueVerdict]
+    missed_issues: list[str]
+    feedback: list[str]
+    issues: list[AIIssueVerdict]
     summary: str

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List, Set
-
 from app.models import EvaluationResult, Severity, Task, UserReview
 
 
@@ -30,18 +28,15 @@ def _similar_comment(comment: str, issue_title: str, issue_description: str) -> 
 
 
 def evaluate_review(task: Task, review: UserReview) -> EvaluationResult:
-    matched: Set[str] = set()
+    matched: set[str] = set()
 
     for ref in task.reference_issues:
         for user_comment in review.comments:
             line_close = abs(user_comment.line - ref.line) <= 2
             severity_match = (
-                user_comment.severity is not None
-                and user_comment.severity == ref.severity
+                user_comment.severity is not None and user_comment.severity == ref.severity
             )
-            semantic_match = _similar_comment(
-                user_comment.comment, ref.title, ref.description
-            )
+            semantic_match = _similar_comment(user_comment.comment, ref.title, ref.description)
 
             if line_close and (severity_match or semantic_match):
                 matched.add(ref.id)
@@ -59,19 +54,15 @@ def evaluate_review(task: Task, review: UserReview) -> EvaluationResult:
     match_ratio = len(matched) / total_issues if total_issues else 0.0
     score = round(min(10.0, 3 + match_ratio * 7), 1)
 
-    feedback: List[str] = []
+    feedback: list[str] = []
     if matched_by_severity[Severity.critical] < by_severity[Severity.critical]:
         feedback.append(
             "Focus on high-impact failures first: validation and money integrity checks."
         )
     if matched_by_severity[Severity.medium] < by_severity[Severity.medium]:
-        feedback.append(
-            "Look for explicit error handling and API behavior under invalid inputs."
-        )
+        feedback.append("Look for explicit error handling and API behavior under invalid inputs.")
     if matched_by_severity[Severity.low] < by_severity[Severity.low]:
-        feedback.append(
-            "Call out maintainability and architecture boundaries when visible."
-        )
+        feedback.append("Call out maintainability and architecture boundaries when visible.")
     if not feedback:
         feedback.append(
             "Excellent review coverage. Your issue detection is strong across severities."

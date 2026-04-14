@@ -51,9 +51,7 @@ describe('CodeReviewPanel', () => {
   });
 
   it('renders inline comments', () => {
-    const comments = [
-      { line: 2, comment: 'Unreachable code below', suggestion: 'Remove it' },
-    ];
+    const comments = [{ line: 2, comment: 'Unreachable code below', suggestion: 'Remove it' }];
     render(<CodeReviewPanel {...defaults} comments={comments} />);
     expect(screen.getByText('Unreachable code below')).toBeInTheDocument();
     expect(screen.getByText('Line 2')).toBeInTheDocument();
@@ -68,16 +66,20 @@ describe('CodeReviewPanel', () => {
   });
 
   it('renders suggestion in comment', () => {
-    const comments = [
-      { line: 1, comment: 'Bad pattern', suggestion: 'Use a guard clause' },
-    ];
+    const comments = [{ line: 1, comment: 'Bad pattern', suggestion: 'Use a guard clause' }];
     render(<CodeReviewPanel {...defaults} comments={comments} />);
     expect(screen.getByText('Use a guard clause')).toBeInTheDocument();
   });
 
   it('renders reference issues when shown', () => {
     const refs = [
-      { id: 'ref-1', line: 2, title: 'Dead code', severity: 'low', description: 'Remove unreachable' },
+      {
+        id: 'ref-1',
+        line: 2,
+        title: 'Dead code',
+        severity: 'low',
+        description: 'Remove unreachable',
+      },
     ];
     const { container } = render(
       <CodeReviewPanel {...defaults} referenceIssues={refs} showReference={true} />,
@@ -104,9 +106,7 @@ describe('CodeReviewPanel', () => {
   });
 
   it('shows edit form when Edit clicked', async () => {
-    const comments = [
-      { line: 1, comment: 'Issue here', suggestion: 'Fix this' },
-    ];
+    const comments = [{ line: 1, comment: 'Issue here', suggestion: 'Fix this' }];
     render(<CodeReviewPanel {...defaults} comments={comments} />);
     await userEvent.click(screen.getByText('Edit'));
     // Should show a CommentForm prefilled
@@ -181,9 +181,7 @@ describe('CodeReviewPanel', () => {
 
   it('saves edited comment via edit form', async () => {
     const onEdit = vi.fn();
-    const comments = [
-      { line: 1, comment: 'Old comment', suggestion: 'Old fix' },
-    ];
+    const comments = [{ line: 1, comment: 'Old comment', suggestion: 'Old fix' }];
     render(<CodeReviewPanel {...defaults} comments={comments} onEditComment={onEdit} />);
 
     await userEvent.click(screen.getByText('Edit'));
@@ -196,9 +194,7 @@ describe('CodeReviewPanel', () => {
   });
 
   it('cancels edit form', async () => {
-    const comments = [
-      { line: 1, comment: 'Comment', suggestion: 'Fix' },
-    ];
+    const comments = [{ line: 1, comment: 'Comment', suggestion: 'Fix' }];
     render(<CodeReviewPanel {...defaults} comments={comments} />);
 
     await userEvent.click(screen.getByText('Edit'));
@@ -219,9 +215,7 @@ describe('CodeReviewPanel', () => {
         code: 'cursor.execute(sql, params)',
       },
     ];
-    render(
-      <CodeReviewPanel {...defaults} referenceIssues={refs} showReference={true} />,
-    );
+    render(<CodeReviewPanel {...defaults} referenceIssues={refs} showReference={true} />);
     expect(screen.getByText('Security issue')).toBeInTheDocument();
     expect(screen.getByText('SQL injection risk')).toBeInTheDocument();
     expect(screen.getByText('Corrected code')).toBeInTheDocument();
@@ -239,9 +233,7 @@ describe('CodeReviewPanel', () => {
         suggestion: 'Use camelCase',
       },
     ];
-    render(
-      <CodeReviewPanel {...defaults} referenceIssues={refs} showReference={true} />,
-    );
+    render(<CodeReviewPanel {...defaults} referenceIssues={refs} showReference={true} />);
     expect(screen.getByText('Style issue')).toBeInTheDocument();
     expect(screen.queryByText('Corrected code')).not.toBeInTheDocument();
   });

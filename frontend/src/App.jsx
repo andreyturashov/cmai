@@ -121,10 +121,7 @@ export default function App() {
               Rust
             </button>
           </div>
-          <button
-            onClick={() => moveTask(taskIndex + 1)}
-            disabled={!taskList.length}
-          >
+          <button onClick={() => moveTask(taskIndex + 1)} disabled={!taskList.length}>
             Next Task
           </button>
         </div>

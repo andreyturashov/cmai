@@ -52,8 +52,20 @@ describe('LeftPanel', () => {
         feedback: ['Consider maintainability improvements.'],
         summary: 'Good review overall.',
         issues: [
-          { issue_id: 'c-1', title: 'SQL Injection', severity: 'critical', addressed: true, explanation: 'Found it' },
-          { issue_id: 'm-1', title: 'Error handling', severity: 'medium', addressed: true, explanation: 'Addressed' },
+          {
+            issue_id: 'c-1',
+            title: 'SQL Injection',
+            severity: 'critical',
+            addressed: true,
+            explanation: 'Found it',
+          },
+          {
+            issue_id: 'm-1',
+            title: 'Error handling',
+            severity: 'medium',
+            addressed: true,
+            explanation: 'Addressed',
+          },
         ],
       },
     };
@@ -103,8 +115,20 @@ describe('LeftPanel', () => {
         feedback: ['Good effort.'],
         summary: '',
         issues: [
-          { issue_id: 'c-1', title: 'Buffer overflow', severity: 'critical', addressed: true, explanation: 'Caught' },
-          { issue_id: 'm-1', title: 'Logging', severity: 'medium', addressed: false, explanation: 'Missed' },
+          {
+            issue_id: 'c-1',
+            title: 'Buffer overflow',
+            severity: 'critical',
+            addressed: true,
+            explanation: 'Caught',
+          },
+          {
+            issue_id: 'm-1',
+            title: 'Logging',
+            severity: 'medium',
+            addressed: false,
+            explanation: 'Missed',
+          },
         ],
       },
     };
@@ -117,9 +141,7 @@ describe('LeftPanel', () => {
   });
 
   it('does not render AI section when no analysis and not loading', () => {
-    const { container } = render(
-      <LeftPanel task={mockTask} aiAnalysis={null} aiLoading={false} />,
-    );
+    const { container } = render(<LeftPanel task={mockTask} aiAnalysis={null} aiLoading={false} />);
     expect(container.querySelector('.ai-section')).toBeNull();
     expect(container.querySelector('.eval-section')).toBeNull();
   });

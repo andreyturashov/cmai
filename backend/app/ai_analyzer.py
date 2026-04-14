@@ -16,7 +16,7 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1")
 
 def _build_prompt(task: Task, review: UserReview) -> str:
     code_lines = task.code.split("\n")
-    numbered = "\n".join(f"{i+1}: {l}" for i, l in enumerate(code_lines))
+    numbered = "\n".join(f"{i + 1}: {line}" for i, line in enumerate(code_lines))
 
     issues_block = "\n".join(
         f"- [{issue.id}] Line {issue.line} ({issue.severity.value}): "
@@ -173,15 +173,11 @@ async def analyze_review(task: Task, review: UserReview) -> AIAnalysisResult:
             total_points += w
             if issue.id in addressed_ids:
                 addressed_points += w
-        score = (
-            round((addressed_points / total_points) * 10, 1) if total_points else 0.0
-        )
+        score = round((addressed_points / total_points) * 10, 1) if total_points else 0.0
 
     feedback: list[str] = []
     if det_sev[Severity.critical] < by_sev[Severity.critical]:
-        feedback.append(
-            "Focus on high-impact failures first: validation and security checks."
-        )
+        feedback.append("Focus on high-impact failures first: validation and security checks.")
     if det_sev[Severity.medium] < by_sev[Severity.medium]:
         feedback.append("Look for explicit error handling and edge-case behavior.")
     if det_sev[Severity.low] < by_sev[Severity.low]:
