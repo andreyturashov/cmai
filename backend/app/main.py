@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import Dict, Optional
 from uuid import uuid4
 
 from dotenv import load_dotenv
@@ -25,7 +24,7 @@ app.add_middleware(
 )
 
 TASKS_BY_ID = {task.id: task for task in TASKS}
-REVIEWS: Dict[str, UserReview] = {}
+REVIEWS: dict[str, UserReview] = {}
 
 
 @app.get("/health")
@@ -34,7 +33,7 @@ def health() -> dict:
 
 
 @app.get("/tasks")
-def get_tasks(language: Optional[str] = Query(None)) -> list:
+def get_tasks(language: str | None = Query(None)) -> list:
     filtered = TASKS if not language else [t for t in TASKS if t.language == language]
     return [
         {
@@ -101,9 +100,7 @@ async def ai_analyze(payload: EvaluationRequest) -> dict:
     except Exception as exc:
         error_type = type(exc).__name__
         detail = (
-            f"Ollama unavailable: {error_type}"
-            if not str(exc)
-            else f"Ollama unavailable: {exc}"
+            f"Ollama unavailable: {error_type}" if not str(exc) else f"Ollama unavailable: {exc}"
         )
         raise HTTPException(status_code=502, detail=detail) from exc
 

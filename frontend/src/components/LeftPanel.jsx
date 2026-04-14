@@ -46,7 +46,8 @@ export default function LeftPanel({ task, aiAnalysis, aiLoading }) {
           </div>
           <p className="score">Score: {ai.score} / 10</p>
           <p className="eval-stats">
-            Critical: {ai.detected_critical}/{ai.total_critical} &middot; Medium: {ai.detected_medium}/{ai.total_medium} &middot; Low: {ai.detected_low}/{ai.total_low}
+            Critical: {ai.detected_critical}/{ai.total_critical} &middot; Medium:{' '}
+            {ai.detected_medium}/{ai.total_medium} &middot; Low: {ai.detected_low}/{ai.total_low}
           </p>
           {ai.missed_issues.length ? (
             <p className="eval-missed">Missed: {ai.missed_issues.join(', ')}</p>
@@ -63,7 +64,9 @@ export default function LeftPanel({ task, aiAnalysis, aiLoading }) {
                 <span className="ai-verdict-icon">{v.addressed ? '✓' : '✗'}</span>
                 <span>
                   <strong>{v.title || v.issue_id}</strong>
-                  {v.severity ? <span className={`verdict-severity sev-${v.severity}`}> ({v.severity})</span> : null}
+                  {v.severity ? (
+                    <span className={`verdict-severity sev-${v.severity}`}> ({v.severity})</span>
+                  ) : null}
                   <br />
                   {v.explanation}
                 </span>

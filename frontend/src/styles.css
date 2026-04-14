@@ -65,7 +65,10 @@ body {
   background: transparent;
   color: var(--ink);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
 }
 
 .language-toggle button.lang-active {
@@ -505,9 +508,15 @@ button:disabled {
   text-transform: uppercase;
 }
 
-.sev-critical { color: var(--critical); }
-.sev-medium { color: var(--medium); }
-.sev-low { color: var(--low); }
+.sev-critical {
+  color: var(--critical);
+}
+.sev-medium {
+  color: var(--medium);
+}
+.sev-low {
+  color: var(--low);
+}
 
 .ai-loading {
   display: flex;
@@ -528,7 +537,9 @@ button:disabled {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .ai-error {

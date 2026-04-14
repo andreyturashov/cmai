@@ -77,9 +77,12 @@ export default function CodeReviewPanel({
     setEditingIdx(null);
   }
 
-  const formRef = useCallback((node) => {
-    if (node) node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [selStart, selEnd, editingIdx]);
+  const formRef = useCallback(
+    (node) => {
+      if (node) node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    },
+    [selStart, selEnd, editingIdx],
+  );
 
   const showForm = selStart != null && !dragging;
 
@@ -103,12 +106,13 @@ export default function CodeReviewPanel({
           </div>
         </div>
         <div className="review-header-actions">
-          <button className={`ghost toggle-ref${showReference ? ' toggle-ref-active' : ''}`} onClick={onToggleReference}>
+          <button
+            className={`ghost toggle-ref${showReference ? ' toggle-ref-active' : ''}`}
+            onClick={onToggleReference}
+          >
             {showReference ? 'Hide Answer' : 'Show Answer'}
           </button>
-          <button onClick={onSubmitReview}>
-            Submit Review
-          </button>
+          <button onClick={onSubmitReview}>Submit Review</button>
         </div>
       </header>
 
@@ -122,21 +126,20 @@ export default function CodeReviewPanel({
             'code-line',
             (inSelection || inEdit) && 'code-line-selected',
             hasRef && 'code-line-ref',
-          ].filter(Boolean).join(' ');
+          ]
+            .filter(Boolean)
+            .join(' ');
           return (
             <div key={lineNumber} className="code-line-block">
-              <div
-                className={lineClasses}
-                onMouseEnter={() => handleMouseEnter(lineNumber)}
-              >
-                <span
-                  className="line-no"
-                  onMouseDown={(e) => handleMouseDown(lineNumber, e)}
-                >{lineNumber}</span>
+              <div className={lineClasses} onMouseEnter={() => handleMouseEnter(lineNumber)}>
+                <span className="line-no" onMouseDown={(e) => handleMouseDown(lineNumber, e)}>
+                  {lineNumber}
+                </span>
                 <code
                   dangerouslySetInnerHTML={{
                     __html:
-                      Prism.highlight(line || ' ', Prism.languages[prismLanguage], prismLanguage) || '&nbsp;',
+                      Prism.highlight(line || ' ', Prism.languages[prismLanguage], prismLanguage) ||
+                      '&nbsp;',
                   }}
                 />
               </div>
@@ -164,7 +167,11 @@ export default function CodeReviewPanel({
                         </button>
                       </div>
                     </div>
-                    {c.suggestion ? <pre className="comment-suggestion"><code>{c.suggestion}</code></pre> : null}
+                    {c.suggestion ? (
+                      <pre className="comment-suggestion">
+                        <code>{c.suggestion}</code>
+                      </pre>
+                    ) : null}
                   </div>
                 );
               })}
@@ -209,7 +216,9 @@ export default function CodeReviewPanel({
                   {issue.code ? (
                     <div className="ref-code-block">
                       <span className="ref-code-label">Corrected code</span>
-                      <pre className="ref-code"><code>{issue.code}</code></pre>
+                      <pre className="ref-code">
+                        <code>{issue.code}</code>
+                      </pre>
                     </div>
                   ) : null}
                 </div>

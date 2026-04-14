@@ -16,9 +16,12 @@ describe('api client', () => {
     });
 
     const result = await api.getTasks();
-    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/tasks`, expect.objectContaining({
-      headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
-    }));
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/tasks`,
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+      }),
+    );
     expect(result).toEqual(mockTasks);
   });
 
@@ -29,10 +32,7 @@ describe('api client', () => {
     });
 
     await api.getTasks('javascript');
-    expect(fetch).toHaveBeenCalledWith(
-      `${BASE_URL}/tasks?language=javascript`,
-      expect.anything(),
-    );
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/tasks?language=javascript`, expect.anything());
   });
 
   it('getTaskById fetches a single task', async () => {
@@ -56,10 +56,13 @@ describe('api client', () => {
     });
 
     const result = await api.createReview(payload);
-    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/reviews`, expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }));
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/reviews`,
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    );
     expect(result).toEqual(review);
   });
 
@@ -71,10 +74,13 @@ describe('api client', () => {
     });
 
     const result = await api.evaluate(payload);
-    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/evaluate`, expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }));
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/evaluate`,
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    );
     expect(result).toEqual({ score: 8 });
   });
 
@@ -86,10 +92,13 @@ describe('api client', () => {
     });
 
     const result = await api.aiAnalyze(payload);
-    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/ai-analyze`, expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }));
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/ai-analyze`,
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    );
     expect(result).toEqual({ analysis: {} });
   });
 
@@ -120,9 +129,6 @@ describe('api client', () => {
     });
 
     await api.getTasks('c++');
-    expect(fetch).toHaveBeenCalledWith(
-      `${BASE_URL}/tasks?language=c%2B%2B`,
-      expect.anything(),
-    );
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/tasks?language=c%2B%2B`, expect.anything());
   });
 });

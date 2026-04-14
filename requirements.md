@@ -83,9 +83,9 @@ Line 15: Missing validation
 
 # AI Evaluation
 
-Score: 7.5 / 10  
-Detected: 2/3 critical issues  
-Missed: validation, error handling  
+Score: 7.5 / 10
+Detected: 2/3 critical issues
+Missed: validation, error handling
 
 ---
 
@@ -100,39 +100,39 @@ Entities:
 
 # API
 
-GET /tasks  
-GET /tasks/{id}  
-POST /reviews  
-POST /evaluate  
+GET /tasks
+GET /tasks/{id}
+POST /reviews
+POST /evaluate
 
 ---
 
 # Tech Stack
 
-Backend: FastAPI  
-Frontend: React + Vite  
-AI: OpenAI API  
+Backend: FastAPI
+Frontend: React + Vite
+AI: OpenAI API
 
 ---
 
 # Monetization
 
-Free: limited tasks  
-Paid: full AI review  
+Free: limited tasks
+Paid: full AI review
 
 ---
 
 # MVP
 
-- Static tasks  
-- Inline comments  
-- AI feedback  
+- Static tasks
+- Inline comments
+- AI feedback
 
 ---
 
 # Execution Plan
 
-Week 1: UI  
-Week 2: Backend  
-Week 3: AI  
+Week 1: UI
+Week 2: Backend
+Week 3: AI
 Week 4: Launch

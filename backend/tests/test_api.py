@@ -98,10 +98,7 @@ def test_get_tasks_no_filter_returns_all(client):
     go_resp = client.get("/tasks", params={"language": "go"})
     rust_resp = client.get("/tasks", params={"language": "rust"})
     total_filtered = (
-        len(py_resp.json())
-        + len(js_resp.json())
-        + len(go_resp.json())
-        + len(rust_resp.json())
+        len(py_resp.json()) + len(js_resp.json()) + len(go_resp.json()) + len(rust_resp.json())
     )
     assert len(all_resp.json()) == total_filtered
 
@@ -211,9 +208,7 @@ def test_evaluate_with_matching_comment(client):
         "suggestion": "Use a Pydantic request model",
         "severity": "critical",
     }
-    review = client.post(
-        "/reviews", json={"task_id": "task-1", "comments": [comment]}
-    ).json()
+    review = client.post("/reviews", json={"task_id": "task-1", "comments": [comment]}).json()
     resp = client.post("/evaluate", json={"review_id": review["id"]})
     assert resp.status_code == 200
     ev = resp.json()["evaluation"]
@@ -245,9 +240,7 @@ def test_evaluate_perfect_review(client):
         }
         for issue in task.reference_issues
     ]
-    review = client.post(
-        "/reviews", json={"task_id": "task-1", "comments": comments}
-    ).json()
+    review = client.post("/reviews", json={"task_id": "task-1", "comments": comments}).json()
     resp = client.post("/evaluate", json={"review_id": review["id"]})
     ev = resp.json()["evaluation"]
     assert ev["score"] == 10.0
@@ -272,9 +265,7 @@ def test_all_tasks_have_reference_issues():
 def test_all_tasks_have_valid_language():
     valid = {"python", "javascript", "go", "rust"}
     for task in TASKS:
-        assert (
-            task.language in valid
-        ), f"Task {task.id} has invalid language: {task.language}"
+        assert task.language in valid, f"Task {task.id} has invalid language: {task.language}"
 
 
 def test_all_issues_have_valid_severity():
@@ -371,9 +362,7 @@ def test_build_prompt_no_comments():
 def test_build_prompt_with_line_range():
     review = _make_review(
         comments=[
-            InlineComment(
-                line=6, end_line=10, comment="Range comment", suggestion="Fix"
-            ),
+            InlineComment(line=6, end_line=10, comment="Range comment", suggestion="Fix"),
         ]
     )
     prompt = _build_prompt(TASK_1, review)
@@ -609,9 +598,7 @@ def test_ai_analyze_review_not_found(client):
 def test_ai_analyze_ollama_unavailable(client):
     review = client.post("/reviews", json={"task_id": "task-1", "comments": []}).json()
 
-    with patch(
-        "app.ai_analyzer.httpx.AsyncClient", side_effect=ConnectionError("refused")
-    ):
+    with patch("app.ai_analyzer.httpx.AsyncClient", side_effect=ConnectionError("refused")):
         resp = client.post("/ai-analyze", json={"review_id": review["id"]})
 
     assert resp.status_code == 502
