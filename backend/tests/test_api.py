@@ -410,6 +410,24 @@ def test_build_prompt_with_line_range():
     assert "Line 6-10" in prompt
 
 
+def test_build_prompt_for_theory_answer_prevents_rubric_splitting():
+    task = TASKS_BY_ID["python-theory-7"]
+    review = UserReview(
+        id="review-theory",
+        task_id=task.id,
+        comments=[],
+        answer="Uses with for cleanup.",
+    )
+
+    prompt = _build_prompt(task, review)
+
+    assert "Return exactly 1 item(s) in the issues array." in prompt
+    assert "Do not split one rubric entry into multiple sub-issues." in prompt
+    assert (
+        "If the answer explains the same idea in different words, count that as covered." in prompt
+    )
+
+
 @pytest.mark.anyio
 async def test_analyze_review_all_addressed():
     review = _make_review()
@@ -593,9 +611,70 @@ async def test_analyze_review_unknown_issue_id_in_response():
     with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
         result = await analyze_review(TASK_1, review)
 
-    # Unknown issue should appear in verdicts but not affect missed count
+    # Unknown issues should be ignored and only known rubric items should be returned.
     verdict_ids = {v.issue_id for v in result.issues}
-    assert "unknown-999" in verdict_ids
+    assert "unknown-999" not in verdict_ids
+    assert verdict_ids == {issue.id for issue in TASK_1.reference_issues}
+
+
+@pytest.mark.anyio
+async def test_analyze_review_deduplicates_theory_issue_verdicts():
+    import httpx as httpx_mod
+
+    task = TASKS_BY_ID["python-theory-7"]
+    review = UserReview(
+        id="review-theory",
+        task_id=task.id,
+        comments=[],
+        answer="Context managers use with to clean up resources and can define enter and exit methods.",
+    )
+    duplicated = {
+        "all_fixed": False,
+        "score": 6.0,
+        "issues": [
+            {
+                "issue_id": task.reference_issues[0].id,
+                "title": task.reference_issues[0].title,
+                "severity": task.reference_issues[0].severity.value,
+                "addressed": True,
+                "explanation": "First verdict",
+            },
+            {
+                "issue_id": task.reference_issues[0].id,
+                "title": task.reference_issues[0].title,
+                "severity": task.reference_issues[0].severity.value,
+                "addressed": False,
+                "explanation": "Duplicate verdict",
+            },
+            {
+                "issue_id": "hallucinated-1",
+                "title": task.reference_issues[0].title,
+                "severity": "medium",
+                "addressed": False,
+                "explanation": "Hallucinated verdict",
+            },
+        ],
+        "summary": "Partial coverage",
+    }
+
+    mock_resp = httpx_mod.Response(
+        status_code=200,
+        json={"response": json.dumps(duplicated)},
+        request=httpx_mod.Request("POST", "http://localhost/api/generate"),
+    )
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=mock_resp)
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        result = await analyze_review(task, review)
+
+    assert len(result.issues) == 1
+    assert result.issues[0].issue_id == task.reference_issues[0].id
+    assert result.issues[0].addressed is True
+    assert result.issues[0].explanation == "First verdict"
 
 
 # ---------------------------------------------------------------------------

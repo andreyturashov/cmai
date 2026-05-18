@@ -34,6 +34,7 @@ def _build_prompt(task: Task, review: UserReview) -> str:
     )
 
     answer_block = review.answer.strip() or "(no answer submitted)"
+    issue_count = len(task.reference_issues)
 
     if task.submission_mode == "answer":
         return f"""You are a strict Python theory mentor. Your job is to evaluate whether a student's free-text answer correctly covers the expected concepts for a theory question.
@@ -52,11 +53,20 @@ IMPORTANT: Write all explanations addressing the user directly using \"you/your\
 {answer_block}
 
 ## Evaluation rules
-For EACH expected concept, decide whether the student's answer covers it clearly:
+Evaluate the rubric holistically, but return verdicts only for the rubric entries listed above:
 1. Match on meaning, not exact wording.
-2. Do not require every phrase from the rubric, but the core idea must be present.
-3. A vague answer does not count.
-4. If no answer was submitted, nothing is addressed and score = 0.
+2. If the answer explains the same idea in different words, count that as covered.
+3. If one sentence implies a rubric point and a nearby example or follow-up sentence makes it clear, count the point as covered.
+4. Do not require the answer to repeat rubric keywords verbatim or in the same order.
+5. A vague answer does not count.
+6. If no answer was submitted, nothing is addressed and score = 0.
+
+## Output constraints
+- Return exactly {issue_count} item(s) in the issues array.
+- Reuse the exact issue_id values from the rubric above.
+- Do not invent extra issues.
+- Do not split one rubric entry into multiple sub-issues.
+- If an answer is partially correct, keep the single rubric entry and explain which parts you think are still missing.
 
 ## Scoring guide
 - Score = (addressed concepts / total concepts) * 10, rounded to 1 decimal
@@ -177,15 +187,22 @@ async def analyze_review(task: Task, review: UserReview) -> AIAnalysisResult:
         )
 
     ref_by_id = {issue.id: issue for issue in task.reference_issues}
-    verdicts = []
-    for item in data.get("issues", []):
+    raw_items = data.get("issues", [])
+    normalized_by_id: dict[str, dict] = {}
+    for item in raw_items:
         iid = item.get("issue_id", "")
-        ref = ref_by_id.get(iid)
+        if iid not in ref_by_id or iid in normalized_by_id:
+            continue
+        normalized_by_id[iid] = item
+
+    verdicts = []
+    for issue in task.reference_issues:
+        item = normalized_by_id.get(issue.id, {})
         verdicts.append(
             AIIssueVerdict(
-                issue_id=iid,
-                title=ref.title if ref else item.get("title", iid),
-                severity=ref.severity.value if ref else item.get("severity", ""),
+                issue_id=issue.id,
+                title=issue.title,
+                severity=issue.severity.value,
                 addressed=bool(item.get("addressed", False)),
                 explanation=item.get("explanation", ""),
             )
