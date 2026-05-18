@@ -78,8 +78,8 @@ const editorTheme = {
   },
 };
 
-function Placeholder() {
-  return <div className="lexical-answer-placeholder">Write your answer here</div>;
+function Placeholder({ text }) {
+  return <div className="lexical-answer-placeholder">{text}</div>;
 }
 
 function CodeHighlightingPlugin() {
@@ -90,10 +90,17 @@ function CodeHighlightingPlugin() {
   return null;
 }
 
-export default function RichAnswerEditor({ value = '', onChange, ariaLabel = 'Your Answer' }) {
+export default function RichAnswerEditor({
+  value = '',
+  onChange,
+  ariaLabel = 'Your Answer',
+  placeholder = 'Write your answer here',
+  hintText = 'Supports markdown shortcuts for bold, lists, links, and inline or fenced code blocks.',
+  compact = false,
+}) {
   const initialConfig = useMemo(
     () => ({
-      namespace: 'RichAnswerEditor',
+      namespace: `${ariaLabel.replace(/\s+/g, '')}Editor`,
       theme: editorTheme,
       onError(error) {
         throw error;
@@ -118,23 +125,23 @@ export default function RichAnswerEditor({ value = '', onChange, ariaLabel = 'Yo
         root.append($createParagraphNode());
       },
     }),
-    [value],
+    [ariaLabel, value],
   );
 
   return (
     <LexicalComposer initialConfig={initialConfig}>
-      <div className="lexical-answer-shell">
+      <div className={`lexical-answer-shell${compact ? ' lexical-answer-shell-compact' : ''}`}>
         <RichTextPlugin
           contentEditable={
             <ContentEditable
-              className="lexical-answer-input"
+              className={`lexical-answer-input${compact ? ' lexical-answer-input-compact' : ''}`}
               aria-label={ariaLabel}
               role="textbox"
               aria-multiline="true"
               spellCheck={true}
             />
           }
-          placeholder={<Placeholder />}
+          placeholder={<Placeholder text={placeholder} />}
           ErrorBoundary={LexicalErrorBoundary}
         />
         <HistoryPlugin />
@@ -150,9 +157,7 @@ export default function RichAnswerEditor({ value = '', onChange, ariaLabel = 'Yo
           }}
         />
       </div>
-      <p className="answer-editor-hint">
-        Supports markdown shortcuts for bold, lists, links, and inline or fenced code blocks.
-      </p>
+      {hintText ? <p className="answer-editor-hint">{hintText}</p> : null}
     </LexicalComposer>
   );
 }

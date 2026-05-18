@@ -14,4 +14,25 @@ describe('RichAnswerEditor', () => {
       ),
     ).toBeInTheDocument();
   });
+
+  it('supports compact comment editor configuration', () => {
+    render(
+      <RichAnswerEditor
+        value=""
+        onChange={vi.fn()}
+        ariaLabel="Comment"
+        placeholder="Describe the issue and why it matters"
+        hintText=""
+        compact={true}
+      />,
+    );
+
+    expect(screen.getByRole('textbox', { name: 'Comment' })).toBeInTheDocument();
+    expect(screen.getByText('Describe the issue and why it matters')).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        /Supports markdown shortcuts for bold, lists, links, and inline or fenced code blocks./i,
+      ),
+    ).not.toBeInTheDocument();
+  });
 });

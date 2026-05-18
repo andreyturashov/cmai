@@ -305,6 +305,11 @@ body {
   gap: 8px;
 }
 
+.comment-text {
+  min-width: 0;
+  flex: 1;
+}
+
 .inline-comment-actions {
   display: flex;
   align-items: center;
@@ -338,6 +343,93 @@ body {
   color: rgba(29, 41, 48, 0.7);
 }
 
+.markdown-content p,
+.markdown-content ul,
+.markdown-content ol,
+.markdown-content blockquote {
+  margin: 0 0 0.45rem;
+}
+
+.markdown-content p:last-child,
+.markdown-content ul:last-child,
+.markdown-content ol:last-child,
+.markdown-content blockquote:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  padding-left: 1.2rem;
+}
+
+.markdown-content blockquote {
+  padding-left: 0.75rem;
+  border-left: 3px solid rgba(29, 41, 48, 0.16);
+  color: rgba(29, 41, 48, 0.75);
+}
+
+.markdown-inline-code {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.84em;
+  background: rgba(29, 41, 48, 0.08);
+  border-radius: 4px;
+  padding: 0.08rem 0.32rem;
+}
+
+.markdown-code-block {
+  margin: 0.55rem 0 0;
+  padding: 10px 12px;
+  background: rgba(29, 41, 48, 0.95);
+  color: #f8f8f2;
+  border-radius: 8px;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.markdown-code-block code {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.markdown-code-block .token.comment,
+.markdown-code-block .token.prolog,
+.markdown-code-block .token.doctype,
+.markdown-code-block .token.cdata {
+  color: #8d99ae;
+}
+
+.markdown-code-block .token.keyword,
+.markdown-code-block .token.atrule {
+  color: #ff7b72;
+}
+
+.markdown-code-block .token.string,
+.markdown-code-block .token.char,
+.markdown-code-block .token.inserted {
+  color: #a5d6ff;
+}
+
+.markdown-code-block .token.function,
+.markdown-code-block .token.class-name {
+  color: #d2a8ff;
+}
+
+.markdown-code-block .token.number,
+.markdown-code-block .token.boolean,
+.markdown-code-block .token.constant,
+.markdown-code-block .token.property,
+.markdown-code-block .token.symbol {
+  color: #79c0ff;
+}
+
+.markdown-code-block .token.operator,
+.markdown-code-block .token.punctuation,
+.markdown-code-block .token.tag,
+.markdown-code-block .token.selector {
+  color: #f2cc8f;
+}
+
 .comment-suggestion {
   margin: 8px 0 0;
   padding: 8px 10px;
@@ -367,6 +459,11 @@ body {
   gap: 8px;
 }
 
+.comment-form label {
+  display: grid;
+  gap: 8px;
+}
+
 .answer-form {
   margin-top: 12px;
   display: grid;
@@ -386,6 +483,10 @@ body {
   min-height: 160px;
 }
 
+.lexical-answer-shell-compact {
+  min-height: 112px;
+}
+
 .lexical-answer-input {
   width: 100%;
   padding: 10px 12px;
@@ -394,6 +495,10 @@ body {
   outline: none;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.lexical-answer-input-compact {
+  min-height: 92px;
 }
 
 .lexical-answer-placeholder {

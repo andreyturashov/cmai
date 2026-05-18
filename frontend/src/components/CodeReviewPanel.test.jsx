@@ -94,6 +94,25 @@ describe('CodeReviewPanel', () => {
     expect(screen.getByText('Line 2')).toBeInTheDocument();
   });
 
+  it('renders markdown formatting inside inline comments', () => {
+    const comments = [
+      {
+        line: 2,
+        comment:
+          "Use `split()` instead of `split(' ' )`.\n\n```python\nreturn len(text.split())\n```",
+        suggestion: '',
+      },
+    ];
+
+    const { container } = render(<CodeReviewPanel {...defaults} comments={comments} />);
+
+    expect(screen.getByText('split()')).toBeInTheDocument();
+    expect(container.querySelector('.markdown-code-block code')?.textContent).toContain(
+      'return len(text.split())',
+    );
+    expect(container.querySelector('.markdown-code-block')).not.toBeNull();
+  });
+
   it('renders range comment label', () => {
     const comments = [
       { line: 1, end_line: 3, comment: 'Whole function issue', suggestion: 'Rewrite' },
@@ -102,10 +121,10 @@ describe('CodeReviewPanel', () => {
     expect(screen.getByText('Lines 1–3')).toBeInTheDocument();
   });
 
-  it('renders suggestion in comment', () => {
+  it('does not render suggestion text for inline comments', () => {
     const comments = [{ line: 1, comment: 'Bad pattern', suggestion: 'Use a guard clause' }];
     render(<CodeReviewPanel {...defaults} comments={comments} />);
-    expect(screen.getByText('Use a guard clause')).toBeInTheDocument();
+    expect(screen.queryByText('Use a guard clause')).not.toBeInTheDocument();
   });
 
   it('renders reference issues when shown', () => {
@@ -181,9 +200,7 @@ describe('CodeReviewPanel', () => {
     render(<CodeReviewPanel {...defaults} comments={comments} />);
     await userEvent.click(screen.getByText('Edit'));
     // Should show a CommentForm prefilled
-    const textareas = screen.getAllByRole('textbox');
-    expect(textareas[0]).toHaveValue('Issue here');
-    expect(textareas[1]).toHaveValue('Fix this');
+    expect(screen.getByRole('textbox', { name: 'Comment' })).toHaveValue('Issue here');
   });
 
   it('supports multi-line selection via drag', () => {
@@ -227,15 +244,13 @@ describe('CodeReviewPanel', () => {
     fireEvent.mouseDown(line1);
     fireEvent.mouseUp(line1.closest('.code-scroll') || document);
 
-    const [commentArea, suggestionArea] = screen.getAllByRole('textbox');
-    await userEvent.type(commentArea, 'Bug found');
-    await userEvent.type(suggestionArea, 'Fix it');
+    await userEvent.type(screen.getByRole('textbox', { name: 'Comment' }), 'Bug found');
     await userEvent.click(screen.getByText('Save Comment'));
 
     expect(onAdd).toHaveBeenCalledWith({
       line: 1,
       comment: 'Bug found',
-      suggestion: 'Fix it',
+      suggestion: '',
     });
   });
 

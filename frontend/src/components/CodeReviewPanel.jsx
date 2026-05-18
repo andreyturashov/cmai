@@ -3,6 +3,7 @@ import Prism from 'prismjs';
 import 'prismjs/components/prism-python';
 import 'prismjs/components/prism-javascript';
 import CommentForm from './CommentForm';
+import MarkdownContent from './MarkdownContent';
 import RichAnswerEditor from './RichAnswerEditor';
 
 export default function CodeReviewPanel({
@@ -173,7 +174,10 @@ export default function CodeReviewPanel({
                 return (
                   <div key={`${lineNumber}-${i}`} className="inline-comment">
                     <div className="inline-comment-header">
-                      <span className="comment-text">{c.comment}</span>
+                      <MarkdownContent
+                        content={c.comment}
+                        className="comment-text markdown-content"
+                      />
                       <div className="inline-comment-actions">
                         <span className="comment-meta">{rangeLabel}</span>
                         <button
@@ -189,11 +193,6 @@ export default function CodeReviewPanel({
                         </button>
                       </div>
                     </div>
-                    {c.suggestion ? (
-                      <pre className="comment-suggestion">
-                        <code>{c.suggestion}</code>
-                      </pre>
-                    ) : null}
                   </div>
                 );
               })}
