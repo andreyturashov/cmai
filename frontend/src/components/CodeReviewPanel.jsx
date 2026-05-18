@@ -39,13 +39,23 @@ export default function CodeReviewPanel({
     }, {});
   }, [comments]);
 
+  const inlineReferenceIssues = useMemo(
+    () => (responseMode === 'answer' ? [] : referenceIssues),
+    [referenceIssues, responseMode],
+  );
+
+  const theoryReferenceIssues = useMemo(
+    () => (responseMode === 'answer' ? referenceIssues : []),
+    [referenceIssues, responseMode],
+  );
+
   const refByLine = useMemo(() => {
-    return referenceIssues.reduce((acc, issue) => {
+    return inlineReferenceIssues.reduce((acc, issue) => {
       acc[issue.line] = acc[issue.line] || [];
       acc[issue.line].push(issue);
       return acc;
     }, {});
-  }, [referenceIssues]);
+  }, [inlineReferenceIssues]);
 
   const selMin = selStart != null && selEnd != null ? Math.min(selStart, selEnd) : selStart;
   const selMax = selStart != null && selEnd != null ? Math.max(selStart, selEnd) : selStart;
@@ -240,6 +250,30 @@ export default function CodeReviewPanel({
           );
         })}
       </div>
+
+      {responseMode === 'answer' && showReference && theoryReferenceIssues.length ? (
+        <section className="theory-answer-panel">
+          <p className="eyebrow">Expected Answer</p>
+          {theoryReferenceIssues.map((issue) => (
+            <div key={issue.id} className="ref-issue ref-issue-static">
+              <div className="ref-issue-header">
+                <span className={`ref-severity sev-${issue.severity}`}>{issue.severity}</span>
+                <strong className="ref-title">{issue.title}</strong>
+              </div>
+              <p className="ref-description ref-description-wrap">{issue.description}</p>
+              <p className="ref-suggestion-text">{issue.suggestion}</p>
+              {issue.code ? (
+                <div className="ref-code-block">
+                  <span className="ref-code-label">Expected answer</span>
+                  <pre className="ref-code ref-code-wrap">
+                    <code>{issue.code}</code>
+                  </pre>
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </section>
+      ) : null}
 
       {responseMode === 'answer' ? (
         <div className="answer-form">

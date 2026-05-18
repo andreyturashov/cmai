@@ -111,6 +111,32 @@ describe('CodeReviewPanel', () => {
     expect(container.querySelector('.code-line-ref')).not.toBeNull();
   });
 
+  it('renders theory answers below the code instead of inline', () => {
+    const refs = [
+      {
+        id: 'theory-1',
+        line: 1,
+        title: 'Mutable defaults',
+        severity: 'medium',
+        description: 'Default values are evaluated once and can keep shared state.',
+        suggestion: 'Expected answer should cover shared state and using None instead.',
+        code: 'Mutable defaults are shared across calls.',
+      },
+    ];
+    const { container } = render(
+      <CodeReviewPanel
+        {...defaults}
+        responseMode="answer"
+        referenceIssues={refs}
+        showReference={true}
+      />,
+    );
+
+    expect(screen.getByText('Expected Answer')).toBeInTheDocument();
+    expect(screen.getByText('Mutable defaults')).toBeInTheDocument();
+    expect(container.querySelector('.code-line-ref')).toBeNull();
+  });
+
   it('shows comment form on line selection', () => {
     render(<CodeReviewPanel {...defaults} />);
     const lineNo = screen.getByText('2');
@@ -252,6 +278,32 @@ describe('CodeReviewPanel', () => {
     expect(screen.getByText('SQL injection risk')).toBeInTheDocument();
     expect(screen.getByText('Corrected code')).toBeInTheDocument();
     expect(screen.getByText('cursor.execute(sql, params)')).toBeInTheDocument();
+  });
+
+  it('uses expected answer label for theory answer blocks', () => {
+    const refs = [
+      {
+        id: 'ref-theory',
+        line: 1,
+        title: 'List vs tuple',
+        severity: 'medium',
+        description: 'Lists are mutable while tuples are immutable.',
+        suggestion: 'Mention mutability and when to use each.',
+        code: 'Lists can change, tuples cannot.',
+      },
+    ];
+
+    render(
+      <CodeReviewPanel
+        {...defaults}
+        responseMode="answer"
+        referenceIssues={refs}
+        showReference={true}
+      />,
+    );
+
+    expect(screen.getByText('Expected answer')).toBeInTheDocument();
+    expect(screen.queryByText('Corrected code')).not.toBeInTheDocument();
   });
 
   it('renders reference issue without code block', () => {

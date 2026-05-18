@@ -648,6 +648,10 @@ button:disabled {
   color: rgba(29, 41, 48, 0.78);
 }
 
+.ref-description-wrap {
+  overflow-wrap: anywhere;
+}
+
 .ref-suggestion-text {
   margin: 4px 0 0;
   font-size: 0.82rem;
@@ -682,9 +686,27 @@ button:disabled {
   color: #4c1d95;
 }
 
+.ref-code-wrap {
+  max-width: 100%;
+  overflow-x: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .ref-code code {
   font: inherit;
   color: inherit;
+}
+
+.theory-answer-panel {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.ref-issue-static {
+  margin: 0;
 }
 
 /* ── end Reference ────────────────────────────────────── */
