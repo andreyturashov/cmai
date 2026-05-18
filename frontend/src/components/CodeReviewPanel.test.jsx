@@ -4,6 +4,18 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import CodeReviewPanel from './CodeReviewPanel';
 
+vi.mock('./RichAnswerEditor', () => ({
+  default: function MockRichAnswerEditor({ value = '', onChange, ariaLabel = 'Your Answer' }) {
+    return (
+      <textarea
+        aria-label={ariaLabel}
+        value={value}
+        onChange={(event) => onChange?.(event.target.value)}
+      />
+    );
+  },
+}));
+
 const sampleCode = 'def foo():\n    return 42\n    print("unreachable")';
 
 const defaults = {
@@ -54,9 +66,10 @@ describe('CodeReviewPanel', () => {
     expect(onSubmit).toHaveBeenCalledOnce();
   });
 
-  it('renders answer textarea in answer mode', () => {
+  it('renders answer editor in answer mode', () => {
     render(<CodeReviewPanel {...defaults} responseMode="answer" />);
     expect(screen.getByText('Your Answer')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Your Answer' })).toBeInTheDocument();
   });
 
   it('disables submit in answer mode until there is an answer', () => {
@@ -68,7 +81,7 @@ describe('CodeReviewPanel', () => {
     const onAnswerChange = vi.fn();
     render(<CodeReviewPanel {...defaults} responseMode="answer" onAnswerChange={onAnswerChange} />);
     await userEvent.type(
-      screen.getByPlaceholderText('Write your answer here'),
+      screen.getByRole('textbox', { name: 'Your Answer' }),
       'Tuple is immutable',
     );
     expect(onAnswerChange).toHaveBeenCalled();

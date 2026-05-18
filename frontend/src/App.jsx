@@ -142,6 +142,7 @@ export default function App() {
           responseMode={task?.submission_mode || 'comments'}
           comments={comments}
           answer={answer}
+          answerEditorKey={task?.id || `${language}-${taskIndex}`}
           referenceIssues={showReference ? task?.reference_issues || [] : []}
           showReference={showReference}
           onToggleReference={() => setShowReference((v) => !v)}

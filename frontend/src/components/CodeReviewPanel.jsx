@@ -3,6 +3,7 @@ import Prism from 'prismjs';
 import 'prismjs/components/prism-python';
 import 'prismjs/components/prism-javascript';
 import CommentForm from './CommentForm';
+import RichAnswerEditor from './RichAnswerEditor';
 
 export default function CodeReviewPanel({
   code,
@@ -11,6 +12,7 @@ export default function CodeReviewPanel({
   responseMode = 'comments',
   comments,
   answer = '',
+  answerEditorKey = 'answer-editor',
   referenceIssues = [],
   showReference,
   onToggleReference,
@@ -90,12 +92,9 @@ export default function CodeReviewPanel({
     setEditingIdx(null);
   }
 
-  const formRef = useCallback(
-    (node) => {
-      if (node) node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    },
-    [selStart, selEnd, editingIdx],
-  );
+  const formRef = useCallback((node) => {
+    if (node) node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, []);
 
   const showForm = responseMode === 'comments' && selStart != null && !dragging;
   const panelInstructions = instructions.length
@@ -279,11 +278,11 @@ export default function CodeReviewPanel({
         <div className="answer-form">
           <label>
             Your Answer
-            <textarea
+            <RichAnswerEditor
+              key={answerEditorKey}
               value={answer}
-              onChange={(e) => onAnswerChange?.(e.target.value)}
-              rows={6}
-              placeholder="Write your answer here"
+              onChange={onAnswerChange}
+              ariaLabel="Your Answer"
             />
           </label>
         </div>

@@ -13,6 +13,18 @@ vi.mock('./api/client', () => ({
   },
 }));
 
+vi.mock('./components/RichAnswerEditor', () => ({
+  default: function MockRichAnswerEditor({ value = '', onChange, ariaLabel = 'Your Answer' }) {
+    return (
+      <textarea
+        aria-label={ariaLabel}
+        value={value}
+        onChange={(event) => onChange?.(event.target.value)}
+      />
+    );
+  },
+}));
+
 import App from './App';
 import { api } from './api/client';
 
@@ -129,7 +141,7 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText('Your Answer')).toBeInTheDocument());
 
     await userEvent.type(
-      screen.getByPlaceholderText('Write your answer here'),
+      screen.getByRole('textbox', { name: 'Your Answer' }),
       'Lists are mutable.',
     );
     await userEvent.click(screen.getByText('Submit Review'));

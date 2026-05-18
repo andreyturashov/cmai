@@ -373,14 +373,145 @@ body {
   gap: 8px;
 }
 
-.answer-form textarea {
-  width: 100%;
+.answer-form label {
+  display: grid;
+  gap: 8px;
+}
+
+.lexical-answer-shell {
+  position: relative;
   border: 1px solid rgba(29, 41, 48, 0.3);
   border-radius: 10px;
+  background: rgba(255, 255, 255, 0.94);
+  min-height: 160px;
+}
+
+.lexical-answer-input {
+  width: 100%;
   padding: 10px 12px;
   font: inherit;
-  resize: vertical;
   min-height: 140px;
+  outline: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.lexical-answer-placeholder {
+  position: absolute;
+  top: 11px;
+  left: 12px;
+  color: rgba(29, 41, 48, 0.45);
+  pointer-events: none;
+}
+
+.answer-editor-hint {
+  margin: 0;
+  color: rgba(29, 41, 48, 0.7);
+  font-size: 0.85rem;
+}
+
+.lexical-answer-shell:focus-within {
+  border-color: rgba(249, 86, 79, 0.55);
+  box-shadow: 0 0 0 3px rgba(249, 86, 79, 0.12);
+}
+
+.lexical-answer-paragraph,
+.lexical-answer-list,
+.lexical-answer-heading,
+.lexical-answer-quote {
+  margin: 0 0 0.6rem;
+}
+
+.lexical-answer-paragraph:last-child,
+.lexical-answer-list:last-child,
+.lexical-answer-heading:last-child,
+.lexical-answer-quote:last-child {
+  margin-bottom: 0;
+}
+
+.lexical-answer-heading-h1 {
+  font-size: 1.1rem;
+}
+
+.lexical-answer-heading-h2 {
+  font-size: 1rem;
+}
+
+.lexical-answer-heading-h3 {
+  font-size: 0.95rem;
+}
+
+.lexical-answer-list {
+  padding-left: 1.4rem;
+}
+
+.lexical-answer-quote {
+  padding-left: 0.9rem;
+  border-left: 3px solid rgba(29, 41, 48, 0.2);
+  color: rgba(29, 41, 48, 0.8);
+}
+
+.lexical-answer-link {
+  color: #b23a48;
+  text-decoration: underline;
+}
+
+.lexical-answer-inline-code {
+  font-family: 'IBM Plex Mono', monospace;
+  background: rgba(29, 41, 48, 0.08);
+  border-radius: 4px;
+  padding: 0.08rem 0.32rem;
+}
+
+.lexical-answer-code {
+  display: block;
+  overflow-x: auto;
+  white-space: pre;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  background: rgba(29, 41, 48, 0.95);
+  color: #f8f8f2;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.lexical-answer-code .token.comment,
+.lexical-answer-code .token.prolog,
+.lexical-answer-code .token.doctype,
+.lexical-answer-code .token.cdata {
+  color: #8d99ae;
+}
+
+.lexical-answer-code .token.keyword,
+.lexical-answer-code .token.atrule {
+  color: #ff7b72;
+}
+
+.lexical-answer-code .token.string,
+.lexical-answer-code .token.char,
+.lexical-answer-code .token.inserted {
+  color: #a5d6ff;
+}
+
+.lexical-answer-code .token.function,
+.lexical-answer-code .token.class-name {
+  color: #d2a8ff;
+}
+
+.lexical-answer-code .token.number,
+.lexical-answer-code .token.boolean,
+.lexical-answer-code .token.constant,
+.lexical-answer-code .token.property,
+.lexical-answer-code .token.symbol {
+  color: #79c0ff;
+}
+
+.lexical-answer-code .token.operator,
+.lexical-answer-code .token.punctuation,
+.lexical-answer-code .token.tag,
+.lexical-answer-code .token.selector {
+  color: #f2cc8f;
 }
 
 .comment-form textarea,
