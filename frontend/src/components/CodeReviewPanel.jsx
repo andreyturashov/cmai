@@ -2,19 +2,24 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-python';
 import 'prismjs/components/prism-javascript';
-import 'prismjs/components/prism-go';
-import 'prismjs/components/prism-rust';
 import CommentForm from './CommentForm';
+import MarkdownContent from './MarkdownContent';
+import RichAnswerEditor from './RichAnswerEditor';
 
 export default function CodeReviewPanel({
   code,
   language,
+  instructions = [],
+  responseMode = 'comments',
   comments,
+  answer = '',
+  answerEditorKey = 'answer-editor',
   referenceIssues = [],
   showReference,
   onToggleReference,
   onAddComment,
   onEditComment,
+  onAnswerChange,
   onSubmitReview,
 }) {
   const [selStart, setSelStart] = useState(null);
@@ -37,13 +42,23 @@ export default function CodeReviewPanel({
     }, {});
   }, [comments]);
 
+  const inlineReferenceIssues = useMemo(
+    () => (responseMode === 'answer' ? [] : referenceIssues),
+    [referenceIssues, responseMode],
+  );
+
+  const theoryReferenceIssues = useMemo(
+    () => (responseMode === 'answer' ? referenceIssues : []),
+    [referenceIssues, responseMode],
+  );
+
   const refByLine = useMemo(() => {
-    return referenceIssues.reduce((acc, issue) => {
+    return inlineReferenceIssues.reduce((acc, issue) => {
       acc[issue.line] = acc[issue.line] || [];
       acc[issue.line].push(issue);
       return acc;
     }, {});
-  }, [referenceIssues]);
+  }, [inlineReferenceIssues]);
 
   const selMin = selStart != null && selEnd != null ? Math.min(selStart, selEnd) : selStart;
   const selMax = selStart != null && selEnd != null ? Math.max(selStart, selEnd) : selStart;
@@ -53,6 +68,7 @@ export default function CodeReviewPanel({
   const editMax = editingComment?.end_line ?? editMin;
 
   function handleMouseDown(lineNumber, e) {
+    if (responseMode !== 'comments') return;
     e.preventDefault();
     if (editingIdx != null) setEditingIdx(null);
     dragStart.current = lineNumber;
@@ -77,14 +93,21 @@ export default function CodeReviewPanel({
     setEditingIdx(null);
   }
 
-  const formRef = useCallback(
-    (node) => {
-      if (node) node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    },
-    [selStart, selEnd, editingIdx],
-  );
+  const formRef = useCallback((node) => {
+    if (node) node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, []);
 
-  const showForm = selStart != null && !dragging;
+  const showForm = responseMode === 'comments' && selStart != null && !dragging;
+  const panelInstructions = instructions.length
+    ? instructions
+    : [
+        'Review the code',
+        'Add inline comments',
+        'Explain impact and risk',
+        'Suggest improvements',
+        '(Optional) Provide fixed code',
+      ];
+  const submitDisabled = responseMode === 'answer' ? !answer.trim() : false;
 
   return (
     <section className="right-panel card reveal">
@@ -96,11 +119,9 @@ export default function CodeReviewPanel({
             <div className="info-tooltip">
               <strong>Instructions</strong>
               <ol>
-                <li>Review the code</li>
-                <li>Add inline comments</li>
-                <li>Explain impact and risk</li>
-                <li>Suggest improvements</li>
-                <li>(Optional) Provide fixed code</li>
+                {panelInstructions.map((instruction) => (
+                  <li key={instruction}>{instruction}</li>
+                ))}
               </ol>
             </div>
           </div>
@@ -112,7 +133,9 @@ export default function CodeReviewPanel({
           >
             {showReference ? 'Hide Answer' : 'Show Answer'}
           </button>
-          <button onClick={onSubmitReview}>Submit Review</button>
+          <button onClick={onSubmitReview} disabled={submitDisabled}>
+            Submit Review
+          </button>
         </div>
       </header>
 
@@ -151,7 +174,10 @@ export default function CodeReviewPanel({
                 return (
                   <div key={`${lineNumber}-${i}`} className="inline-comment">
                     <div className="inline-comment-header">
-                      <span className="comment-text">{c.comment}</span>
+                      <MarkdownContent
+                        content={c.comment}
+                        className="comment-text markdown-content"
+                      />
                       <div className="inline-comment-actions">
                         <span className="comment-meta">{rangeLabel}</span>
                         <button
@@ -167,11 +193,6 @@ export default function CodeReviewPanel({
                         </button>
                       </div>
                     </div>
-                    {c.suggestion ? (
-                      <pre className="comment-suggestion">
-                        <code>{c.suggestion}</code>
-                      </pre>
-                    ) : null}
                   </div>
                 );
               })}
@@ -227,6 +248,44 @@ export default function CodeReviewPanel({
           );
         })}
       </div>
+
+      {responseMode === 'answer' && showReference && theoryReferenceIssues.length ? (
+        <section className="theory-answer-panel">
+          <p className="eyebrow">Expected Answer</p>
+          {theoryReferenceIssues.map((issue) => (
+            <div key={issue.id} className="ref-issue ref-issue-static">
+              <div className="ref-issue-header">
+                <span className={`ref-severity sev-${issue.severity}`}>{issue.severity}</span>
+                <strong className="ref-title">{issue.title}</strong>
+              </div>
+              <p className="ref-description ref-description-wrap">{issue.description}</p>
+              <p className="ref-suggestion-text">{issue.suggestion}</p>
+              {issue.code ? (
+                <div className="ref-code-block">
+                  <span className="ref-code-label">Expected answer</span>
+                  <pre className="ref-code ref-code-wrap">
+                    <code>{issue.code}</code>
+                  </pre>
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </section>
+      ) : null}
+
+      {responseMode === 'answer' ? (
+        <div className="answer-form">
+          <label>
+            Your Answer
+            <RichAnswerEditor
+              key={answerEditorKey}
+              value={answer}
+              onChange={onAnswerChange}
+              ariaLabel="Your Answer"
+            />
+          </label>
+        </div>
+      ) : null}
     </section>
   );
 }

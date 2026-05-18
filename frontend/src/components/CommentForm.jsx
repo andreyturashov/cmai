@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
+import RichAnswerEditor from './RichAnswerEditor';
 
 export default function CommentForm({ line, endLine, onSave, onCancel, initial }) {
   const [comment, setComment] = useState(initial?.comment || '');
-  const [suggestion, setSuggestion] = useState(initial?.suggestion || '');
 
   function submit(e) {
     e.preventDefault();
-    if (!comment.trim() || !suggestion.trim()) return;
+    if (!comment.trim()) return;
 
     onSave({
       line,
       ...(endLine ? { end_line: endLine } : {}),
       comment: comment.trim(),
-      suggestion: suggestion.trim(),
+      suggestion: '',
     });
   }
 
@@ -23,22 +23,13 @@ export default function CommentForm({ line, endLine, onSave, onCancel, initial }
       <div className="comment-meta">{label}</div>
       <label>
         Comment
-        <textarea
+        <RichAnswerEditor
           value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          rows={4}
+          onChange={setComment}
+          ariaLabel="Comment"
           placeholder="Describe the issue and why it matters"
-          required
-        />
-      </label>
-      <label>
-        Suggestion
-        <textarea
-          value={suggestion}
-          onChange={(e) => setSuggestion(e.target.value)}
-          rows={3}
-          placeholder="Propose a fix"
-          required
+          hintText=""
+          compact={true}
         />
       </label>
       <div className="actions">

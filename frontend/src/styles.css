@@ -305,6 +305,11 @@ body {
   gap: 8px;
 }
 
+.comment-text {
+  min-width: 0;
+  flex: 1;
+}
+
 .inline-comment-actions {
   display: flex;
   align-items: center;
@@ -338,6 +343,93 @@ body {
   color: rgba(29, 41, 48, 0.7);
 }
 
+.markdown-content p,
+.markdown-content ul,
+.markdown-content ol,
+.markdown-content blockquote {
+  margin: 0 0 0.45rem;
+}
+
+.markdown-content p:last-child,
+.markdown-content ul:last-child,
+.markdown-content ol:last-child,
+.markdown-content blockquote:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  padding-left: 1.2rem;
+}
+
+.markdown-content blockquote {
+  padding-left: 0.75rem;
+  border-left: 3px solid rgba(29, 41, 48, 0.16);
+  color: rgba(29, 41, 48, 0.75);
+}
+
+.markdown-inline-code {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.84em;
+  background: rgba(29, 41, 48, 0.08);
+  border-radius: 4px;
+  padding: 0.08rem 0.32rem;
+}
+
+.markdown-code-block {
+  margin: 0.55rem 0 0;
+  padding: 10px 12px;
+  background: rgba(29, 41, 48, 0.95);
+  color: #f8f8f2;
+  border-radius: 8px;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.markdown-code-block code {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.markdown-code-block .token.comment,
+.markdown-code-block .token.prolog,
+.markdown-code-block .token.doctype,
+.markdown-code-block .token.cdata {
+  color: #8d99ae;
+}
+
+.markdown-code-block .token.keyword,
+.markdown-code-block .token.atrule {
+  color: #ff7b72;
+}
+
+.markdown-code-block .token.string,
+.markdown-code-block .token.char,
+.markdown-code-block .token.inserted {
+  color: #a5d6ff;
+}
+
+.markdown-code-block .token.function,
+.markdown-code-block .token.class-name {
+  color: #d2a8ff;
+}
+
+.markdown-code-block .token.number,
+.markdown-code-block .token.boolean,
+.markdown-code-block .token.constant,
+.markdown-code-block .token.property,
+.markdown-code-block .token.symbol {
+  color: #79c0ff;
+}
+
+.markdown-code-block .token.operator,
+.markdown-code-block .token.punctuation,
+.markdown-code-block .token.tag,
+.markdown-code-block .token.selector {
+  color: #f2cc8f;
+}
+
 .comment-suggestion {
   margin: 8px 0 0;
   padding: 8px 10px;
@@ -365,6 +457,166 @@ body {
   padding: 10px;
   display: grid;
   gap: 8px;
+}
+
+.comment-form label {
+  display: grid;
+  gap: 8px;
+}
+
+.answer-form {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.answer-form label {
+  display: grid;
+  gap: 8px;
+}
+
+.lexical-answer-shell {
+  position: relative;
+  border: 1px solid rgba(29, 41, 48, 0.3);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.94);
+  min-height: 160px;
+}
+
+.lexical-answer-shell-compact {
+  min-height: 112px;
+}
+
+.lexical-answer-input {
+  width: 100%;
+  padding: 10px 12px;
+  font: inherit;
+  min-height: 140px;
+  outline: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.lexical-answer-input-compact {
+  min-height: 92px;
+}
+
+.lexical-answer-placeholder {
+  position: absolute;
+  top: 11px;
+  left: 12px;
+  color: rgba(29, 41, 48, 0.45);
+  pointer-events: none;
+}
+
+.answer-editor-hint {
+  margin: 0;
+  color: rgba(29, 41, 48, 0.7);
+  font-size: 0.85rem;
+}
+
+.lexical-answer-shell:focus-within {
+  border-color: rgba(249, 86, 79, 0.55);
+  box-shadow: 0 0 0 3px rgba(249, 86, 79, 0.12);
+}
+
+.lexical-answer-paragraph,
+.lexical-answer-list,
+.lexical-answer-heading,
+.lexical-answer-quote {
+  margin: 0 0 0.6rem;
+}
+
+.lexical-answer-paragraph:last-child,
+.lexical-answer-list:last-child,
+.lexical-answer-heading:last-child,
+.lexical-answer-quote:last-child {
+  margin-bottom: 0;
+}
+
+.lexical-answer-heading-h1 {
+  font-size: 1.1rem;
+}
+
+.lexical-answer-heading-h2 {
+  font-size: 1rem;
+}
+
+.lexical-answer-heading-h3 {
+  font-size: 0.95rem;
+}
+
+.lexical-answer-list {
+  padding-left: 1.4rem;
+}
+
+.lexical-answer-quote {
+  padding-left: 0.9rem;
+  border-left: 3px solid rgba(29, 41, 48, 0.2);
+  color: rgba(29, 41, 48, 0.8);
+}
+
+.lexical-answer-link {
+  color: #b23a48;
+  text-decoration: underline;
+}
+
+.lexical-answer-inline-code {
+  font-family: 'IBM Plex Mono', monospace;
+  background: rgba(29, 41, 48, 0.08);
+  border-radius: 4px;
+  padding: 0.08rem 0.32rem;
+}
+
+.lexical-answer-code {
+  display: block;
+  overflow-x: auto;
+  white-space: pre;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  background: rgba(29, 41, 48, 0.95);
+  color: #f8f8f2;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.lexical-answer-code .token.comment,
+.lexical-answer-code .token.prolog,
+.lexical-answer-code .token.doctype,
+.lexical-answer-code .token.cdata {
+  color: #8d99ae;
+}
+
+.lexical-answer-code .token.keyword,
+.lexical-answer-code .token.atrule {
+  color: #ff7b72;
+}
+
+.lexical-answer-code .token.string,
+.lexical-answer-code .token.char,
+.lexical-answer-code .token.inserted {
+  color: #a5d6ff;
+}
+
+.lexical-answer-code .token.function,
+.lexical-answer-code .token.class-name {
+  color: #d2a8ff;
+}
+
+.lexical-answer-code .token.number,
+.lexical-answer-code .token.boolean,
+.lexical-answer-code .token.constant,
+.lexical-answer-code .token.property,
+.lexical-answer-code .token.symbol {
+  color: #79c0ff;
+}
+
+.lexical-answer-code .token.operator,
+.lexical-answer-code .token.punctuation,
+.lexical-answer-code .token.tag,
+.lexical-answer-code .token.selector {
+  color: #f2cc8f;
 }
 
 .comment-form textarea,
@@ -632,6 +884,10 @@ button:disabled {
   color: rgba(29, 41, 48, 0.78);
 }
 
+.ref-description-wrap {
+  overflow-wrap: anywhere;
+}
+
 .ref-suggestion-text {
   margin: 4px 0 0;
   font-size: 0.82rem;
@@ -666,9 +922,27 @@ button:disabled {
   color: #4c1d95;
 }
 
+.ref-code-wrap {
+  max-width: 100%;
+  overflow-x: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .ref-code code {
   font: inherit;
   color: inherit;
+}
+
+.theory-answer-panel {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.ref-issue-static {
+  margin: 0;
 }
 
 /* ── end Reference ────────────────────────────────────── */
@@ -696,6 +970,73 @@ button:disabled {
     opacity: 1;
   }
 }
+
+/* ── Content Editor ───────────────────────────────────── */
+
+.content-editor {
+  max-width: 560px;
+}
+
+.content-editor-label {
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: rgba(29, 41, 48, 0.55);
+  margin-bottom: 12px;
+}
+
+.content-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.content-editor-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.content-editor-num {
+  font-size: 0.85rem;
+  color: rgba(29, 41, 48, 0.4);
+  flex-shrink: 0;
+  width: 16px;
+  text-align: right;
+}
+
+.content-editor-input {
+  flex: 1;
+  border: 1.5px solid rgba(29, 41, 48, 0.16);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--ink);
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.content-editor-input::placeholder {
+  color: rgba(29, 41, 48, 0.35);
+}
+
+.content-editor-input:focus {
+  border-color: rgba(29, 41, 48, 0.5);
+}
+
+.content-editor-counter {
+  margin-top: 10px;
+  text-align: right;
+  font-size: 0.78rem;
+  font-family: 'IBM Plex Mono', monospace;
+  color: rgba(29, 41, 48, 0.4);
+}
+
+/* ── end Content Editor ───────────────────────────────── */
 
 @media (max-width: 980px) {
   .layout-grid {

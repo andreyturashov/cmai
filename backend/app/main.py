@@ -43,6 +43,7 @@ def get_tasks(language: str | None = Query(None)) -> list:
             "requirements": task.requirements,
             "instructions": task.instructions,
             "language": task.language,
+            "submission_mode": task.submission_mode,
         }
         for task in filtered
     ]
@@ -66,6 +67,7 @@ def create_review(payload: ReviewCreate) -> dict:
         id=f"review-{uuid4().hex[:8]}",
         task_id=payload.task_id,
         comments=payload.comments,
+        answer=payload.answer,
     )
     REVIEWS[review.id] = review
     return review.model_dump()

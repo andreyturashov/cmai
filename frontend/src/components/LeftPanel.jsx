@@ -11,7 +11,7 @@ export default function LeftPanel({ task, aiAnalysis, aiLoading }) {
   return (
     <aside className="left-panel card reveal">
       <section>
-        <p className="eyebrow">PR Title</p>
+        <p className="eyebrow">{task.submission_mode === 'answer' ? 'Question' : 'PR Title'}</p>
         <h2>{task.title}</h2>
         <p className="muted">{task.description}</p>
       </section>

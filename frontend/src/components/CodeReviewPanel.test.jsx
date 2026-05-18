@@ -4,17 +4,33 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import CodeReviewPanel from './CodeReviewPanel';
 
+vi.mock('./RichAnswerEditor', () => ({
+  default: function MockRichAnswerEditor({ value = '', onChange, ariaLabel = 'Your Answer' }) {
+    return (
+      <textarea
+        aria-label={ariaLabel}
+        value={value}
+        onChange={(event) => onChange?.(event.target.value)}
+      />
+    );
+  },
+}));
+
 const sampleCode = 'def foo():\n    return 42\n    print("unreachable")';
 
 const defaults = {
   code: sampleCode,
   language: 'python',
+  instructions: [],
+  responseMode: 'comments',
   comments: [],
+  answer: '',
   referenceIssues: [],
   showReference: false,
   onToggleReference: vi.fn(),
   onAddComment: vi.fn(),
   onEditComment: vi.fn(),
+  onAnswerChange: vi.fn(),
   onSubmitReview: vi.fn(),
 };
 
@@ -50,11 +66,51 @@ describe('CodeReviewPanel', () => {
     expect(onSubmit).toHaveBeenCalledOnce();
   });
 
+  it('renders answer editor in answer mode', () => {
+    render(<CodeReviewPanel {...defaults} responseMode="answer" />);
+    expect(screen.getByText('Your Answer')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Your Answer' })).toBeInTheDocument();
+  });
+
+  it('disables submit in answer mode until there is an answer', () => {
+    render(<CodeReviewPanel {...defaults} responseMode="answer" answer="" />);
+    expect(screen.getByText('Submit Review')).toBeDisabled();
+  });
+
+  it('updates answer text in answer mode', async () => {
+    const onAnswerChange = vi.fn();
+    render(<CodeReviewPanel {...defaults} responseMode="answer" onAnswerChange={onAnswerChange} />);
+    await userEvent.type(
+      screen.getByRole('textbox', { name: 'Your Answer' }),
+      'Tuple is immutable',
+    );
+    expect(onAnswerChange).toHaveBeenCalled();
+  });
+
   it('renders inline comments', () => {
     const comments = [{ line: 2, comment: 'Unreachable code below', suggestion: 'Remove it' }];
     render(<CodeReviewPanel {...defaults} comments={comments} />);
     expect(screen.getByText('Unreachable code below')).toBeInTheDocument();
     expect(screen.getByText('Line 2')).toBeInTheDocument();
+  });
+
+  it('renders markdown formatting inside inline comments', () => {
+    const comments = [
+      {
+        line: 2,
+        comment:
+          "Use `split()` instead of `split(' ' )`.\n\n```python\nreturn len(text.split())\n```",
+        suggestion: '',
+      },
+    ];
+
+    const { container } = render(<CodeReviewPanel {...defaults} comments={comments} />);
+
+    expect(screen.getByText('split()')).toBeInTheDocument();
+    expect(container.querySelector('.markdown-code-block code')?.textContent).toContain(
+      'return len(text.split())',
+    );
+    expect(container.querySelector('.markdown-code-block')).not.toBeNull();
   });
 
   it('renders range comment label', () => {
@@ -65,10 +121,10 @@ describe('CodeReviewPanel', () => {
     expect(screen.getByText('Lines 1–3')).toBeInTheDocument();
   });
 
-  it('renders suggestion in comment', () => {
+  it('does not render suggestion text for inline comments', () => {
     const comments = [{ line: 1, comment: 'Bad pattern', suggestion: 'Use a guard clause' }];
     render(<CodeReviewPanel {...defaults} comments={comments} />);
-    expect(screen.getByText('Use a guard clause')).toBeInTheDocument();
+    expect(screen.queryByText('Use a guard clause')).not.toBeInTheDocument();
   });
 
   it('renders reference issues when shown', () => {
@@ -87,12 +143,46 @@ describe('CodeReviewPanel', () => {
     expect(container.querySelector('.code-line-ref')).not.toBeNull();
   });
 
+  it('renders theory answers below the code instead of inline', () => {
+    const refs = [
+      {
+        id: 'theory-1',
+        line: 1,
+        title: 'Mutable defaults',
+        severity: 'medium',
+        description: 'Default values are evaluated once and can keep shared state.',
+        suggestion: 'Expected answer should cover shared state and using None instead.',
+        code: 'Mutable defaults are shared across calls.',
+      },
+    ];
+    const { container } = render(
+      <CodeReviewPanel
+        {...defaults}
+        responseMode="answer"
+        referenceIssues={refs}
+        showReference={true}
+      />,
+    );
+
+    expect(screen.getByText('Expected Answer')).toBeInTheDocument();
+    expect(screen.getByText('Mutable defaults')).toBeInTheDocument();
+    expect(container.querySelector('.code-line-ref')).toBeNull();
+  });
+
   it('shows comment form on line selection', () => {
     render(<CodeReviewPanel {...defaults} />);
     const lineNo = screen.getByText('2');
     fireEvent.mouseDown(lineNo);
     fireEvent.mouseUp(lineNo.closest('.code-scroll') || document);
     expect(screen.getByText('Save Comment')).toBeInTheDocument();
+  });
+
+  it('does not open comment form in answer mode', () => {
+    render(<CodeReviewPanel {...defaults} responseMode="answer" />);
+    const lineNo = screen.getByText('2');
+    fireEvent.mouseDown(lineNo);
+    fireEvent.mouseUp(lineNo.closest('.code-scroll') || document);
+    expect(screen.queryByText('Save Comment')).not.toBeInTheDocument();
   });
 
   it('handles empty code gracefully', () => {
@@ -110,9 +200,7 @@ describe('CodeReviewPanel', () => {
     render(<CodeReviewPanel {...defaults} comments={comments} />);
     await userEvent.click(screen.getByText('Edit'));
     // Should show a CommentForm prefilled
-    const textareas = screen.getAllByRole('textbox');
-    expect(textareas[0]).toHaveValue('Issue here');
-    expect(textareas[1]).toHaveValue('Fix this');
+    expect(screen.getByRole('textbox', { name: 'Comment' })).toHaveValue('Issue here');
   });
 
   it('supports multi-line selection via drag', () => {
@@ -156,15 +244,13 @@ describe('CodeReviewPanel', () => {
     fireEvent.mouseDown(line1);
     fireEvent.mouseUp(line1.closest('.code-scroll') || document);
 
-    const [commentArea, suggestionArea] = screen.getAllByRole('textbox');
-    await userEvent.type(commentArea, 'Bug found');
-    await userEvent.type(suggestionArea, 'Fix it');
+    await userEvent.type(screen.getByRole('textbox', { name: 'Comment' }), 'Bug found');
     await userEvent.click(screen.getByText('Save Comment'));
 
     expect(onAdd).toHaveBeenCalledWith({
       line: 1,
       comment: 'Bug found',
-      suggestion: 'Fix it',
+      suggestion: '',
     });
   });
 
@@ -220,6 +306,32 @@ describe('CodeReviewPanel', () => {
     expect(screen.getByText('SQL injection risk')).toBeInTheDocument();
     expect(screen.getByText('Corrected code')).toBeInTheDocument();
     expect(screen.getByText('cursor.execute(sql, params)')).toBeInTheDocument();
+  });
+
+  it('uses expected answer label for theory answer blocks', () => {
+    const refs = [
+      {
+        id: 'ref-theory',
+        line: 1,
+        title: 'List vs tuple',
+        severity: 'medium',
+        description: 'Lists are mutable while tuples are immutable.',
+        suggestion: 'Mention mutability and when to use each.',
+        code: 'Lists can change, tuples cannot.',
+      },
+    ];
+
+    render(
+      <CodeReviewPanel
+        {...defaults}
+        responseMode="answer"
+        referenceIssues={refs}
+        showReference={true}
+      />,
+    );
+
+    expect(screen.getByText('Expected answer')).toBeInTheDocument();
+    expect(screen.queryByText('Corrected code')).not.toBeInTheDocument();
   });
 
   it('renders reference issue without code block', () => {

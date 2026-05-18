@@ -33,6 +33,62 @@ def _build_prompt(task: Task, review: UserReview) -> str:
         or "(no comments submitted)"
     )
 
+    answer_block = review.answer.strip() or "(no answer submitted)"
+    issue_count = len(task.reference_issues)
+
+    if task.submission_mode == "answer":
+        return f"""You are a strict Python theory mentor. Your job is to evaluate whether a student's free-text answer correctly covers the expected concepts for a theory question.
+
+IMPORTANT: Write all explanations addressing the user directly using \"you/your\" (second person). Never say \"the student\" or \"they\".
+
+## Question shown to the student
+```python
+{numbered}
+```
+
+## Expected concepts / rubric
+{issues_block}
+
+## Student answer
+{answer_block}
+
+## Evaluation rules
+Evaluate the rubric holistically, but return verdicts only for the rubric entries listed above:
+1. Match on meaning, not exact wording.
+2. If the answer explains the same idea in different words, count that as covered.
+3. If one sentence implies a rubric point and a nearby example or follow-up sentence makes it clear, count the point as covered.
+4. Do not require the answer to repeat rubric keywords verbatim or in the same order.
+5. A vague answer does not count.
+6. If no answer was submitted, nothing is addressed and score = 0.
+
+## Output constraints
+- Return exactly {issue_count} item(s) in the issues array.
+- Reuse the exact issue_id values from the rubric above.
+- Do not invent extra issues.
+- Do not split one rubric entry into multiple sub-issues.
+- If an answer is partially correct, keep the single rubric entry and explain which parts you think are still missing.
+
+## Scoring guide
+- Score = (addressed concepts / total concepts) * 10, rounded to 1 decimal
+- If the answer is empty, score = 0
+
+Return ONLY valid JSON (no markdown fences, no extra text) with this exact schema:
+{{
+    \"all_fixed\": <bool — true only if EVERY expected concept is covered>,
+    \"score\": <number 0-10>,
+    \"issues\": [
+        {{
+            \"issue_id\": \"<id from rubric>\",
+            \"title\": \"<title from rubric>\",
+            \"severity\": \"<critical|medium|low>\",
+            \"addressed\": <bool>,
+            \"explanation\": \"<1-2 sentences using 'you/your': whether your answer covers this concept and why. Start with the concept title.>\"
+        }}
+    ],
+    \"summary\": \"<one sentence overall assessment>\"
+}}
+"""
+
     return f"""You are a strict code-review mentor. Your job is to evaluate whether a student's review comments correctly identify known issues in a code snippet.
 
 Be strict: a comment only "addresses" an issue if it clearly describes the SAME problem (not just nearby code). Vague or tangential comments do NOT count.
@@ -131,15 +187,22 @@ async def analyze_review(task: Task, review: UserReview) -> AIAnalysisResult:
         )
 
     ref_by_id = {issue.id: issue for issue in task.reference_issues}
-    verdicts = []
-    for item in data.get("issues", []):
+    raw_items = data.get("issues", [])
+    normalized_by_id: dict[str, dict] = {}
+    for item in raw_items:
         iid = item.get("issue_id", "")
-        ref = ref_by_id.get(iid)
+        if iid not in ref_by_id or iid in normalized_by_id:
+            continue
+        normalized_by_id[iid] = item
+
+    verdicts = []
+    for issue in task.reference_issues:
+        item = normalized_by_id.get(issue.id, {})
         verdicts.append(
             AIIssueVerdict(
-                issue_id=iid,
-                title=ref.title if ref else item.get("title", iid),
-                severity=ref.severity.value if ref else item.get("severity", ""),
+                issue_id=issue.id,
+                title=issue.title,
+                severity=issue.severity.value,
                 addressed=bool(item.get("addressed", False)),
                 explanation=item.get("explanation", ""),
             )
@@ -157,36 +220,54 @@ async def analyze_review(task: Task, review: UserReview) -> AIAnalysisResult:
         else:
             missed.append(issue.title)
 
-    # Use AI-provided score if present, otherwise compute from verdicts
-    ai_score = data.get("score")
-    if ai_score is not None:
-        try:
-            score = round(min(10.0, max(0.0, float(ai_score))), 1)
-        except (TypeError, ValueError):
-            score = 0.0
+    total_points = 0
+    addressed_points = 0
+    weight = {Severity.critical: 3, Severity.medium: 2, Severity.low: 1}
+    for issue in task.reference_issues:
+        w = weight[issue.severity]
+        total_points += w
+        if issue.id in addressed_ids:
+            addressed_points += w
+
+    computed_score = round((addressed_points / total_points) * 10, 1) if total_points else 0.0
+    normalized_all_fixed = len(addressed_ids) == len(task.reference_issues)
+
+    # In answer mode, prefer the normalized verdict-derived score to avoid
+    # contradictory AI outputs like addressed=true with score < 10.
+    if task.submission_mode == "answer":
+        score = computed_score
     else:
-        total_points = 0
-        addressed_points = 0
-        weight = {Severity.critical: 3, Severity.medium: 2, Severity.low: 1}
-        for issue in task.reference_issues:
-            w = weight[issue.severity]
-            total_points += w
-            if issue.id in addressed_ids:
-                addressed_points += w
-        score = round((addressed_points / total_points) * 10, 1) if total_points else 0.0
+        ai_score = data.get("score")
+        if ai_score is not None:
+            try:
+                score = round(min(10.0, max(0.0, float(ai_score))), 1)
+            except (TypeError, ValueError):
+                score = 0.0
+        else:
+            score = computed_score
 
     feedback: list[str] = []
-    if det_sev[Severity.critical] < by_sev[Severity.critical]:
-        feedback.append("Focus on high-impact failures first: validation and security checks.")
-    if det_sev[Severity.medium] < by_sev[Severity.medium]:
-        feedback.append("Look for explicit error handling and edge-case behavior.")
-    if det_sev[Severity.low] < by_sev[Severity.low]:
-        feedback.append("Consider maintainability and architecture improvements.")
-    if not feedback:
-        feedback.append("Excellent review — all issues identified.")
+    if task.submission_mode == "answer":
+        if not review.answer.strip():
+            feedback.append("Add an answer before submitting so your correctness can be analyzed.")
+        elif len(addressed_ids) < len(task.reference_issues):
+            feedback.append(
+                "Your answer is close, but it should cover more of the expected concepts."
+            )
+        else:
+            feedback.append("Strong answer — you covered the expected concepts.")
+    else:
+        if det_sev[Severity.critical] < by_sev[Severity.critical]:
+            feedback.append("Focus on high-impact failures first: validation and security checks.")
+        if det_sev[Severity.medium] < by_sev[Severity.medium]:
+            feedback.append("Look for explicit error handling and edge-case behavior.")
+        if det_sev[Severity.low] < by_sev[Severity.low]:
+            feedback.append("Consider maintainability and architecture improvements.")
+        if not feedback:
+            feedback.append("Excellent review — all issues identified.")
 
     return AIAnalysisResult(
-        all_fixed=bool(data.get("all_fixed", False)),
+        all_fixed=normalized_all_fixed,
         score=score,
         detected_critical=det_sev[Severity.critical],
         total_critical=by_sev[Severity.critical],

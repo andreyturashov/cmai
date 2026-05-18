@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from app.models import EvaluationResult, Severity, Task, UserReview
 
 
@@ -27,20 +29,70 @@ def _similar_comment(comment: str, issue_title: str, issue_description: str) -> 
     return len(overlap) >= 3
 
 
-def evaluate_review(task: Task, review: UserReview) -> EvaluationResult:
+def _tokenize(text: str) -> set[str]:
+    return {
+        token
+        for token in re.findall(r"[a-z0-9_]+", text.lower())
+        if len(token) > 2
+        and token
+        not in {
+            "that",
+            "this",
+            "with",
+            "from",
+            "your",
+            "into",
+            "when",
+            "what",
+            "than",
+            "then",
+            "they",
+            "them",
+            "their",
+            "have",
+            "should",
+        }
+    }
+
+
+def _similar_answer(answer: str, task: Task) -> set[str]:
+    if not answer.strip():
+        return set()
+
+    answer_tokens = _tokenize(answer)
     matched: set[str] = set()
+    for issue in task.reference_issues:
+        reference_tokens = _tokenize(
+            f"{issue.title} {issue.description} {issue.suggestion} {issue.code}"
+        )
+        overlap = answer_tokens & reference_tokens
+        if len(overlap) >= 4:
+            matched.add(issue.id)
+            continue
 
-    for ref in task.reference_issues:
-        for user_comment in review.comments:
-            line_close = abs(user_comment.line - ref.line) <= 2
-            severity_match = (
-                user_comment.severity is not None and user_comment.severity == ref.severity
-            )
-            semantic_match = _similar_comment(user_comment.comment, ref.title, ref.description)
+        if reference_tokens and len(overlap) / len(reference_tokens) >= 0.3:
+            matched.add(issue.id)
 
-            if line_close and (severity_match or semantic_match):
-                matched.add(ref.id)
-                break
+    return matched
+
+
+def evaluate_review(task: Task, review: UserReview) -> EvaluationResult:
+    if task.submission_mode == "answer":
+        matched = _similar_answer(review.answer, task)
+    else:
+        matched = set()
+
+        for ref in task.reference_issues:
+            for user_comment in review.comments:
+                line_close = abs(user_comment.line - ref.line) <= 2
+                severity_match = (
+                    user_comment.severity is not None and user_comment.severity == ref.severity
+                )
+                semantic_match = _similar_comment(user_comment.comment, ref.title, ref.description)
+
+                if line_close and (severity_match or semantic_match):
+                    matched.add(ref.id)
+                    break
 
     by_severity = {Severity.critical: 0, Severity.medium: 0, Severity.low: 0}
     matched_by_severity = {Severity.critical: 0, Severity.medium: 0, Severity.low: 0}
@@ -52,21 +104,35 @@ def evaluate_review(task: Task, review: UserReview) -> EvaluationResult:
 
     total_issues = len(task.reference_issues)
     match_ratio = len(matched) / total_issues if total_issues else 0.0
-    score = round(min(10.0, 3 + match_ratio * 7), 1)
+    score = (
+        round(match_ratio * 10, 1)
+        if task.submission_mode == "answer"
+        else round(min(10.0, 3 + match_ratio * 7), 1)
+    )
 
     feedback: list[str] = []
-    if matched_by_severity[Severity.critical] < by_severity[Severity.critical]:
-        feedback.append(
-            "Focus on high-impact failures first: validation and money integrity checks."
-        )
-    if matched_by_severity[Severity.medium] < by_severity[Severity.medium]:
-        feedback.append("Look for explicit error handling and API behavior under invalid inputs.")
-    if matched_by_severity[Severity.low] < by_severity[Severity.low]:
-        feedback.append("Call out maintainability and architecture boundaries when visible.")
-    if not feedback:
-        feedback.append(
-            "Excellent review coverage. Your issue detection is strong across severities."
-        )
+    if task.submission_mode == "answer":
+        if not review.answer.strip():
+            feedback.append("Add an answer before submitting so correctness can be analyzed.")
+        elif match_ratio < 1.0:
+            feedback.append("Your answer is partially correct but misses some expected concepts.")
+        else:
+            feedback.append("Your answer covers the expected concepts clearly.")
+    else:
+        if matched_by_severity[Severity.critical] < by_severity[Severity.critical]:
+            feedback.append(
+                "Focus on high-impact failures first: validation and money integrity checks."
+            )
+        if matched_by_severity[Severity.medium] < by_severity[Severity.medium]:
+            feedback.append(
+                "Look for explicit error handling and API behavior under invalid inputs."
+            )
+        if matched_by_severity[Severity.low] < by_severity[Severity.low]:
+            feedback.append("Call out maintainability and architecture boundaries when visible.")
+        if not feedback:
+            feedback.append(
+                "Excellent review coverage. Your issue detection is strong across severities."
+            )
 
     missed = [issue.id for issue in task.reference_issues if issue.id not in matched]
 

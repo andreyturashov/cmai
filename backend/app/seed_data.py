@@ -1,4 +1,494 @@
+from typing import TypedDict
+
 from app.models import Issue, Severity, Task
+
+
+class SimplePythonQuestionPrompt(TypedDict):
+    slug: str
+    title: str
+    description: str
+    code: str
+    issue_line: int
+    issue_title: str
+    issue_description: str
+    issue_suggestion: str
+    issue_code: str
+
+
+class PythonTheoryPrompt(TypedDict):
+    title: str
+    description: str
+    question: str
+    focus_points: list[str]
+    expected_answer: str
+
+
+SIMPLE_PYTHON_QUESTION_PROMPTS: list[SimplePythonQuestionPrompt] = [
+    {
+        "slug": "safe-division",
+        "title": "Handle zero division safely",
+        "description": "Small helper that divides two numbers and should not crash on invalid input.",
+        "code": "def divide(a, b):\n    return a / b\n",
+        "issue_line": 2,
+        "issue_title": "No zero-division handling",
+        "issue_description": "Calling the function with b = 0 raises an exception and crashes the flow.",
+        "issue_suggestion": "Guard against b == 0 and raise a clear error or return a safe fallback.",
+        "issue_code": "if b == 0:\n    raise ValueError('b must not be zero')",
+    },
+    {
+        "slug": "strip-name",
+        "title": "Normalize a user name",
+        "description": "Formats a user's name before storing it.",
+        "code": "def normalize_name(name):\n    return name.lower()\n",
+        "issue_line": 2,
+        "issue_title": "Whitespace is preserved",
+        "issue_description": "Leading and trailing spaces are kept, producing dirty data.",
+        "issue_suggestion": "Trim the value before lowercasing it.",
+        "issue_code": "return name.strip().lower()",
+    },
+    {
+        "slug": "sum-scores",
+        "title": "Average a list of scores",
+        "description": "Returns the average score for a non-empty list.",
+        "code": "def average(scores):\n    return sum(scores) / len(scores)\n",
+        "issue_line": 2,
+        "issue_title": "Empty input crashes",
+        "issue_description": "An empty list raises ZeroDivisionError.",
+        "issue_suggestion": "Check for an empty list before dividing.",
+        "issue_code": "if not scores:\n    return 0",
+    },
+    {
+        "slug": "default-tags",
+        "title": "Append a default tag",
+        "description": "Adds a tag to a list of tags and returns the result.",
+        "code": "def add_tag(tag, tags=[]):\n    tags.append(tag)\n    return tags\n",
+        "issue_line": 1,
+        "issue_title": "Mutable default argument",
+        "issue_description": "The same list instance is reused across function calls.",
+        "issue_suggestion": "Use None as the default and create a new list inside the function.",
+        "issue_code": "def add_tag(tag, tags=None):\n    tags = [] if tags is None else tags",
+    },
+    {
+        "slug": "password-check",
+        "title": "Validate password length",
+        "description": "Simple password validator used before user signup.",
+        "code": "def is_valid_password(password):\n    return len(password) > 6\n",
+        "issue_line": 2,
+        "issue_title": "Boundary is off by one",
+        "issue_description": "A 6-character password is rejected although the rule is 6 or more characters.",
+        "issue_suggestion": "Use >= 6 for the length check.",
+        "issue_code": "return len(password) >= 6",
+    },
+    {
+        "slug": "email-domain",
+        "title": "Extract email domain",
+        "description": "Returns the domain part of an email address.",
+        "code": "def get_domain(email):\n    return email.split('@')[1]\n",
+        "issue_line": 2,
+        "issue_title": "Invalid emails crash",
+        "issue_description": "Strings without @ cause IndexError.",
+        "issue_suggestion": "Validate the split result before reading the domain.",
+        "issue_code": "parts = email.split('@')\nif len(parts) != 2:\n    raise ValueError('invalid email')",
+    },
+    {
+        "slug": "first-item",
+        "title": "Read the first list item",
+        "description": "Helper that returns the first value from a list.",
+        "code": "def first_item(items):\n    return items[0]\n",
+        "issue_line": 2,
+        "issue_title": "Empty list is not handled",
+        "issue_description": "An empty list raises IndexError.",
+        "issue_suggestion": "Return None or raise a clearer error for empty input.",
+        "issue_code": "if not items:\n    return None",
+    },
+    {
+        "slug": "parse-age",
+        "title": "Convert age to integer",
+        "description": "Parses a text field into an integer age.",
+        "code": "def parse_age(value):\n    return int(value)\n",
+        "issue_line": 2,
+        "issue_title": "Bad input is not handled",
+        "issue_description": "Non-numeric input raises ValueError.",
+        "issue_suggestion": "Catch invalid input and return a clear validation error.",
+        "issue_code": "try:\n    return int(value)\nexcept ValueError:\n    raise ValueError('age must be a number')",
+    },
+    {
+        "slug": "greet-user",
+        "title": "Build a greeting string",
+        "description": "Returns a short greeting for the user name provided.",
+        "code": "def greet(name):\n    return 'Hello, ' + name\n",
+        "issue_line": 2,
+        "issue_title": "None input breaks concatenation",
+        "issue_description": "Passing None raises TypeError.",
+        "issue_suggestion": "Validate the input or coerce it to a string safely.",
+        "issue_code": "if name is None:\n    raise ValueError('name is required')",
+    },
+    {
+        "slug": "discount-price",
+        "title": "Apply a percentage discount",
+        "description": "Calculates a discounted price from a percent value.",
+        "code": "def apply_discount(price, percent):\n    return price - percent\n",
+        "issue_line": 2,
+        "issue_title": "Discount math is wrong",
+        "issue_description": "The code subtracts the raw percentage instead of a percentage of the price.",
+        "issue_suggestion": "Multiply the price by the percentage fraction.",
+        "issue_code": "return price * (1 - percent / 100)",
+    },
+    {
+        "slug": "find-max",
+        "title": "Find the largest number",
+        "description": "Returns the largest value in a list.",
+        "code": "def find_max(numbers):\n    best = 0\n    for number in numbers:\n        if number > best:\n            best = number\n    return best\n",
+        "issue_line": 2,
+        "issue_title": "Fails for all-negative input",
+        "issue_description": "Starting at 0 returns the wrong result for negative-only lists.",
+        "issue_suggestion": "Initialize from the first value after checking the list is not empty.",
+        "issue_code": "best = numbers[0]",
+    },
+    {
+        "slug": "dedupe-items",
+        "title": "Remove duplicate items",
+        "description": "Returns a list without duplicates.",
+        "code": "def unique_items(items):\n    return list(set(items))\n",
+        "issue_line": 2,
+        "issue_title": "Order is lost",
+        "issue_description": "Converting through set changes the original order.",
+        "issue_suggestion": "Use dict.fromkeys to preserve insertion order.",
+        "issue_code": "return list(dict.fromkeys(items))",
+    },
+    {
+        "slug": "count-vowels",
+        "title": "Count vowels in text",
+        "description": "Counts vowels in a string for a simple text exercise.",
+        "code": "def count_vowels(text):\n    count = 0\n    for char in text:\n        if char in 'aeiou':\n            count += 1\n    return count\n",
+        "issue_line": 4,
+        "issue_title": "Uppercase vowels are ignored",
+        "issue_description": "Characters like A and E are skipped.",
+        "issue_suggestion": "Normalize the text or include uppercase vowels in the check.",
+        "issue_code": "for char in text.lower():",
+    },
+    {
+        "slug": "reverse-text",
+        "title": "Reverse a string",
+        "description": "Helper that should return the text reversed.",
+        "code": "def reverse_text(text):\n    return text.reverse()\n",
+        "issue_line": 2,
+        "issue_title": "Strings do not have reverse()",
+        "issue_description": "Calling reverse on a string raises AttributeError.",
+        "issue_suggestion": "Use slicing or reversed() to build the reversed string.",
+        "issue_code": "return text[::-1]",
+    },
+    {
+        "slug": "square-numbers",
+        "title": "Square each number",
+        "description": "Returns a list of squared values.",
+        "code": "def square_numbers(numbers):\n    result = []\n    for number in numbers:\n        result.append(number * 2)\n    return result\n",
+        "issue_line": 4,
+        "issue_title": "Values are doubled, not squared",
+        "issue_description": "The exercise requires multiplication by itself.",
+        "issue_suggestion": "Multiply each number by itself.",
+        "issue_code": "result.append(number * number)",
+    },
+    {
+        "slug": "word-count",
+        "title": "Count words in a sentence",
+        "description": "Returns the number of words in a string.",
+        "code": "def word_count(text):\n    return len(text.split(' '))\n",
+        "issue_line": 2,
+        "issue_title": "Multiple spaces inflate the count",
+        "issue_description": "Explicitly splitting on a single space counts empty fragments.",
+        "issue_suggestion": "Use split() without an argument so consecutive whitespace is collapsed.",
+        "issue_code": "return len(text.split())",
+    },
+    {
+        "slug": "merge-dicts",
+        "title": "Merge two dictionaries",
+        "description": "Combines two dictionaries into one result.",
+        "code": "def merge_dicts(left, right):\n    left.update(right)\n    return left\n",
+        "issue_line": 2,
+        "issue_title": "Input is mutated",
+        "issue_description": "The left dictionary is modified in place, which may surprise callers.",
+        "issue_suggestion": "Return a new merged dictionary instead of mutating the input.",
+        "issue_code": "return {**left, **right}",
+    },
+    {
+        "slug": "is-even",
+        "title": "Check if a number is even",
+        "description": "Basic parity check used in a beginner exercise.",
+        "code": "def is_even(number):\n    return number % 2 == 1\n",
+        "issue_line": 2,
+        "issue_title": "Parity check is inverted",
+        "issue_description": "The function returns True for odd numbers instead of even ones.",
+        "issue_suggestion": "Compare the remainder to 0.",
+        "issue_code": "return number % 2 == 0",
+    },
+    {
+        "slug": "join-names",
+        "title": "Join a list of names",
+        "description": "Builds a comma-separated string from a list of names.",
+        "code": "def join_names(names):\n    return ', '.join(name.strip() for name in names if name)\n",
+        "issue_line": 2,
+        "issue_title": "Whitespace-only names slip through",
+        "issue_description": "A value like '   ' passes the if name filter and becomes an empty label.",
+        "issue_suggestion": "Filter after stripping the names.",
+        "issue_code": "return ', '.join(name.strip() for name in names if name and name.strip())",
+    },
+    {
+        "slug": "safe-get",
+        "title": "Read a value from a dict",
+        "description": "Returns a field from a dictionary payload.",
+        "code": "def get_username(payload):\n    return payload['username']\n",
+        "issue_line": 2,
+        "issue_title": "Missing key raises KeyError",
+        "issue_description": "The code assumes username is always present.",
+        "issue_suggestion": "Use get() with validation or raise a clearer error.",
+        "issue_code": "username = payload.get('username')\nif not username:\n    raise ValueError('username is required')",
+    },
+]
+
+
+PYTHON_THEORY_PROMPTS: list[PythonTheoryPrompt] = [
+    {
+        "title": "List vs tuple",
+        "description": "Explain the difference between Python lists and tuples.",
+        "question": "What is the difference between a list and a tuple in Python, and when would you choose one over the other?",
+        "focus_points": ["mutability", "syntax", "typical use case"],
+        "expected_answer": "Lists are mutable sequences, so you can add, remove, or change items after creation. Tuples are immutable, so their contents stay fixed once created. Lists are a better fit for collections that change, while tuples are useful for fixed records or values that should not be modified.",
+    },
+    {
+        "title": "is vs ==",
+        "description": "Explain identity versus value equality.",
+        "question": "What is the difference between 'is' and '==' in Python?",
+        "focus_points": ["identity", "value equality", "None checks"],
+        "expected_answer": "'==' compares values, while 'is' compares object identity, meaning whether two references point to the exact same object. You usually use '==' for normal value comparisons. 'is' is mainly appropriate for singletons such as None.",
+    },
+    {
+        "title": "Mutable defaults",
+        "description": "Explain why mutable default arguments are risky.",
+        "question": "Why is using a mutable object like [] or {} as a default function argument usually a bug?",
+        "focus_points": [
+            "shared state",
+            "function defaults evaluated once",
+            "use None instead",
+        ],
+        "expected_answer": "Default argument values are evaluated once when the function is defined, not each time it is called. A mutable default like [] is then shared across calls and can keep old state unexpectedly. The common fix is to use None as the default and create a new list or dict inside the function.",
+    },
+    {
+        "title": "Generator benefits",
+        "description": "Explain what generators provide.",
+        "question": "What is a generator in Python, and why would you use one instead of building a full list?",
+        "focus_points": ["yield", "lazy evaluation", "memory efficiency"],
+        "expected_answer": "A generator produces values lazily, often by using the yield keyword, instead of storing every result at once. That makes it memory-efficient for large or streaming data. You use a list when you need all values immediately or need repeated random access.",
+    },
+    {
+        "title": "Shallow vs deep copy",
+        "description": "Explain the difference between shallow and deep copy.",
+        "question": "What is the difference between a shallow copy and a deep copy in Python?",
+        "focus_points": ["nested objects", "shared references", "copy.deepcopy"],
+        "expected_answer": "A shallow copy creates a new outer container but keeps references to the same nested objects. A deep copy recursively copies nested objects too, so changes inside nested structures do not leak back to the original. Python's copy.deepcopy is used when you need a fully independent copy.",
+    },
+    {
+        "title": "Decorators",
+        "description": "Explain what decorators are used for.",
+        "question": "What is a decorator in Python?",
+        "focus_points": ["wrap function", "add behavior", "@ syntax"],
+        "expected_answer": "A decorator is a callable that takes a function or class and returns a modified or wrapped version of it. It lets you add behavior like logging, authentication, or caching without changing the original function body. The @ syntax is just shorthand for applying that wrapper.",
+    },
+    {
+        "title": "Context managers",
+        "description": "Explain why context managers are useful.",
+        "question": "What problem does a context manager solve in Python?",
+        "focus_points": ["resource cleanup", "with statement", "__enter__/__exit__"],
+        "expected_answer": "A context manager makes setup and cleanup reliable, especially for resources like files, locks, or database connections. It is commonly used with the with statement so cleanup still happens even if an exception is raised. Custom context managers implement __enter__ and __exit__ or use contextlib.",
+    },
+    {
+        "title": "Virtual environments",
+        "description": "Explain why virtual environments matter.",
+        "question": "Why do Python projects often use virtual environments?",
+        "focus_points": [
+            "dependency isolation",
+            "version conflicts",
+            "project-specific packages",
+        ],
+        "expected_answer": "Virtual environments isolate a project's Python interpreter and installed packages from the global system and from other projects. That helps avoid dependency conflicts and keeps project requirements reproducible. Each project can safely use different package versions.",
+    },
+    {
+        "title": "try except else finally",
+        "description": "Explain the roles of exception-handling blocks.",
+        "question": "What do try, except, else, and finally do in Python error handling?",
+        "focus_points": ["error handling", "else on success", "finally always runs"],
+        "expected_answer": "The try block contains code that may fail. The except block handles matching exceptions. The else block runs only if no exception was raised, and the finally block runs whether an exception happened or not, which makes it useful for cleanup.",
+    },
+    {
+        "title": "__name__ guard",
+        "description": "Explain the module entry-point guard.",
+        "question": "Why do Python files sometimes use 'if __name__ == \"__main__\"'?",
+        "focus_points": [
+            "module import",
+            "script entry point",
+            "avoid running on import",
+        ],
+        "expected_answer": "When a file is run directly, Python sets __name__ to '__main__'. When the file is imported as a module, __name__ is set to the module name instead. The guard lets you run script-only code, such as demos or CLI startup, without executing it during imports.",
+    },
+    {
+        "title": "Comprehensions",
+        "description": "Explain what list comprehensions are for.",
+        "question": "What is a list comprehension, and why do people use it?",
+        "focus_points": ["compact syntax", "transform/filter", "readability"],
+        "expected_answer": "A list comprehension is a compact way to build a list from an iterable, often while transforming or filtering items. It can replace simple loops with append calls in a shorter expression. People use it when it stays readable and clearly expresses the data transformation.",
+    },
+    {
+        "title": "GIL basics",
+        "description": "Explain the Global Interpreter Lock at a high level.",
+        "question": "What is the Python GIL, in simple terms?",
+        "focus_points": [
+            "one thread executes bytecode",
+            "CPython",
+            "threads and CPU-bound work",
+        ],
+        "expected_answer": "The GIL, or Global Interpreter Lock, is a CPython mechanism that allows only one thread at a time to execute Python bytecode in a process. It means threads are often fine for I/O-bound work but do not provide true parallel speedup for CPU-bound Python code. Multiprocessing is commonly used when CPU parallelism is needed.",
+    },
+    {
+        "title": "*args and **kwargs",
+        "description": "Explain flexible function arguments.",
+        "question": "What are *args and **kwargs used for in Python functions?",
+        "focus_points": [
+            "variable positional args",
+            "variable keyword args",
+            "forwarding arguments",
+        ],
+        "expected_answer": "*args collects extra positional arguments into a tuple, and **kwargs collects extra keyword arguments into a dictionary. They are useful when a function needs flexible inputs or when forwarding arguments to another function. They do not change meaning by name alone, but the asterisk forms are what matter.",
+    },
+    {
+        "title": "Dataclass purpose",
+        "description": "Explain why dataclasses exist.",
+        "question": "What problem does @dataclass solve in Python?",
+        "focus_points": [
+            "boilerplate reduction",
+            "init/repr/eq generation",
+            "data containers",
+        ],
+        "expected_answer": "@dataclass reduces boilerplate for classes that mostly store data. It can automatically generate methods like __init__, __repr__, and __eq__ based on declared fields. That makes plain data containers shorter and easier to maintain.",
+    },
+    {
+        "title": "Sets",
+        "description": "Explain what sets are good for.",
+        "question": "What is a set in Python, and when is it useful?",
+        "focus_points": ["unique values", "membership tests", "unordered collection"],
+        "expected_answer": "A set is an unordered collection of unique values. It is useful when you need to remove duplicates or perform fast membership checks like 'is this value present?'. Because sets are unordered, they are not the right choice when item order matters.",
+    },
+    {
+        "title": "Iterators",
+        "description": "Explain iterables versus iterators.",
+        "question": "What is the difference between an iterable and an iterator in Python?",
+        "focus_points": ["__iter__", "__next__", "stateful consumption"],
+        "expected_answer": "An iterable is any object you can loop over, usually because it can return an iterator. An iterator is the object that produces items one at a time and keeps track of iteration state through __next__. Iterators are consumed as you read from them, while iterables can often produce a fresh iterator each time.",
+    },
+    {
+        "title": "Exceptions vs returns",
+        "description": "Explain when exceptions are appropriate.",
+        "question": "When should you raise an exception instead of returning a special value like None or False?",
+        "focus_points": [
+            "unexpected errors",
+            "explicit failure",
+            "avoid ambiguous return values",
+        ],
+        "expected_answer": "Exceptions are useful when the failure is exceptional enough that normal execution should stop or the caller must handle it explicitly. Returning None or False can be fine for expected absence, but it can also be ambiguous and easy to ignore. Raising an exception makes the failure path explicit and harder to miss.",
+    },
+    {
+        "title": "PEP 8",
+        "description": "Explain what PEP 8 is for.",
+        "question": "What is PEP 8, and why does it matter?",
+        "focus_points": ["style guide", "readability", "consistency"],
+        "expected_answer": "PEP 8 is the main Python style guide. It gives conventions for naming, formatting, spacing, imports, and other style choices. Following it improves readability and keeps code consistent across a codebase or team.",
+    },
+    {
+        "title": "Imports",
+        "description": "Explain absolute and relative imports.",
+        "question": "What is the difference between absolute imports and relative imports in Python?",
+        "focus_points": ["full package path", "current package", "maintainability"],
+        "expected_answer": "Absolute imports use the full package path from the project root, while relative imports use dots to refer to modules within the current package. Absolute imports are usually clearer and easier to follow in larger codebases. Relative imports can be convenient inside a package but are more tightly coupled to package structure.",
+    },
+    {
+        "title": "Type hints",
+        "description": "Explain why type hints are used.",
+        "question": "What are type hints in Python used for if Python is still dynamically typed?",
+        "focus_points": ["documentation", "static analysis", "editor/tooling support"],
+        "expected_answer": "Type hints document the expected shapes of values and improve readability for humans and tools. Python remains dynamically typed at runtime, but static analyzers, IDEs, and type checkers can use hints to catch mistakes earlier. They help with maintainability without changing Python into a statically typed language.",
+    },
+]
+
+
+def build_simple_python_question_task(index: int, prompt: SimplePythonQuestionPrompt) -> Task:
+    return Task(
+        id=f"python-question-{index}",
+        title=prompt["title"],
+        description=prompt["description"],
+        requirements=[
+            "Spot the main bug",
+            "Explain why it fails",
+            "Suggest a small fix",
+        ],
+        instructions=[
+            "Review the code",
+            "Call out the main issue",
+            "Suggest a corrected version",
+        ],
+        language="python_questions",
+        code=prompt["code"],
+        reference_issues=[
+            Issue(
+                id=f"python-question-{index}-i1",
+                line=prompt["issue_line"],
+                severity=Severity.medium,
+                title=prompt["issue_title"],
+                description=prompt["issue_description"],
+                suggestion=prompt["issue_suggestion"],
+                code=prompt["issue_code"],
+            )
+        ],
+    )
+
+
+def build_python_theory_task(index: int, prompt: PythonTheoryPrompt) -> Task:
+    prompt_lines = "\n".join(f"# - {point}" for point in prompt["focus_points"])
+    code = (
+        "# Python theory question\n"
+        f"# {prompt['question']}\n"
+        "#\n"
+        "# Include these points in your answer:\n"
+        f"{prompt_lines}\n"
+    )
+    return Task(
+        id=f"python-theory-{index}",
+        title=prompt["title"],
+        description=prompt["description"],
+        requirements=[
+            "Answer in 2-4 sentences",
+            "Cover the core concept",
+            "Use correct Python terminology",
+        ],
+        instructions=[
+            "Read the prompt in the code viewer",
+            "Write a concise answer in your own words",
+            "Submit your answer for correctness analysis",
+        ],
+        language="python_theory",
+        submission_mode="answer",
+        code=code,
+        reference_issues=[
+            Issue(
+                id=f"python-theory-{index}-i1",
+                line=1,
+                severity=Severity.medium,
+                title=prompt["title"],
+                description=prompt["expected_answer"],
+                suggestion="Expected answer should cover: " + ", ".join(prompt["focus_points"]),
+                code=prompt["expected_answer"],
+            )
+        ],
+    )
+
 
 TASKS = [
     # == 1. Web: Create orders ==
@@ -3223,4 +3713,14 @@ TASKS = [
             ),
         ],
     ),
+    *[
+        build_simple_python_question_task(index, prompt)
+        for index, prompt in enumerate(SIMPLE_PYTHON_QUESTION_PROMPTS, start=1)
+    ],
+    *[
+        build_python_theory_task(index, prompt)
+        for index, prompt in enumerate(PYTHON_THEORY_PROMPTS, start=1)
+    ],
 ]
+
+TASKS = [task for task in TASKS if task.language not in {"go", "rust"}]

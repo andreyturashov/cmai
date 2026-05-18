@@ -4,6 +4,18 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import CommentForm from './CommentForm';
 
+vi.mock('./RichAnswerEditor', () => ({
+  default: function MockRichAnswerEditor({ value = '', onChange, ariaLabel = 'Comment' }) {
+    return (
+      <textarea
+        aria-label={ariaLabel}
+        value={value}
+        onChange={(event) => onChange?.(event.target.value)}
+      />
+    );
+  },
+}));
+
 describe('CommentForm', () => {
   const defaults = {
     line: 5,
@@ -33,15 +45,13 @@ describe('CommentForm', () => {
     const onSave = vi.fn();
     render(<CommentForm {...defaults} onSave={onSave} />);
 
-    const [commentArea, suggestionArea] = screen.getAllByRole('textbox');
-    await userEvent.type(commentArea, 'Missing validation');
-    await userEvent.type(suggestionArea, 'Add input check');
+    await userEvent.type(screen.getByRole('textbox', { name: 'Comment' }), 'Missing validation');
     await userEvent.click(screen.getByText('Save Comment'));
 
     expect(onSave).toHaveBeenCalledWith({
       line: 5,
       comment: 'Missing validation',
-      suggestion: 'Add input check',
+      suggestion: '',
     });
   });
 
@@ -49,16 +59,14 @@ describe('CommentForm', () => {
     const onSave = vi.fn();
     render(<CommentForm {...defaults} endLine={8} onSave={onSave} />);
 
-    const [commentArea, suggestionArea] = screen.getAllByRole('textbox');
-    await userEvent.type(commentArea, 'Bug');
-    await userEvent.type(suggestionArea, 'Fix it');
+    await userEvent.type(screen.getByRole('textbox', { name: 'Comment' }), 'Bug');
     await userEvent.click(screen.getByText('Save Comment'));
 
     expect(onSave).toHaveBeenCalledWith({
       line: 5,
       end_line: 8,
       comment: 'Bug',
-      suggestion: 'Fix it',
+      suggestion: '',
     });
   });
 
@@ -66,19 +74,6 @@ describe('CommentForm', () => {
     const onSave = vi.fn();
     render(<CommentForm {...defaults} onSave={onSave} />);
 
-    const [, suggestionArea] = screen.getAllByRole('textbox');
-    await userEvent.type(suggestionArea, 'Fix');
-    await userEvent.click(screen.getByText('Save Comment'));
-
-    expect(onSave).not.toHaveBeenCalled();
-  });
-
-  it('does not submit when suggestion is empty', async () => {
-    const onSave = vi.fn();
-    render(<CommentForm {...defaults} onSave={onSave} />);
-
-    const [commentArea] = screen.getAllByRole('textbox');
-    await userEvent.type(commentArea, 'Issue');
     await userEvent.click(screen.getByText('Save Comment'));
 
     expect(onSave).not.toHaveBeenCalled();
@@ -88,8 +83,7 @@ describe('CommentForm', () => {
     const initial = { comment: 'existing', suggestion: 'fix code' };
     render(<CommentForm {...defaults} initial={initial} />);
 
-    const [commentArea, suggestionArea] = screen.getAllByRole('textbox');
-    expect(commentArea).toHaveValue('existing');
-    expect(suggestionArea).toHaveValue('fix code');
+    expect(screen.getByRole('textbox', { name: 'Comment' })).toHaveValue('existing');
+    expect(screen.queryByDisplayValue('fix code')).not.toBeInTheDocument();
   });
 });
