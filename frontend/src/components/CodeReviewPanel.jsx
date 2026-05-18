@@ -2,19 +2,21 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-python';
 import 'prismjs/components/prism-javascript';
-import 'prismjs/components/prism-go';
-import 'prismjs/components/prism-rust';
 import CommentForm from './CommentForm';
 
 export default function CodeReviewPanel({
   code,
   language,
+  instructions = [],
+  responseMode = 'comments',
   comments,
+  answer = '',
   referenceIssues = [],
   showReference,
   onToggleReference,
   onAddComment,
   onEditComment,
+  onAnswerChange,
   onSubmitReview,
 }) {
   const [selStart, setSelStart] = useState(null);
@@ -53,6 +55,7 @@ export default function CodeReviewPanel({
   const editMax = editingComment?.end_line ?? editMin;
 
   function handleMouseDown(lineNumber, e) {
+    if (responseMode !== 'comments') return;
     e.preventDefault();
     if (editingIdx != null) setEditingIdx(null);
     dragStart.current = lineNumber;
@@ -84,7 +87,17 @@ export default function CodeReviewPanel({
     [selStart, selEnd, editingIdx],
   );
 
-  const showForm = selStart != null && !dragging;
+  const showForm = responseMode === 'comments' && selStart != null && !dragging;
+  const panelInstructions = instructions.length
+    ? instructions
+    : [
+        'Review the code',
+        'Add inline comments',
+        'Explain impact and risk',
+        'Suggest improvements',
+        '(Optional) Provide fixed code',
+      ];
+  const submitDisabled = responseMode === 'answer' ? !answer.trim() : false;
 
   return (
     <section className="right-panel card reveal">
@@ -96,11 +109,9 @@ export default function CodeReviewPanel({
             <div className="info-tooltip">
               <strong>Instructions</strong>
               <ol>
-                <li>Review the code</li>
-                <li>Add inline comments</li>
-                <li>Explain impact and risk</li>
-                <li>Suggest improvements</li>
-                <li>(Optional) Provide fixed code</li>
+                {panelInstructions.map((instruction) => (
+                  <li key={instruction}>{instruction}</li>
+                ))}
               </ol>
             </div>
           </div>
@@ -112,7 +123,9 @@ export default function CodeReviewPanel({
           >
             {showReference ? 'Hide Answer' : 'Show Answer'}
           </button>
-          <button onClick={onSubmitReview}>Submit Review</button>
+          <button onClick={onSubmitReview} disabled={submitDisabled}>
+            Submit Review
+          </button>
         </div>
       </header>
 
@@ -227,6 +240,20 @@ export default function CodeReviewPanel({
           );
         })}
       </div>
+
+      {responseMode === 'answer' ? (
+        <div className="answer-form">
+          <label>
+            Your Answer
+            <textarea
+              value={answer}
+              onChange={(e) => onAnswerChange?.(e.target.value)}
+              rows={6}
+              placeholder="Write your answer here"
+            />
+          </label>
+        </div>
+      ) : null}
     </section>
   );
 }

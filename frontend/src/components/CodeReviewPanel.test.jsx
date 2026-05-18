@@ -9,12 +9,16 @@ const sampleCode = 'def foo():\n    return 42\n    print("unreachable")';
 const defaults = {
   code: sampleCode,
   language: 'python',
+  instructions: [],
+  responseMode: 'comments',
   comments: [],
+  answer: '',
   referenceIssues: [],
   showReference: false,
   onToggleReference: vi.fn(),
   onAddComment: vi.fn(),
   onEditComment: vi.fn(),
+  onAnswerChange: vi.fn(),
   onSubmitReview: vi.fn(),
 };
 
@@ -48,6 +52,26 @@ describe('CodeReviewPanel', () => {
     render(<CodeReviewPanel {...defaults} onSubmitReview={onSubmit} />);
     await userEvent.click(screen.getByText('Submit Review'));
     expect(onSubmit).toHaveBeenCalledOnce();
+  });
+
+  it('renders answer textarea in answer mode', () => {
+    render(<CodeReviewPanel {...defaults} responseMode="answer" />);
+    expect(screen.getByText('Your Answer')).toBeInTheDocument();
+  });
+
+  it('disables submit in answer mode until there is an answer', () => {
+    render(<CodeReviewPanel {...defaults} responseMode="answer" answer="" />);
+    expect(screen.getByText('Submit Review')).toBeDisabled();
+  });
+
+  it('updates answer text in answer mode', async () => {
+    const onAnswerChange = vi.fn();
+    render(<CodeReviewPanel {...defaults} responseMode="answer" onAnswerChange={onAnswerChange} />);
+    await userEvent.type(
+      screen.getByPlaceholderText('Write your answer here'),
+      'Tuple is immutable',
+    );
+    expect(onAnswerChange).toHaveBeenCalled();
   });
 
   it('renders inline comments', () => {
@@ -93,6 +117,14 @@ describe('CodeReviewPanel', () => {
     fireEvent.mouseDown(lineNo);
     fireEvent.mouseUp(lineNo.closest('.code-scroll') || document);
     expect(screen.getByText('Save Comment')).toBeInTheDocument();
+  });
+
+  it('does not open comment form in answer mode', () => {
+    render(<CodeReviewPanel {...defaults} responseMode="answer" />);
+    const lineNo = screen.getByText('2');
+    fireEvent.mouseDown(lineNo);
+    fireEvent.mouseUp(lineNo.closest('.code-scroll') || document);
+    expect(screen.queryByText('Save Comment')).not.toBeInTheDocument();
   });
 
   it('handles empty code gracefully', () => {

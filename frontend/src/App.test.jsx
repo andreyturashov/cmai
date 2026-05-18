@@ -49,10 +49,96 @@ describe('App', () => {
   it('renders language toggle buttons', async () => {
     render(<App />);
     expect(screen.getByText('Python')).toBeInTheDocument();
+    expect(screen.getByText('Python (questions)')).toBeInTheDocument();
+    expect(screen.getByText('Python (theory)')).toBeInTheDocument();
     expect(screen.getByText('JavaScript')).toBeInTheDocument();
-    expect(screen.getByText('Go')).toBeInTheDocument();
-    expect(screen.getByText('Rust')).toBeInTheDocument();
     await waitFor(() => expect(api.getTasks).toHaveBeenCalled());
+  });
+
+  it('switches to Python questions language', async () => {
+    render(<App />);
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python'));
+
+    api.getTasks.mockResolvedValue([
+      { id: 'py-q-1', title: 'Simple Python Question', language: 'python_questions' },
+    ]);
+    api.getTaskById.mockResolvedValue({
+      ...fullTask,
+      id: 'py-q-1',
+      title: 'Simple Python Question',
+      language: 'python_questions',
+    });
+
+    await userEvent.click(screen.getByText('Python (questions)'));
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python_questions'));
+  });
+
+  it('switches to Python theory language', async () => {
+    render(<App />);
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python'));
+
+    api.getTasks.mockResolvedValue([
+      { id: 'theory-1', title: 'List vs tuple', language: 'python_theory' },
+    ]);
+    api.getTaskById.mockResolvedValue({
+      ...fullTask,
+      id: 'theory-1',
+      title: 'List vs tuple',
+      language: 'python_theory',
+      submission_mode: 'answer',
+      code: '# Python theory question',
+    });
+
+    await userEvent.click(screen.getByText('Python (theory)'));
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python_theory'));
+  });
+
+  it('submits a theory answer for analysis', async () => {
+    api.getTasks.mockResolvedValue([
+      { id: 'theory-1', title: 'List vs tuple', language: 'python_theory' },
+    ]);
+    api.getTaskById.mockResolvedValue({
+      ...fullTask,
+      id: 'theory-1',
+      title: 'List vs tuple',
+      language: 'python_theory',
+      submission_mode: 'answer',
+      instructions: ['Answer the question'],
+      code: '# Python theory question',
+    });
+    api.createReview.mockResolvedValue({ id: 'r1' });
+    api.aiAnalyze.mockResolvedValue({
+      analysis: {
+        all_fixed: true,
+        score: 9,
+        detected_critical: 0,
+        total_critical: 0,
+        detected_medium: 1,
+        total_medium: 1,
+        detected_low: 0,
+        total_low: 0,
+        missed_issues: [],
+        feedback: ['Good answer'],
+        summary: 'Clear answer.',
+        issues: [],
+      },
+    });
+
+    render(<App />);
+    await userEvent.click(screen.getByText('Python (theory)'));
+    await waitFor(() => expect(screen.getByText('Your Answer')).toBeInTheDocument());
+
+    await userEvent.type(
+      screen.getByPlaceholderText('Write your answer here'),
+      'Lists are mutable.',
+    );
+    await userEvent.click(screen.getByText('Submit Review'));
+
+    await waitFor(() =>
+      expect(api.createReview).toHaveBeenCalledWith(
+        expect.objectContaining({ answer: 'Lists are mutable.' }),
+      ),
+    );
   });
 
   it('switches language when button clicked', async () => {
@@ -162,24 +248,6 @@ describe('App', () => {
     await waitFor(() => expect(api.getTaskById).toHaveBeenCalledWith('task-1'));
 
     Math.random.mockRestore();
-  });
-
-  it('switches to Go language', async () => {
-    render(<App />);
-    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python'));
-
-    api.getTasks.mockResolvedValue([]);
-    await userEvent.click(screen.getByText('Go'));
-    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('go'));
-  });
-
-  it('switches to Rust language', async () => {
-    render(<App />);
-    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python'));
-
-    api.getTasks.mockResolvedValue([]);
-    await userEvent.click(screen.getByText('Rust'));
-    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('rust'));
   });
 
   it('shows error when getTaskById fails', async () => {

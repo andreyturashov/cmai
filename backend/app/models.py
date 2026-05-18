@@ -28,6 +28,7 @@ class Task(BaseModel):
     requirements: list[str]
     instructions: list[str]
     language: str
+    submission_mode: str = "comments"
     code: str
     reference_issues: list[Issue] = Field(default_factory=list)
 
@@ -43,12 +44,14 @@ class InlineComment(BaseModel):
 class ReviewCreate(BaseModel):
     task_id: str
     comments: list[InlineComment] = Field(default_factory=list)
+    answer: str = ""
 
 
 class UserReview(BaseModel):
     id: str
     task_id: str
     comments: list[InlineComment]
+    answer: str = ""
 
 
 class EvaluationRequest(BaseModel):

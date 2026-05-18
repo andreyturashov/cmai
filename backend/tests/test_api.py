@@ -71,18 +71,19 @@ def test_get_tasks_filter_javascript(client):
     assert all(t["language"] == "javascript" for t in data)
 
 
-def test_get_tasks_filter_go(client):
-    resp = client.get("/tasks", params={"language": "go"})
+def test_get_tasks_filter_python_questions(client):
+    resp = client.get("/tasks", params={"language": "python_questions"})
     data = resp.json()
-    assert len(data) > 0
-    assert all(t["language"] == "go" for t in data)
+    assert len(data) == 20
+    assert all(t["language"] == "python_questions" for t in data)
 
 
-def test_get_tasks_filter_rust(client):
-    resp = client.get("/tasks", params={"language": "rust"})
+def test_get_tasks_filter_python_theory(client):
+    resp = client.get("/tasks", params={"language": "python_theory"})
     data = resp.json()
-    assert len(data) > 0
-    assert all(t["language"] == "rust" for t in data)
+    assert len(data) == 20
+    assert all(t["language"] == "python_theory" for t in data)
+    assert all(t["submission_mode"] == "answer" for t in data)
 
 
 def test_get_tasks_filter_unknown_language(client):
@@ -94,11 +95,14 @@ def test_get_tasks_filter_unknown_language(client):
 def test_get_tasks_no_filter_returns_all(client):
     all_resp = client.get("/tasks")
     py_resp = client.get("/tasks", params={"language": "python"})
+    py_questions_resp = client.get("/tasks", params={"language": "python_questions"})
+    py_theory_resp = client.get("/tasks", params={"language": "python_theory"})
     js_resp = client.get("/tasks", params={"language": "javascript"})
-    go_resp = client.get("/tasks", params={"language": "go"})
-    rust_resp = client.get("/tasks", params={"language": "rust"})
     total_filtered = (
-        len(py_resp.json()) + len(js_resp.json()) + len(go_resp.json()) + len(rust_resp.json())
+        len(py_resp.json())
+        + len(py_questions_resp.json())
+        + len(py_theory_resp.json())
+        + len(js_resp.json())
     )
     assert len(all_resp.json()) == total_filtered
 
@@ -161,6 +165,19 @@ def test_create_review_with_comments(client):
     assert data["comments"][0]["line"] == 6
 
 
+def test_create_review_with_answer(client):
+    resp = client.post(
+        "/reviews",
+        json={
+            "task_id": "python-theory-1",
+            "comments": [],
+            "answer": "Lists are mutable and tuples are immutable.",
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["answer"] == "Lists are mutable and tuples are immutable."
+
+
 def test_create_review_with_line_range(client):
     comment = {
         "line": 6,
@@ -221,6 +238,24 @@ def test_evaluate_review_not_found(client):
     assert resp.status_code == 404
 
 
+def test_evaluate_theory_answer(client):
+    review = client.post(
+        "/reviews",
+        json={
+            "task_id": "python-theory-1",
+            "comments": [],
+            "answer": (
+                "Lists are mutable collections that can change over time, while tuples are "
+                "immutable and better for fixed values."
+            ),
+        },
+    ).json()
+    resp = client.post("/evaluate", json={"review_id": review["id"]})
+    ev = resp.json()["evaluation"]
+    assert ev["score"] == 10.0
+    assert ev["missed_issue_ids"] == []
+
+
 def test_evaluate_missed_issues_listed(client):
     review = client.post("/reviews", json={"task_id": "task-1", "comments": []}).json()
     resp = client.post("/evaluate", json={"review_id": review["id"]})
@@ -263,9 +298,15 @@ def test_all_tasks_have_reference_issues():
 
 
 def test_all_tasks_have_valid_language():
-    valid = {"python", "javascript", "go", "rust"}
+    valid = {"python", "python_questions", "python_theory", "javascript"}
     for task in TASKS:
         assert task.language in valid, f"Task {task.id} has invalid language: {task.language}"
+
+
+def test_theory_tasks_use_answer_submission_mode():
+    for task in TASKS:
+        if task.language == "python_theory":
+            assert task.submission_mode == "answer"
 
 
 def test_all_issues_have_valid_severity():
@@ -288,8 +329,8 @@ def test_each_language_has_tasks():
     languages = {t.language for t in TASKS}
     assert "python" in languages
     assert "javascript" in languages
-    assert "go" in languages
-    assert "rust" in languages
+    assert "python_questions" in languages
+    assert "python_theory" in languages
 
 
 # ---------------------------------------------------------------------------

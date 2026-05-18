@@ -33,6 +33,52 @@ def _build_prompt(task: Task, review: UserReview) -> str:
         or "(no comments submitted)"
     )
 
+    answer_block = review.answer.strip() or "(no answer submitted)"
+
+    if task.submission_mode == "answer":
+        return f"""You are a strict Python theory mentor. Your job is to evaluate whether a student's free-text answer correctly covers the expected concepts for a theory question.
+
+IMPORTANT: Write all explanations addressing the user directly using \"you/your\" (second person). Never say \"the student\" or \"they\".
+
+## Question shown to the student
+```python
+{numbered}
+```
+
+## Expected concepts / rubric
+{issues_block}
+
+## Student answer
+{answer_block}
+
+## Evaluation rules
+For EACH expected concept, decide whether the student's answer covers it clearly:
+1. Match on meaning, not exact wording.
+2. Do not require every phrase from the rubric, but the core idea must be present.
+3. A vague answer does not count.
+4. If no answer was submitted, nothing is addressed and score = 0.
+
+## Scoring guide
+- Score = (addressed concepts / total concepts) * 10, rounded to 1 decimal
+- If the answer is empty, score = 0
+
+Return ONLY valid JSON (no markdown fences, no extra text) with this exact schema:
+{{
+    \"all_fixed\": <bool — true only if EVERY expected concept is covered>,
+    \"score\": <number 0-10>,
+    \"issues\": [
+        {{
+            \"issue_id\": \"<id from rubric>\",
+            \"title\": \"<title from rubric>\",
+            \"severity\": \"<critical|medium|low>\",
+            \"addressed\": <bool>,
+            \"explanation\": \"<1-2 sentences using 'you/your': whether your answer covers this concept and why. Start with the concept title.>\"
+        }}
+    ],
+    \"summary\": \"<one sentence overall assessment>\"
+}}
+"""
+
     return f"""You are a strict code-review mentor. Your job is to evaluate whether a student's review comments correctly identify known issues in a code snippet.
 
 Be strict: a comment only "addresses" an issue if it clearly describes the SAME problem (not just nearby code). Vague or tangential comments do NOT count.
@@ -176,14 +222,24 @@ async def analyze_review(task: Task, review: UserReview) -> AIAnalysisResult:
         score = round((addressed_points / total_points) * 10, 1) if total_points else 0.0
 
     feedback: list[str] = []
-    if det_sev[Severity.critical] < by_sev[Severity.critical]:
-        feedback.append("Focus on high-impact failures first: validation and security checks.")
-    if det_sev[Severity.medium] < by_sev[Severity.medium]:
-        feedback.append("Look for explicit error handling and edge-case behavior.")
-    if det_sev[Severity.low] < by_sev[Severity.low]:
-        feedback.append("Consider maintainability and architecture improvements.")
-    if not feedback:
-        feedback.append("Excellent review — all issues identified.")
+    if task.submission_mode == "answer":
+        if not review.answer.strip():
+            feedback.append("Add an answer before submitting so your correctness can be analyzed.")
+        elif len(addressed_ids) < len(task.reference_issues):
+            feedback.append(
+                "Your answer is close, but it should cover more of the expected concepts."
+            )
+        else:
+            feedback.append("Strong answer — you covered the expected concepts.")
+    else:
+        if det_sev[Severity.critical] < by_sev[Severity.critical]:
+            feedback.append("Focus on high-impact failures first: validation and security checks.")
+        if det_sev[Severity.medium] < by_sev[Severity.medium]:
+            feedback.append("Look for explicit error handling and edge-case behavior.")
+        if det_sev[Severity.low] < by_sev[Severity.low]:
+            feedback.append("Consider maintainability and architecture improvements.")
+        if not feedback:
+            feedback.append("Excellent review — all issues identified.")
 
     return AIAnalysisResult(
         all_fixed=bool(data.get("all_fixed", False)),

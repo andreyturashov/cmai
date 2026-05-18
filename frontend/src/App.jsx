@@ -8,6 +8,7 @@ export default function App() {
   const [taskIndex, setTaskIndex] = useState(0);
   const [task, setTask] = useState(null);
   const [comments, setComments] = useState([]);
+  const [answer, setAnswer] = useState('');
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [showReference, setShowReference] = useState(false);
@@ -27,6 +28,7 @@ export default function App() {
         setTaskList(tasks);
         setTaskIndex(0);
         setComments([]);
+        setAnswer('');
         setAiAnalysis(null);
         setShowReference(false);
       } catch (e) {
@@ -63,6 +65,7 @@ export default function App() {
     const boundedIndex = nextIndex >= taskList.length ? 0 : nextIndex;
     setTaskIndex(boundedIndex);
     setComments([]);
+    setAnswer('');
     setAiAnalysis(null);
     setShowReference(false);
   }
@@ -75,6 +78,7 @@ export default function App() {
       const review = await api.createReview({
         task_id: task.id,
         comments,
+        answer,
       });
 
       setAiLoading(true);
@@ -103,22 +107,22 @@ export default function App() {
               Python
             </button>
             <button
+              className={language === 'python_questions' ? 'lang-active' : ''}
+              onClick={() => setLanguage('python_questions')}
+            >
+              Python (questions)
+            </button>
+            <button
+              className={language === 'python_theory' ? 'lang-active' : ''}
+              onClick={() => setLanguage('python_theory')}
+            >
+              Python (theory)
+            </button>
+            <button
               className={language === 'javascript' ? 'lang-active' : ''}
               onClick={() => setLanguage('javascript')}
             >
               JavaScript
-            </button>
-            <button
-              className={language === 'go' ? 'lang-active' : ''}
-              onClick={() => setLanguage('go')}
-            >
-              Go
-            </button>
-            <button
-              className={language === 'rust' ? 'lang-active' : ''}
-              onClick={() => setLanguage('rust')}
-            >
-              Rust
             </button>
           </div>
           <button onClick={() => moveTask(taskIndex + 1)} disabled={!taskList.length}>
@@ -134,7 +138,10 @@ export default function App() {
         <CodeReviewPanel
           code={task?.code || ''}
           language={task?.language || 'python'}
+          instructions={task?.instructions || []}
+          responseMode={task?.submission_mode || 'comments'}
           comments={comments}
+          answer={answer}
           referenceIssues={showReference ? task?.reference_issues || [] : []}
           showReference={showReference}
           onToggleReference={() => setShowReference((v) => !v)}
@@ -142,6 +149,7 @@ export default function App() {
           onEditComment={(idx, updated) =>
             setComments((prev) => prev.map((c, i) => (i === idx ? updated : c)))
           }
+          onAnswerChange={setAnswer}
           onSubmitReview={submitReview}
         />
       </section>
