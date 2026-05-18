@@ -220,23 +220,31 @@ async def analyze_review(task: Task, review: UserReview) -> AIAnalysisResult:
         else:
             missed.append(issue.title)
 
-    # Use AI-provided score if present, otherwise compute from verdicts
-    ai_score = data.get("score")
-    if ai_score is not None:
-        try:
-            score = round(min(10.0, max(0.0, float(ai_score))), 1)
-        except (TypeError, ValueError):
-            score = 0.0
+    total_points = 0
+    addressed_points = 0
+    weight = {Severity.critical: 3, Severity.medium: 2, Severity.low: 1}
+    for issue in task.reference_issues:
+        w = weight[issue.severity]
+        total_points += w
+        if issue.id in addressed_ids:
+            addressed_points += w
+
+    computed_score = round((addressed_points / total_points) * 10, 1) if total_points else 0.0
+    normalized_all_fixed = len(addressed_ids) == len(task.reference_issues)
+
+    # In answer mode, prefer the normalized verdict-derived score to avoid
+    # contradictory AI outputs like addressed=true with score < 10.
+    if task.submission_mode == "answer":
+        score = computed_score
     else:
-        total_points = 0
-        addressed_points = 0
-        weight = {Severity.critical: 3, Severity.medium: 2, Severity.low: 1}
-        for issue in task.reference_issues:
-            w = weight[issue.severity]
-            total_points += w
-            if issue.id in addressed_ids:
-                addressed_points += w
-        score = round((addressed_points / total_points) * 10, 1) if total_points else 0.0
+        ai_score = data.get("score")
+        if ai_score is not None:
+            try:
+                score = round(min(10.0, max(0.0, float(ai_score))), 1)
+            except (TypeError, ValueError):
+                score = 0.0
+        else:
+            score = computed_score
 
     feedback: list[str] = []
     if task.submission_mode == "answer":
@@ -259,7 +267,7 @@ async def analyze_review(task: Task, review: UserReview) -> AIAnalysisResult:
             feedback.append("Excellent review — all issues identified.")
 
     return AIAnalysisResult(
-        all_fixed=bool(data.get("all_fixed", False)),
+        all_fixed=normalized_all_fixed,
         score=score,
         detected_critical=det_sev[Severity.critical],
         total_critical=by_sev[Severity.critical],

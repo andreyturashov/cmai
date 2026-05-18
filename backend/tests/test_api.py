@@ -675,6 +675,53 @@ async def test_analyze_review_deduplicates_theory_issue_verdicts():
     assert result.issues[0].issue_id == task.reference_issues[0].id
     assert result.issues[0].addressed is True
     assert result.issues[0].explanation == "First verdict"
+    assert result.score == 10.0
+    assert result.all_fixed is True
+
+
+@pytest.mark.anyio
+async def test_analyze_review_theory_uses_normalized_score_over_ai_score():
+    import httpx as httpx_mod
+
+    task = TASKS_BY_ID["python-theory-9"]
+    review = UserReview(
+        id="review-theory-2",
+        task_id=task.id,
+        comments=[],
+        answer="Else runs only when no exception happens, and finally always runs for cleanup.",
+    )
+    contradictory = {
+        "all_fixed": False,
+        "score": 6.0,
+        "issues": [
+            {
+                "issue_id": task.reference_issues[0].id,
+                "title": task.reference_issues[0].title,
+                "severity": task.reference_issues[0].severity.value,
+                "addressed": True,
+                "explanation": "You covered the expected concept clearly.",
+            }
+        ],
+        "summary": "Strong answer.",
+    }
+
+    mock_resp = httpx_mod.Response(
+        status_code=200,
+        json={"response": json.dumps(contradictory)},
+        request=httpx_mod.Request("POST", "http://localhost/api/generate"),
+    )
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=mock_resp)
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        result = await analyze_review(task, review)
+
+    assert result.score == 10.0
+    assert result.all_fixed is True
+    assert result.issues[0].addressed is True
 
 
 # ---------------------------------------------------------------------------
