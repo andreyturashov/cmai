@@ -4,6 +4,16 @@ import AuthControls from './components/AuthControls';
 import LeftPanel from './components/LeftPanel';
 import CodeReviewPanel from './components/CodeReviewPanel';
 
+const LANGUAGE_OPTIONS = [
+  { value: 'python', label: 'Python' },
+  { value: 'python_questions', label: 'Python (questions)' },
+  { value: 'python_theory', label: 'Python (theory)' },
+  { value: 'fastapi', label: 'FastAPI' },
+  { value: 'django', label: 'Django' },
+  { value: 'react', label: 'React' },
+  { value: 'javascript', label: 'JavaScript' },
+];
+
 export default function App() {
   const [taskList, setTaskList] = useState([]);
   const [taskIndex, setTaskIndex] = useState(0);
@@ -151,30 +161,15 @@ export default function App() {
         </div>
         <div className="task-switcher">
           <div className="language-toggle">
-            <button
-              className={language === 'python' ? 'lang-active' : ''}
-              onClick={() => setLanguage('python')}
-            >
-              Python
-            </button>
-            <button
-              className={language === 'python_questions' ? 'lang-active' : ''}
-              onClick={() => setLanguage('python_questions')}
-            >
-              Python (questions)
-            </button>
-            <button
-              className={language === 'python_theory' ? 'lang-active' : ''}
-              onClick={() => setLanguage('python_theory')}
-            >
-              Python (theory)
-            </button>
-            <button
-              className={language === 'javascript' ? 'lang-active' : ''}
-              onClick={() => setLanguage('javascript')}
-            >
-              JavaScript
-            </button>
+            {LANGUAGE_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                className={language === option.value ? 'lang-active' : ''}
+                onClick={() => setLanguage(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
           <button onClick={() => moveTask(taskIndex + 1)} disabled={!taskList.length}>
             Next Task

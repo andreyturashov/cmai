@@ -274,7 +274,7 @@ def test_get_tasks_has_expected_fields(client):
 def test_get_tasks_filter_python(client):
     resp = client.get("/tasks", params={"language": "python"})
     data = resp.json()
-    assert len(data) > 0
+    assert len(data) == 44
     assert all(t["language"] == "python" for t in data)
 
 
@@ -300,6 +300,27 @@ def test_get_tasks_filter_python_theory(client):
     assert all(t["submission_mode"] == "answer" for t in data)
 
 
+def test_get_tasks_filter_fastapi(client):
+    resp = client.get("/tasks", params={"language": "fastapi"})
+    data = resp.json()
+    assert len(data) == 20
+    assert all(t["language"] == "fastapi" for t in data)
+
+
+def test_get_tasks_filter_django(client):
+    resp = client.get("/tasks", params={"language": "django"})
+    data = resp.json()
+    assert len(data) == 20
+    assert all(t["language"] == "django" for t in data)
+
+
+def test_get_tasks_filter_react(client):
+    resp = client.get("/tasks", params={"language": "react"})
+    data = resp.json()
+    assert len(data) == 20
+    assert all(t["language"] == "react" for t in data)
+
+
 def test_get_tasks_filter_unknown_language(client):
     resp = client.get("/tasks", params={"language": "cobol"})
     assert resp.status_code == 200
@@ -311,11 +332,17 @@ def test_get_tasks_no_filter_returns_all(client):
     py_resp = client.get("/tasks", params={"language": "python"})
     py_questions_resp = client.get("/tasks", params={"language": "python_questions"})
     py_theory_resp = client.get("/tasks", params={"language": "python_theory"})
+    fastapi_resp = client.get("/tasks", params={"language": "fastapi"})
+    django_resp = client.get("/tasks", params={"language": "django"})
+    react_resp = client.get("/tasks", params={"language": "react"})
     js_resp = client.get("/tasks", params={"language": "javascript"})
     total_filtered = (
         len(py_resp.json())
         + len(py_questions_resp.json())
         + len(py_theory_resp.json())
+        + len(fastapi_resp.json())
+        + len(django_resp.json())
+        + len(react_resp.json())
         + len(js_resp.json())
     )
     assert len(all_resp.json()) == total_filtered
@@ -512,7 +539,15 @@ def test_all_tasks_have_reference_issues():
 
 
 def test_all_tasks_have_valid_language():
-    valid = {"python", "python_questions", "python_theory", "javascript"}
+    valid = {
+        "python",
+        "python_questions",
+        "python_theory",
+        "fastapi",
+        "django",
+        "react",
+        "javascript",
+    }
     for task in TASKS:
         assert task.language in valid, f"Task {task.id} has invalid language: {task.language}"
 
@@ -542,6 +577,9 @@ def test_all_issue_ids_unique_within_task():
 def test_each_language_has_tasks():
     languages = {t.language for t in TASKS}
     assert "python" in languages
+    assert "fastapi" in languages
+    assert "django" in languages
+    assert "react" in languages
     assert "javascript" in languages
     assert "python_questions" in languages
     assert "python_theory" in languages

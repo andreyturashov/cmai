@@ -1,5 +1,12 @@
 from typing import TypedDict
 
+from app.additional_task_prompts import (
+    DJANGO_TASK_PROMPTS,
+    EXTRA_PYTHON_TASK_PROMPTS,
+    FASTAPI_TASK_PROMPTS,
+    REACT_TASK_PROMPTS,
+    SingleIssueReviewTaskPrompt,
+)
 from app.models import Issue, Severity, Task
 
 
@@ -677,6 +684,48 @@ def build_python_theory_task(index: int, prompt: PythonTheoryPrompt) -> Task:
                 description=prompt["expected_answer"],
                 suggestion="Expected answer should cover: " + ", ".join(prompt["focus_points"]),
                 code=prompt["expected_answer"],
+            )
+        ],
+    )
+
+
+SIMPLE_REVIEW_REQUIREMENTS = [
+    "Spot the main bug",
+    "Explain why it matters",
+    "Suggest a targeted fix",
+]
+
+
+SIMPLE_REVIEW_INSTRUCTIONS = [
+    "Review the code in the viewer",
+    "Call out the main issue",
+    "Suggest a corrected version",
+]
+
+
+def build_single_issue_review_task(
+    *,
+    task_id: str,
+    language: str,
+    prompt: SingleIssueReviewTaskPrompt,
+) -> Task:
+    return Task(
+        id=task_id,
+        title=prompt["title"],
+        description=prompt["description"],
+        requirements=SIMPLE_REVIEW_REQUIREMENTS,
+        instructions=SIMPLE_REVIEW_INSTRUCTIONS,
+        language=language,
+        code=prompt["code"],
+        reference_issues=[
+            Issue(
+                id=f"{task_id}-i1",
+                line=prompt["issue_line"],
+                severity=Severity(prompt["issue_severity"]),
+                title=prompt["issue_title"],
+                description=prompt["issue_description"],
+                suggestion=prompt["issue_suggestion"],
+                code=prompt["issue_code"],
             )
         ],
     )
@@ -3915,6 +3964,38 @@ TASKS = [
             [*PYTHON_THEORY_PROMPTS, *PYTHON_THEORY_HARD_PROMPTS],
             start=1,
         )
+    ],
+    *[
+        build_single_issue_review_task(
+            task_id=f"task-{index}",
+            language="python",
+            prompt=prompt,
+        )
+        for index, prompt in enumerate(EXTRA_PYTHON_TASK_PROMPTS, start=26)
+    ],
+    *[
+        build_single_issue_review_task(
+            task_id=f"fastapi-task-{index}",
+            language="fastapi",
+            prompt=prompt,
+        )
+        for index, prompt in enumerate(FASTAPI_TASK_PROMPTS, start=1)
+    ],
+    *[
+        build_single_issue_review_task(
+            task_id=f"django-task-{index}",
+            language="django",
+            prompt=prompt,
+        )
+        for index, prompt in enumerate(DJANGO_TASK_PROMPTS, start=1)
+    ],
+    *[
+        build_single_issue_review_task(
+            task_id=f"react-task-{index}",
+            language="react",
+            prompt=prompt,
+        )
+        for index, prompt in enumerate(REACT_TASK_PROMPTS, start=1)
     ],
 ]
 

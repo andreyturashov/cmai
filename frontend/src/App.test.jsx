@@ -122,6 +122,9 @@ describe('App', () => {
     expect(screen.getByText('Python')).toBeInTheDocument();
     expect(screen.getByText('Python (questions)')).toBeInTheDocument();
     expect(screen.getByText('Python (theory)')).toBeInTheDocument();
+    expect(screen.getByText('FastAPI')).toBeInTheDocument();
+    expect(screen.getByText('Django')).toBeInTheDocument();
+    expect(screen.getByText('React')).toBeInTheDocument();
     expect(screen.getByText('JavaScript')).toBeInTheDocument();
     await waitFor(() => expect(api.getTasks).toHaveBeenCalled());
   });
@@ -162,6 +165,60 @@ describe('App', () => {
 
     await userEvent.click(screen.getByText('Python (theory)'));
     await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python_theory'));
+  });
+
+  it('switches to FastAPI language', async () => {
+    render(<App />);
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python'));
+
+    api.getTasks.mockResolvedValue([
+      { id: 'fastapi-task-1', title: 'Create account endpoint', language: 'fastapi' },
+    ]);
+    api.getTaskById.mockResolvedValue({
+      ...fullTask,
+      id: 'fastapi-task-1',
+      title: 'Create account endpoint',
+      language: 'fastapi',
+    });
+
+    await userEvent.click(screen.getByText('FastAPI'));
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('fastapi'));
+  });
+
+  it('switches to Django language', async () => {
+    render(<App />);
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python'));
+
+    api.getTasks.mockResolvedValue([
+      { id: 'django-task-1', title: 'Create article view', language: 'django' },
+    ]);
+    api.getTaskById.mockResolvedValue({
+      ...fullTask,
+      id: 'django-task-1',
+      title: 'Create article view',
+      language: 'django',
+    });
+
+    await userEvent.click(screen.getByText('Django'));
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('django'));
+  });
+
+  it('switches to React language', async () => {
+    render(<App />);
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python'));
+
+    api.getTasks.mockResolvedValue([
+      { id: 'react-task-1', title: 'Add todo item', language: 'react' },
+    ]);
+    api.getTaskById.mockResolvedValue({
+      ...fullTask,
+      id: 'react-task-1',
+      title: 'Add todo item',
+      language: 'react',
+    });
+
+    await userEvent.click(screen.getByText('React'));
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('react'));
   });
 
   it('submits a theory answer for analysis', async () => {
