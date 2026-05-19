@@ -23,7 +23,7 @@ body {
 }
 
 .app-shell {
-  max-width: 1280px;
+  max-width: 1440px;
   margin: 0 auto;
   padding: 24px;
   position: relative;
@@ -84,7 +84,7 @@ body {
 .layout-grid {
   margin-top: 20px;
   display: grid;
-  grid-template-columns: 0.95fr 1.45fr;
+  grid-template-columns: minmax(360px, 1.05fr) minmax(0, 1.55fr);
   gap: 16px;
 }
 
@@ -187,7 +187,8 @@ body {
 }
 
 .code-scroll {
-  max-height: 58vh;
+  min-height: 315px;
+  max-height: 68vh;
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -220,6 +221,7 @@ body {
   border: 0;
   display: grid;
   grid-template-columns: 44px 1fr;
+  align-items: start;
   font-family: 'IBM Plex Mono', monospace;
   font-size: 0.9rem;
   text-align: left;
@@ -229,7 +231,10 @@ body {
 }
 
 .code-line code {
-  white-space: pre;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   user-select: text;
   cursor: text;
 }
@@ -248,6 +253,7 @@ body {
 
 .line-no {
   color: rgba(255, 255, 255, 0.55);
+  align-self: start;
   user-select: none;
   cursor: pointer;
 }
