@@ -1,15 +1,18 @@
 from __future__ import annotations
 
+from typing import Annotated
 from uuid import uuid4
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai_analyzer import analyze_review
+from app.db import get_session
 from app.evaluator import evaluate_review
 from app.models import EvaluationRequest, ReviewCreate, UserReview
-from app.seed_data import TASKS
+from app.task_repository import TaskRepository
 
 load_dotenv()
 
@@ -23,8 +26,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-TASKS_BY_ID = {task.id: task for task in TASKS}
 REVIEWS: dict[str, UserReview] = {}
+
+
+SessionDependency = Annotated[AsyncSession, Depends(get_session)]
+
+
+def get_task_repository(session: SessionDependency) -> TaskRepository:
+    return TaskRepository(session)
+
+
+TaskRepositoryDependency = Annotated[TaskRepository, Depends(get_task_repository)]
 
 
 @app.get("/health")
@@ -33,8 +45,11 @@ def health() -> dict:
 
 
 @app.get("/tasks")
-def get_tasks(language: str | None = Query(None)) -> list:
-    filtered = TASKS if not language else [t for t in TASKS if t.language == language]
+async def get_tasks(
+    task_repository: TaskRepositoryDependency,
+    language: str | None = Query(None),
+) -> list:
+    filtered = await task_repository.list_tasks(language)
     return [
         {
             "id": task.id,
@@ -50,8 +65,11 @@ def get_tasks(language: str | None = Query(None)) -> list:
 
 
 @app.get("/tasks/{task_id}")
-def get_task(task_id: str) -> dict:
-    task = TASKS_BY_ID.get(task_id)
+async def get_task(
+    task_id: str,
+    task_repository: TaskRepositoryDependency,
+) -> dict:
+    task = await task_repository.get_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
@@ -59,8 +77,12 @@ def get_task(task_id: str) -> dict:
 
 
 @app.post("/reviews")
-def create_review(payload: ReviewCreate) -> dict:
-    if payload.task_id not in TASKS_BY_ID:
+async def create_review(
+    payload: ReviewCreate,
+    task_repository: TaskRepositoryDependency,
+) -> dict:
+    task = await task_repository.get_task(payload.task_id)
+    if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
 
     review = UserReview(
@@ -74,12 +96,18 @@ def create_review(payload: ReviewCreate) -> dict:
 
 
 @app.post("/evaluate")
-def evaluate(payload: EvaluationRequest) -> dict:
+async def evaluate(
+    payload: EvaluationRequest,
+    task_repository: TaskRepositoryDependency,
+) -> dict:
     review = REVIEWS.get(payload.review_id)
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
 
-    task = TASKS_BY_ID[review.task_id]
+    task = await task_repository.get_task(review.task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+
     result = evaluate_review(task, review)
 
     return {
@@ -90,12 +118,17 @@ def evaluate(payload: EvaluationRequest) -> dict:
 
 
 @app.post("/ai-analyze")
-async def ai_analyze(payload: EvaluationRequest) -> dict:
+async def ai_analyze(
+    payload: EvaluationRequest,
+    task_repository: TaskRepositoryDependency,
+) -> dict:
     review = REVIEWS.get(payload.review_id)
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
 
-    task = TASKS_BY_ID[review.task_id]
+    task = await task_repository.get_task(review.task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
 
     try:
         result = await analyze_review(task, review)

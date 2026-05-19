@@ -19,7 +19,15 @@ This project contains both backend and frontend for a PR review training platfor
 ```bash
 cd backend
 uv sync
+uv run alembic upgrade head
+uv run python -m app.seed_tasks
 uv run uvicorn app.main:app --reload --port 8000
+```
+
+The backend expects `DATABASE_URL` for a local Postgres instance, for example:
+
+```bash
+export DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/codementorai
 ```
 
 ## Run Frontend

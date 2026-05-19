@@ -1,19 +1,49 @@
+import asyncio
 import json
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.ai_analyzer import _build_prompt, analyze_review
-from app.main import REVIEWS, TASKS_BY_ID, app
+from app.db import create_session_factory, get_session
+from app.db import normalize_database_url as normalize_db_url
+from app.db_models import Base
+from app.main import REVIEWS, app
 from app.models import InlineComment, UserReview
 from app.seed_data import TASKS
+from app.seed_tasks import replace_seed_tasks
+
+SEED_TASKS_BY_ID = {task.id: task for task in TASKS}
 
 
 @pytest.fixture()
-def client():
+def client(tmp_path):
     REVIEWS.clear()
-    return TestClient(app)
+
+    database_path = Path(tmp_path) / "test.db"
+    database_url = normalize_db_url(f"sqlite+aiosqlite:///{database_path}")
+    engine, session_factory = create_session_factory(database_url)
+
+    async def prepare_database() -> None:
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        await replace_seed_tasks(session_factory, TASKS)
+
+    asyncio.run(prepare_database())
+
+    async def override_get_session():
+        async with session_factory() as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+    app.dependency_overrides.clear()
+    asyncio.run(engine.dispose())
 
 
 # ---------------------------------------------------------------------------
@@ -260,12 +290,12 @@ def test_evaluate_missed_issues_listed(client):
     review = client.post("/reviews", json={"task_id": "task-1", "comments": []}).json()
     resp = client.post("/evaluate", json={"review_id": review["id"]})
     ev = resp.json()["evaluation"]
-    assert len(ev["missed_issue_ids"]) == len(TASKS_BY_ID["task-1"].reference_issues)
+    assert len(ev["missed_issue_ids"]) == len(SEED_TASKS_BY_ID["task-1"].reference_issues)
 
 
 def test_evaluate_perfect_review(client):
     """Submit comments that match all reference issues for task-1."""
-    task = TASKS_BY_ID["task-1"]
+    task = SEED_TASKS_BY_ID["task-1"]
     comments = [
         {
             "line": issue.line,
@@ -337,7 +367,7 @@ def test_each_language_has_tasks():
 # AI Analyzer – unit tests (mocked Ollama)
 # ---------------------------------------------------------------------------
 
-TASK_1 = TASKS_BY_ID["task-1"]
+TASK_1 = SEED_TASKS_BY_ID["task-1"]
 
 
 def _make_review(task_id="task-1", comments=None):
@@ -411,7 +441,7 @@ def test_build_prompt_with_line_range():
 
 
 def test_build_prompt_for_theory_answer_prevents_rubric_splitting():
-    task = TASKS_BY_ID["python-theory-7"]
+    task = SEED_TASKS_BY_ID["python-theory-7"]
     review = UserReview(
         id="review-theory",
         task_id=task.id,
@@ -621,7 +651,7 @@ async def test_analyze_review_unknown_issue_id_in_response():
 async def test_analyze_review_deduplicates_theory_issue_verdicts():
     import httpx as httpx_mod
 
-    task = TASKS_BY_ID["python-theory-7"]
+    task = SEED_TASKS_BY_ID["python-theory-7"]
     review = UserReview(
         id="review-theory",
         task_id=task.id,
@@ -683,7 +713,7 @@ async def test_analyze_review_deduplicates_theory_issue_verdicts():
 async def test_analyze_review_theory_uses_normalized_score_over_ai_score():
     import httpx as httpx_mod
 
-    task = TASKS_BY_ID["python-theory-9"]
+    task = SEED_TASKS_BY_ID["python-theory-9"]
     review = UserReview(
         id="review-theory-2",
         task_id=task.id,
