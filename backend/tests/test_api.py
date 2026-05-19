@@ -57,6 +57,13 @@ def test_health(client):
     assert resp.json() == {"status": "ok"}
 
 
+def test_admin_home(client):
+    resp = client.get("/admin")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/html")
+    assert "Code Mentor Admin" in resp.text
+
+
 # ---------------------------------------------------------------------------
 # GET /tasks
 # ---------------------------------------------------------------------------

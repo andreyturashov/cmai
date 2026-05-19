@@ -36,3 +36,12 @@ uv run python -m app.seed_tasks
 - `GET /tasks/{id}`
 - `POST /reviews`
 - `POST /evaluate`
+
+## Admin
+
+SQLAdmin is mounted at `GET /admin` for database-backed task management.
+
+Current admin views:
+
+- `tasks`
+- `task_issues`

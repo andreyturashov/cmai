@@ -8,6 +8,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.admin import setup_admin
 from app.ai_analyzer import analyze_review
 from app.db import get_session
 from app.evaluator import evaluate_review
@@ -25,6 +26,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+admin = setup_admin(app)
 
 REVIEWS: dict[str, UserReview] = {}
 
