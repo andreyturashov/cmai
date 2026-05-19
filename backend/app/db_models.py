@@ -2,7 +2,17 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, text
+from sqlalchemy import (
+    JSON,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -30,6 +40,12 @@ class UserRecord(Base):
         onupdate=lambda: datetime.now(UTC),
         server_default=text("CURRENT_TIMESTAMP"),
         nullable=False,
+    )
+
+    progress_records: Mapped[list[UserProgressRecord]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin",
     )
 
 
@@ -64,6 +80,11 @@ class TaskRecord(Base):
         order_by="TaskIssueRecord.sort_order",
         lazy="selectin",
     )
+    progress_records: Mapped[list[UserProgressRecord]] = relationship(
+        back_populates="task",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
 
 class TaskIssueRecord(Base):
@@ -85,3 +106,42 @@ class TaskIssueRecord(Base):
     code: Mapped[str] = mapped_column(Text, nullable=False, default="")
 
     task: Mapped[TaskRecord] = relationship(back_populates="reference_issues")
+
+
+class UserProgressRecord(Base):
+    __tablename__ = "user_progress"
+    __table_args__ = (UniqueConstraint("user_id", "task_id", name="uq_user_progress_user_task"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    task_id: Mapped[str] = mapped_column(
+        String(128),
+        ForeignKey("tasks.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    suggestion: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    user_answer: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    submission_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        server_default=text("CURRENT_TIMESTAMP"),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        server_default=text("CURRENT_TIMESTAMP"),
+        nullable=False,
+    )
+
+    user: Mapped[UserRecord] = relationship(back_populates="progress_records")
+    task: Mapped[TaskRecord] = relationship(back_populates="progress_records")

@@ -5,7 +5,7 @@ from sqladmin import Admin, ModelView
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.db import engine
-from app.db_models import TaskIssueRecord, TaskRecord, UserRecord
+from app.db_models import TaskIssueRecord, TaskRecord, UserProgressRecord, UserRecord
 
 
 class UserAdmin(ModelView, model=UserRecord):
@@ -106,9 +106,48 @@ class TaskIssueAdmin(ModelView, model=TaskIssueRecord):
     page_size_options = [25, 50, 100]
 
 
+class UserProgressAdmin(ModelView, model=UserProgressRecord):
+    name = "User Progress"
+    name_plural = "User Progress"
+    icon = "fa-solid fa-chart-line"
+    category = "Progress"
+
+    column_list = [
+        UserProgressRecord.id,
+        UserProgressRecord.user_id,
+        UserProgressRecord.task_id,
+        UserProgressRecord.score,
+        UserProgressRecord.submission_count,
+        UserProgressRecord.updated_at,
+    ]
+    column_details_list = "__all__"
+    column_searchable_list = [
+        UserProgressRecord.user_id,
+        UserProgressRecord.task_id,
+        UserProgressRecord.user_answer,
+        UserProgressRecord.suggestion,
+    ]
+    column_sortable_list = [
+        UserProgressRecord.user_id,
+        UserProgressRecord.task_id,
+        UserProgressRecord.score,
+        UserProgressRecord.submission_count,
+        UserProgressRecord.created_at,
+        UserProgressRecord.updated_at,
+    ]
+    column_default_sort = [(UserProgressRecord.updated_at, True)]
+    form_excluded_columns = [
+        UserProgressRecord.created_at,
+        UserProgressRecord.updated_at,
+    ]
+    page_size = 50
+    page_size_options = [25, 50, 100]
+
+
 def setup_admin(app: FastAPI, database_engine: AsyncEngine = engine) -> Admin:
     admin = Admin(app, database_engine, title="Code Mentor Admin")
     admin.add_view(UserAdmin)
+    admin.add_view(UserProgressAdmin)
     admin.add_view(TaskAdmin)
     admin.add_view(TaskIssueAdmin)
     return admin

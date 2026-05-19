@@ -5,13 +5,14 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from app.ai_analyzer import _build_prompt, analyze_review
 from app.db import create_session_factory, get_session
 from app.db import normalize_database_url as normalize_db_url
-from app.db_models import Base
+from app.db_models import Base, UserProgressRecord
 from app.main import REVIEWS, app
-from app.models import InlineComment, UserReview
+from app.models import AIAnalysisResult, AIIssueVerdict, InlineComment, UserReview
 from app.seed_data import TASKS
 from app.seed_tasks import replace_seed_tasks
 
@@ -120,6 +121,124 @@ def test_google_logout_clears_session(client):
     session_resp = client.get("/auth/session")
     assert session_resp.status_code == 200
     assert session_resp.json() == {"user": None}
+
+
+def test_ai_analyze_stores_user_progress_for_authenticated_user(client):
+    with (
+        patch("app.main.GOOGLE_CLIENT_ID", "test-client-id"),
+        patch(
+            "app.main.verify_google_credential",
+            return_value={
+                "sub": "progress-user-1",
+                "email": "progress@example.com",
+                "name": "Progress User",
+                "avatar_url": "",
+            },
+        ),
+    ):
+        client.post("/auth/google", json={"credential": "google-id-token"})
+
+    review = client.post(
+        "/reviews",
+        json={
+            "task_id": "python-theory-1",
+            "comments": [],
+            "answer": "Lists are mutable and tuples are immutable.",
+        },
+    ).json()
+
+    mocked_result = AIAnalysisResult(
+        all_fixed=True,
+        score=9.5,
+        detected_critical=0,
+        total_critical=0,
+        detected_medium=1,
+        total_medium=1,
+        detected_low=0,
+        total_low=0,
+        missed_issues=[],
+        feedback=["You explained the tradeoff clearly."],
+        issues=[
+            AIIssueVerdict(
+                issue_id="python-theory-1-i1",
+                title="List vs tuple",
+                severity="medium",
+                addressed=True,
+                explanation="You covered the main distinction correctly.",
+            )
+        ],
+        summary="Clear explanation with good terminology.",
+    )
+
+    with patch("app.main.analyze_review", new=AsyncMock(return_value=mocked_result)):
+        resp = client.post("/ai-analyze", json={"review_id": review["id"]})
+
+    assert resp.status_code == 200
+
+    session_override = app.dependency_overrides[get_session]
+
+    async def fetch_progress_rows() -> list[UserProgressRecord]:
+        async for session in session_override():
+            result = await session.execute(select(UserProgressRecord))
+            return list(result.scalars())
+        return []
+
+    progress_rows = asyncio.run(fetch_progress_rows())
+    assert len(progress_rows) == 1
+    progress = progress_rows[0]
+    assert progress.task_id == "python-theory-1"
+    assert progress.user_answer == "Lists are mutable and tuples are immutable."
+    assert progress.score == 9.5
+    assert "Clear explanation with good terminology." in progress.suggestion
+
+
+def test_ai_analyze_does_not_store_progress_for_anonymous_user(client):
+    review = client.post(
+        "/reviews",
+        json={
+            "task_id": "python-theory-1",
+            "comments": [],
+            "answer": "Lists are mutable and tuples are immutable.",
+        },
+    ).json()
+
+    mocked_result = AIAnalysisResult(
+        all_fixed=True,
+        score=9.5,
+        detected_critical=0,
+        total_critical=0,
+        detected_medium=1,
+        total_medium=1,
+        detected_low=0,
+        total_low=0,
+        missed_issues=[],
+        feedback=["You explained the tradeoff clearly."],
+        issues=[
+            AIIssueVerdict(
+                issue_id="python-theory-1-i1",
+                title="List vs tuple",
+                severity="medium",
+                addressed=True,
+                explanation="You covered the main distinction correctly.",
+            )
+        ],
+        summary="Clear explanation with good terminology.",
+    )
+
+    with patch("app.main.analyze_review", new=AsyncMock(return_value=mocked_result)):
+        resp = client.post("/ai-analyze", json={"review_id": review["id"]})
+
+    assert resp.status_code == 200
+
+    session_override = app.dependency_overrides[get_session]
+
+    async def fetch_progress_count() -> int:
+        async for session in session_override():
+            result = await session.execute(select(UserProgressRecord))
+            return len(list(result.scalars()))
+        return 0
+
+    assert asyncio.run(fetch_progress_count()) == 0
 
 
 # ---------------------------------------------------------------------------

@@ -19,7 +19,7 @@ from app.auth import (
     verify_google_credential,
 )
 from app.db import get_session
-from app.db_models import UserRecord
+from app.db_models import UserProgressRecord, UserRecord
 from app.evaluator import evaluate_review
 from app.models import (
     AuthenticatedUser,
@@ -66,6 +66,39 @@ def serialize_user(user: UserRecord) -> AuthenticatedUser:
         name=user.name,
         avatar_url=user.avatar_url,
     )
+
+
+async def save_user_progress(
+    session: AsyncSession,
+    *,
+    user: UserRecord,
+    task_id: str,
+    answer: str,
+    score: float,
+    suggestion: str,
+) -> None:
+    statement = select(UserProgressRecord).where(
+        UserProgressRecord.user_id == user.id,
+        UserProgressRecord.task_id == task_id,
+    )
+    progress = (await session.execute(statement)).scalar_one_or_none()
+
+    if progress is None:
+        progress = UserProgressRecord(
+            user_id=user.id,
+            task_id=task_id,
+            user_answer=answer,
+            score=score,
+            suggestion=suggestion,
+        )
+        session.add(progress)
+    else:
+        progress.user_answer = answer
+        progress.score = score
+        progress.suggestion = suggestion
+        progress.submission_count += 1
+
+    await session.commit()
 
 
 async def get_current_user(
@@ -214,6 +247,8 @@ async def evaluate(
 async def ai_analyze(
     payload: EvaluationRequest,
     task_repository: TaskRepositoryDependency,
+    session: SessionDependency,
+    current_user: CurrentUserDependency,
 ) -> dict:
     review = REVIEWS.get(payload.review_id)
     if not review:
@@ -231,6 +266,18 @@ async def ai_analyze(
             f"Ollama unavailable: {error_type}" if not str(exc) else f"Ollama unavailable: {exc}"
         )
         raise HTTPException(status_code=502, detail=detail) from exc
+
+    if current_user is not None:
+        suggestion_parts = [result.summary, *result.feedback]
+        suggestion = "\n".join(part for part in suggestion_parts if part).strip()
+        await save_user_progress(
+            session,
+            user=current_user,
+            task_id=review.task_id,
+            answer=review.answer,
+            score=result.score,
+            suggestion=suggestion,
+        )
 
     return {
         "review_id": review.id,
