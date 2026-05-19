@@ -118,7 +118,7 @@ def test_get_tasks_filter_python_questions(client):
 def test_get_tasks_filter_python_theory(client):
     resp = client.get("/tasks", params={"language": "python_theory"})
     data = resp.json()
-    assert len(data) == 20
+    assert len(data) == 40
     assert all(t["language"] == "python_theory" for t in data)
     assert all(t["submission_mode"] == "answer" for t in data)
 
