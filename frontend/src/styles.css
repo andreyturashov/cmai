@@ -40,6 +40,54 @@ body {
   color: rgba(29, 41, 48, 0.8);
 }
 
+.topbar-auth {
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.auth-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.auth-controls-signed-in {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.auth-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.auth-user-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.auth-user-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.auth-user-email {
+  font-size: 0.8rem;
+  color: rgba(29, 41, 48, 0.62);
+}
+
+.auth-unavailable {
+  margin: 0;
+  font-size: 0.85rem;
+  color: rgba(29, 41, 48, 0.62);
+}
+
 .task-switcher {
   margin-top: 14px;
   display: flex;
@@ -1045,6 +1093,10 @@ button:disabled {
 /* ── end Content Editor ───────────────────────────────── */
 
 @media (max-width: 980px) {
+  .topbar-auth {
+    justify-content: flex-start;
+  }
+
   .layout-grid {
     grid-template-columns: 1fr;
   }

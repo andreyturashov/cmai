@@ -5,7 +5,41 @@ from sqladmin import Admin, ModelView
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.db import engine
-from app.db_models import TaskIssueRecord, TaskRecord
+from app.db_models import TaskIssueRecord, TaskRecord, UserRecord
+
+
+class UserAdmin(ModelView, model=UserRecord):
+    name = "User"
+    name_plural = "Users"
+    icon = "fa-solid fa-user"
+    category = "Auth"
+
+    column_list = [
+        UserRecord.id,
+        UserRecord.email,
+        UserRecord.name,
+        UserRecord.google_sub,
+        UserRecord.created_at,
+        UserRecord.updated_at,
+    ]
+    column_details_list = "__all__"
+    column_searchable_list = [
+        UserRecord.id,
+        UserRecord.email,
+        UserRecord.name,
+        UserRecord.google_sub,
+    ]
+    column_sortable_list = [
+        UserRecord.id,
+        UserRecord.email,
+        UserRecord.name,
+        UserRecord.created_at,
+        UserRecord.updated_at,
+    ]
+    column_default_sort = [(UserRecord.updated_at, True)]
+    form_excluded_columns = [UserRecord.created_at, UserRecord.updated_at]
+    page_size = 25
+    page_size_options = [25, 50, 100]
 
 
 class TaskAdmin(ModelView, model=TaskRecord):
@@ -74,6 +108,7 @@ class TaskIssueAdmin(ModelView, model=TaskIssueRecord):
 
 def setup_admin(app: FastAPI, database_engine: AsyncEngine = engine) -> Admin:
     admin = Admin(app, database_engine, title="Code Mentor Admin")
+    admin.add_view(UserAdmin)
     admin.add_view(TaskAdmin)
     admin.add_view(TaskIssueAdmin)
     return admin

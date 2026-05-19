@@ -47,6 +47,21 @@ class ReviewCreate(BaseModel):
     answer: str = ""
 
 
+class GoogleLoginRequest(BaseModel):
+    credential: str
+
+
+class AuthenticatedUser(BaseModel):
+    id: int
+    email: str
+    name: str
+    avatar_url: str = ""
+
+
+class AuthSession(BaseModel):
+    user: AuthenticatedUser | None = None
+
+
 class UserReview(BaseModel):
     id: str
     task_id: str

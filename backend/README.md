@@ -29,9 +29,30 @@ uv run alembic upgrade head
 uv run python -m app.seed_tasks
 ```
 
+## Google Auth
+
+Google login is optional. Unauthenticated users can still open the main app and browse tasks.
+
+Set these environment variables to enable sign-in:
+
+```bash
+export GOOGLE_CLIENT_ID=<google-oauth-client-id>
+export SESSION_SECRET=<long-random-secret>
+export CORS_ALLOW_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+```
+
+Frontend setup:
+
+```bash
+export VITE_GOOGLE_CLIENT_ID=<google-oauth-client-id>
+```
+
 ## Endpoints
 
 - `GET /health`
+- `GET /auth/session`
+- `POST /auth/google`
+- `POST /auth/logout`
 - `GET /tasks`
 - `GET /tasks/{id}`
 - `POST /reviews`

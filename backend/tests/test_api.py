@@ -64,6 +64,64 @@ def test_admin_home(client):
     assert "Code Mentor Admin" in resp.text
 
 
+def test_auth_session_defaults_to_anonymous(client):
+    resp = client.get("/auth/session")
+    assert resp.status_code == 200
+    assert resp.json() == {"user": None}
+
+
+def test_google_login_creates_session(client):
+    with (
+        patch("app.main.GOOGLE_CLIENT_ID", "test-client-id"),
+        patch(
+            "app.main.verify_google_credential",
+            return_value={
+                "sub": "google-user-1",
+                "email": "user@example.com",
+                "name": "Example User",
+                "avatar_url": "https://example.com/avatar.png",
+            },
+        ),
+    ):
+        login_resp = client.post("/auth/google", json={"credential": "google-id-token"})
+
+    assert login_resp.status_code == 200
+    assert login_resp.json()["user"]["email"] == "user@example.com"
+
+    session_resp = client.get("/auth/session")
+    assert session_resp.status_code == 200
+    assert session_resp.json()["user"] == {
+        "id": 1,
+        "email": "user@example.com",
+        "name": "Example User",
+        "avatar_url": "https://example.com/avatar.png",
+    }
+
+
+def test_google_logout_clears_session(client):
+    with (
+        patch("app.main.GOOGLE_CLIENT_ID", "test-client-id"),
+        patch(
+            "app.main.verify_google_credential",
+            return_value={
+                "sub": "google-user-2",
+                "email": "logout@example.com",
+                "name": "Logout User",
+                "avatar_url": "",
+            },
+        ),
+    ):
+        client.post("/auth/google", json={"credential": "google-id-token"})
+
+    logout_resp = client.post("/auth/logout")
+    assert logout_resp.status_code == 200
+    assert logout_resp.json() == {"user": None}
+
+    session_resp = client.get("/auth/session")
+    assert session_resp.status_code == 200
+    assert session_resp.json() == {"user": None}
+
+
 # ---------------------------------------------------------------------------
 # GET /tasks
 # ---------------------------------------------------------------------------

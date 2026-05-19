@@ -2,6 +2,7 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 async function request(path, options = {}) {
   const res = await fetch(`${BASE_URL}${path}`, {
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...(options.headers || {}),
@@ -18,6 +19,16 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  getAuthSession: () => request('/auth/session'),
+  loginWithGoogle: (payload) =>
+    request('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  logout: () =>
+    request('/auth/logout', {
+      method: 'POST',
+    }),
   getTasks: (language) => {
     const params = language ? `?language=${encodeURIComponent(language)}` : '';
     return request(`/tasks${params}`);
