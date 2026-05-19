@@ -6,11 +6,26 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Mock the api module
 vi.mock('./api/client', () => ({
   api: {
+    getAuthSession: vi.fn(),
+    loginWithGoogle: vi.fn(),
+    logout: vi.fn(),
     getTasks: vi.fn(),
     getTaskById: vi.fn(),
     createReview: vi.fn(),
     aiAnalyze: vi.fn(),
   },
+}));
+
+vi.mock('@react-oauth/google', () => ({
+  GoogleOAuthProvider: ({ children }) => <>{children}</>,
+  GoogleLogin: ({ onSuccess, onError }) => (
+    <div>
+      <button onClick={() => onSuccess?.({ credential: 'google-test-token' })}>
+        Sign in with Google
+      </button>
+      <button onClick={() => onError?.()}>Trigger Google Error</button>
+    </div>
+  ),
 }));
 
 vi.mock('./components/RichAnswerEditor', () => ({
@@ -42,6 +57,16 @@ const fullTask = {
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    api.getAuthSession.mockResolvedValue({ user: null });
+    api.loginWithGoogle.mockResolvedValue({
+      user: {
+        id: 1,
+        email: 'user@example.com',
+        name: 'Example User',
+        avatar_url: '',
+      },
+    });
+    api.logout.mockResolvedValue({ user: null });
     api.getTasks.mockResolvedValue([taskSummary]);
     api.getTaskById.mockResolvedValue(fullTask);
   });
@@ -50,6 +75,40 @@ describe('App', () => {
     render(<App />);
     expect(screen.getByText('Code Mentor')).toBeInTheDocument();
     await waitFor(() => expect(api.getTasks).toHaveBeenCalled());
+  });
+
+  it('shows Google login without blocking the main page', async () => {
+    render(<App />);
+    expect(screen.getByText('Sign in with Google')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Validate Input')).toBeInTheDocument());
+  });
+
+  it('logs in with Google and shows the signed-in user', async () => {
+    render(<App />);
+    await userEvent.click(screen.getByText('Sign in with Google'));
+
+    await waitFor(() =>
+      expect(api.loginWithGoogle).toHaveBeenCalledWith({ credential: 'google-test-token' }),
+    );
+    await waitFor(() => expect(screen.getByText('Example User')).toBeInTheDocument());
+  });
+
+  it('logs out the signed-in user', async () => {
+    api.getAuthSession.mockResolvedValue({
+      user: {
+        id: 1,
+        email: 'user@example.com',
+        name: 'Example User',
+        avatar_url: '',
+      },
+    });
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByText('Example User')).toBeInTheDocument());
+
+    await userEvent.click(screen.getByText('Log out'));
+    await waitFor(() => expect(api.logout).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByText('Sign in with Google')).toBeInTheDocument());
   });
 
   it('loads tasks on mount for default language', async () => {
@@ -63,6 +122,9 @@ describe('App', () => {
     expect(screen.getByText('Python')).toBeInTheDocument();
     expect(screen.getByText('Python (questions)')).toBeInTheDocument();
     expect(screen.getByText('Python (theory)')).toBeInTheDocument();
+    expect(screen.getByText('FastAPI')).toBeInTheDocument();
+    expect(screen.getByText('Django')).toBeInTheDocument();
+    expect(screen.getByText('React')).toBeInTheDocument();
     expect(screen.getByText('JavaScript')).toBeInTheDocument();
     await waitFor(() => expect(api.getTasks).toHaveBeenCalled());
   });
@@ -103,6 +165,60 @@ describe('App', () => {
 
     await userEvent.click(screen.getByText('Python (theory)'));
     await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python_theory'));
+  });
+
+  it('switches to FastAPI language', async () => {
+    render(<App />);
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python'));
+
+    api.getTasks.mockResolvedValue([
+      { id: 'fastapi-task-1', title: 'Create account endpoint', language: 'fastapi' },
+    ]);
+    api.getTaskById.mockResolvedValue({
+      ...fullTask,
+      id: 'fastapi-task-1',
+      title: 'Create account endpoint',
+      language: 'fastapi',
+    });
+
+    await userEvent.click(screen.getByText('FastAPI'));
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('fastapi'));
+  });
+
+  it('switches to Django language', async () => {
+    render(<App />);
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python'));
+
+    api.getTasks.mockResolvedValue([
+      { id: 'django-task-1', title: 'Create article view', language: 'django' },
+    ]);
+    api.getTaskById.mockResolvedValue({
+      ...fullTask,
+      id: 'django-task-1',
+      title: 'Create article view',
+      language: 'django',
+    });
+
+    await userEvent.click(screen.getByText('Django'));
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('django'));
+  });
+
+  it('switches to React language', async () => {
+    render(<App />);
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python'));
+
+    api.getTasks.mockResolvedValue([
+      { id: 'react-task-1', title: 'Add todo item', language: 'react' },
+    ]);
+    api.getTaskById.mockResolvedValue({
+      ...fullTask,
+      id: 'react-task-1',
+      title: 'Add todo item',
+      language: 'react',
+    });
+
+    await userEvent.click(screen.getByText('React'));
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('react'));
   });
 
   it('submits a theory answer for analysis', async () => {
@@ -362,18 +478,17 @@ describe('App', () => {
     fireEvent.mouseDown(line1);
     fireEvent.mouseUp(line1.closest('.code-scroll') || document);
 
-    const [commentArea, suggestionArea] = screen.getAllByRole('textbox');
+    const commentArea = screen.getByRole('textbox', { name: 'Comment' });
     await userEvent.type(commentArea, 'Found a bug');
-    await userEvent.type(suggestionArea, 'Fix the bug');
     await userEvent.click(screen.getByText('Save Comment'));
 
     expect(screen.getByText('Found a bug')).toBeInTheDocument();
 
     // Edit the comment
     await userEvent.click(screen.getByText('Edit'));
-    const editAreas = screen.getAllByRole('textbox');
-    await userEvent.clear(editAreas[0]);
-    await userEvent.type(editAreas[0], 'Updated bug');
+    const editArea = screen.getByRole('textbox', { name: 'Comment' });
+    await userEvent.clear(editArea);
+    await userEvent.type(editArea, 'Updated bug');
     await userEvent.click(screen.getByText('Save Comment'));
 
     expect(screen.getByText('Updated bug')).toBeInTheDocument();

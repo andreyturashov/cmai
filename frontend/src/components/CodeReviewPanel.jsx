@@ -6,6 +6,12 @@ import CommentForm from './CommentForm';
 import MarkdownContent from './MarkdownContent';
 import RichAnswerEditor from './RichAnswerEditor';
 
+const LANGUAGE_ALIASES = {
+  django: 'python',
+  fastapi: 'python',
+  react: 'javascript',
+};
+
 export default function CodeReviewPanel({
   code,
   language,
@@ -29,7 +35,9 @@ export default function CodeReviewPanel({
   const dragStart = useRef(null);
   const lines = useMemo(() => (code ? code.split('\n') : []), [code]);
   const prismLanguage = useMemo(() => {
-    const requested = (language || 'python').toLowerCase();
+    const requested =
+      LANGUAGE_ALIASES[(language || 'python').toLowerCase()] ||
+      (language || 'python').toLowerCase();
     return Prism.languages[requested] ? requested : 'python';
   }, [language]);
 

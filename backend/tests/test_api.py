@@ -1,19 +1,50 @@
+import asyncio
 import json
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from app.ai_analyzer import _build_prompt, analyze_review
-from app.main import REVIEWS, TASKS_BY_ID, app
-from app.models import InlineComment, UserReview
+from app.db import create_session_factory, get_session
+from app.db import normalize_database_url as normalize_db_url
+from app.db_models import Base, UserProgressRecord
+from app.main import REVIEWS, app
+from app.models import AIAnalysisResult, AIIssueVerdict, InlineComment, UserReview
 from app.seed_data import TASKS
+from app.seed_tasks import replace_seed_tasks
+
+SEED_TASKS_BY_ID = {task.id: task for task in TASKS}
 
 
 @pytest.fixture()
-def client():
+def client(tmp_path):
     REVIEWS.clear()
-    return TestClient(app)
+
+    database_path = Path(tmp_path) / "test.db"
+    database_url = normalize_db_url(f"sqlite+aiosqlite:///{database_path}")
+    engine, session_factory = create_session_factory(database_url)
+
+    async def prepare_database() -> None:
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        await replace_seed_tasks(session_factory, TASKS)
+
+    asyncio.run(prepare_database())
+
+    async def override_get_session():
+        async with session_factory() as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+    app.dependency_overrides.clear()
+    asyncio.run(engine.dispose())
 
 
 # ---------------------------------------------------------------------------
@@ -25,6 +56,189 @@ def test_health(client):
     resp = client.get("/health")
     assert resp.status_code == 200
     assert resp.json() == {"status": "ok"}
+
+
+def test_admin_home(client):
+    resp = client.get("/admin")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/html")
+    assert "Code Mentor Admin" in resp.text
+
+
+def test_auth_session_defaults_to_anonymous(client):
+    resp = client.get("/auth/session")
+    assert resp.status_code == 200
+    assert resp.json() == {"user": None}
+
+
+def test_google_login_creates_session(client):
+    with (
+        patch("app.main.GOOGLE_CLIENT_ID", "test-client-id"),
+        patch(
+            "app.main.verify_google_credential",
+            return_value={
+                "sub": "google-user-1",
+                "email": "user@example.com",
+                "name": "Example User",
+                "avatar_url": "https://example.com/avatar.png",
+            },
+        ),
+    ):
+        login_resp = client.post("/auth/google", json={"credential": "google-id-token"})
+
+    assert login_resp.status_code == 200
+    assert login_resp.json()["user"]["email"] == "user@example.com"
+
+    session_resp = client.get("/auth/session")
+    assert session_resp.status_code == 200
+    assert session_resp.json()["user"] == {
+        "id": 1,
+        "email": "user@example.com",
+        "name": "Example User",
+        "avatar_url": "https://example.com/avatar.png",
+    }
+
+
+def test_google_logout_clears_session(client):
+    with (
+        patch("app.main.GOOGLE_CLIENT_ID", "test-client-id"),
+        patch(
+            "app.main.verify_google_credential",
+            return_value={
+                "sub": "google-user-2",
+                "email": "logout@example.com",
+                "name": "Logout User",
+                "avatar_url": "",
+            },
+        ),
+    ):
+        client.post("/auth/google", json={"credential": "google-id-token"})
+
+    logout_resp = client.post("/auth/logout")
+    assert logout_resp.status_code == 200
+    assert logout_resp.json() == {"user": None}
+
+    session_resp = client.get("/auth/session")
+    assert session_resp.status_code == 200
+    assert session_resp.json() == {"user": None}
+
+
+def test_ai_analyze_stores_user_progress_for_authenticated_user(client):
+    with (
+        patch("app.main.GOOGLE_CLIENT_ID", "test-client-id"),
+        patch(
+            "app.main.verify_google_credential",
+            return_value={
+                "sub": "progress-user-1",
+                "email": "progress@example.com",
+                "name": "Progress User",
+                "avatar_url": "",
+            },
+        ),
+    ):
+        client.post("/auth/google", json={"credential": "google-id-token"})
+
+    review = client.post(
+        "/reviews",
+        json={
+            "task_id": "python-theory-1",
+            "comments": [],
+            "answer": "Lists are mutable and tuples are immutable.",
+        },
+    ).json()
+
+    mocked_result = AIAnalysisResult(
+        all_fixed=True,
+        score=9.5,
+        detected_critical=0,
+        total_critical=0,
+        detected_medium=1,
+        total_medium=1,
+        detected_low=0,
+        total_low=0,
+        missed_issues=[],
+        feedback=["You explained the tradeoff clearly."],
+        issues=[
+            AIIssueVerdict(
+                issue_id="python-theory-1-i1",
+                title="List vs tuple",
+                severity="medium",
+                addressed=True,
+                explanation="You covered the main distinction correctly.",
+            )
+        ],
+        summary="Clear explanation with good terminology.",
+    )
+
+    with patch("app.main.analyze_review", new=AsyncMock(return_value=mocked_result)):
+        resp = client.post("/ai-analyze", json={"review_id": review["id"]})
+
+    assert resp.status_code == 200
+
+    session_override = app.dependency_overrides[get_session]
+
+    async def fetch_progress_rows() -> list[UserProgressRecord]:
+        async for session in session_override():
+            result = await session.execute(select(UserProgressRecord))
+            return list(result.scalars())
+        return []
+
+    progress_rows = asyncio.run(fetch_progress_rows())
+    assert len(progress_rows) == 1
+    progress = progress_rows[0]
+    assert progress.task_id == "python-theory-1"
+    assert progress.user_answer == "Lists are mutable and tuples are immutable."
+    assert progress.score == 9.5
+    assert "Clear explanation with good terminology." in progress.suggestion
+
+
+def test_ai_analyze_does_not_store_progress_for_anonymous_user(client):
+    review = client.post(
+        "/reviews",
+        json={
+            "task_id": "python-theory-1",
+            "comments": [],
+            "answer": "Lists are mutable and tuples are immutable.",
+        },
+    ).json()
+
+    mocked_result = AIAnalysisResult(
+        all_fixed=True,
+        score=9.5,
+        detected_critical=0,
+        total_critical=0,
+        detected_medium=1,
+        total_medium=1,
+        detected_low=0,
+        total_low=0,
+        missed_issues=[],
+        feedback=["You explained the tradeoff clearly."],
+        issues=[
+            AIIssueVerdict(
+                issue_id="python-theory-1-i1",
+                title="List vs tuple",
+                severity="medium",
+                addressed=True,
+                explanation="You covered the main distinction correctly.",
+            )
+        ],
+        summary="Clear explanation with good terminology.",
+    )
+
+    with patch("app.main.analyze_review", new=AsyncMock(return_value=mocked_result)):
+        resp = client.post("/ai-analyze", json={"review_id": review["id"]})
+
+    assert resp.status_code == 200
+
+    session_override = app.dependency_overrides[get_session]
+
+    async def fetch_progress_count() -> int:
+        async for session in session_override():
+            result = await session.execute(select(UserProgressRecord))
+            return len(list(result.scalars()))
+        return 0
+
+    assert asyncio.run(fetch_progress_count()) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -60,7 +274,7 @@ def test_get_tasks_has_expected_fields(client):
 def test_get_tasks_filter_python(client):
     resp = client.get("/tasks", params={"language": "python"})
     data = resp.json()
-    assert len(data) > 0
+    assert len(data) == 44
     assert all(t["language"] == "python" for t in data)
 
 
@@ -81,9 +295,30 @@ def test_get_tasks_filter_python_questions(client):
 def test_get_tasks_filter_python_theory(client):
     resp = client.get("/tasks", params={"language": "python_theory"})
     data = resp.json()
-    assert len(data) == 20
+    assert len(data) == 40
     assert all(t["language"] == "python_theory" for t in data)
     assert all(t["submission_mode"] == "answer" for t in data)
+
+
+def test_get_tasks_filter_fastapi(client):
+    resp = client.get("/tasks", params={"language": "fastapi"})
+    data = resp.json()
+    assert len(data) == 20
+    assert all(t["language"] == "fastapi" for t in data)
+
+
+def test_get_tasks_filter_django(client):
+    resp = client.get("/tasks", params={"language": "django"})
+    data = resp.json()
+    assert len(data) == 20
+    assert all(t["language"] == "django" for t in data)
+
+
+def test_get_tasks_filter_react(client):
+    resp = client.get("/tasks", params={"language": "react"})
+    data = resp.json()
+    assert len(data) == 20
+    assert all(t["language"] == "react" for t in data)
 
 
 def test_get_tasks_filter_unknown_language(client):
@@ -97,11 +332,17 @@ def test_get_tasks_no_filter_returns_all(client):
     py_resp = client.get("/tasks", params={"language": "python"})
     py_questions_resp = client.get("/tasks", params={"language": "python_questions"})
     py_theory_resp = client.get("/tasks", params={"language": "python_theory"})
+    fastapi_resp = client.get("/tasks", params={"language": "fastapi"})
+    django_resp = client.get("/tasks", params={"language": "django"})
+    react_resp = client.get("/tasks", params={"language": "react"})
     js_resp = client.get("/tasks", params={"language": "javascript"})
     total_filtered = (
         len(py_resp.json())
         + len(py_questions_resp.json())
         + len(py_theory_resp.json())
+        + len(fastapi_resp.json())
+        + len(django_resp.json())
+        + len(react_resp.json())
         + len(js_resp.json())
     )
     assert len(all_resp.json()) == total_filtered
@@ -260,12 +501,12 @@ def test_evaluate_missed_issues_listed(client):
     review = client.post("/reviews", json={"task_id": "task-1", "comments": []}).json()
     resp = client.post("/evaluate", json={"review_id": review["id"]})
     ev = resp.json()["evaluation"]
-    assert len(ev["missed_issue_ids"]) == len(TASKS_BY_ID["task-1"].reference_issues)
+    assert len(ev["missed_issue_ids"]) == len(SEED_TASKS_BY_ID["task-1"].reference_issues)
 
 
 def test_evaluate_perfect_review(client):
     """Submit comments that match all reference issues for task-1."""
-    task = TASKS_BY_ID["task-1"]
+    task = SEED_TASKS_BY_ID["task-1"]
     comments = [
         {
             "line": issue.line,
@@ -298,7 +539,15 @@ def test_all_tasks_have_reference_issues():
 
 
 def test_all_tasks_have_valid_language():
-    valid = {"python", "python_questions", "python_theory", "javascript"}
+    valid = {
+        "python",
+        "python_questions",
+        "python_theory",
+        "fastapi",
+        "django",
+        "react",
+        "javascript",
+    }
     for task in TASKS:
         assert task.language in valid, f"Task {task.id} has invalid language: {task.language}"
 
@@ -328,6 +577,9 @@ def test_all_issue_ids_unique_within_task():
 def test_each_language_has_tasks():
     languages = {t.language for t in TASKS}
     assert "python" in languages
+    assert "fastapi" in languages
+    assert "django" in languages
+    assert "react" in languages
     assert "javascript" in languages
     assert "python_questions" in languages
     assert "python_theory" in languages
@@ -337,7 +589,7 @@ def test_each_language_has_tasks():
 # AI Analyzer – unit tests (mocked Ollama)
 # ---------------------------------------------------------------------------
 
-TASK_1 = TASKS_BY_ID["task-1"]
+TASK_1 = SEED_TASKS_BY_ID["task-1"]
 
 
 def _make_review(task_id="task-1", comments=None):
@@ -411,7 +663,7 @@ def test_build_prompt_with_line_range():
 
 
 def test_build_prompt_for_theory_answer_prevents_rubric_splitting():
-    task = TASKS_BY_ID["python-theory-7"]
+    task = SEED_TASKS_BY_ID["python-theory-7"]
     review = UserReview(
         id="review-theory",
         task_id=task.id,
@@ -621,7 +873,7 @@ async def test_analyze_review_unknown_issue_id_in_response():
 async def test_analyze_review_deduplicates_theory_issue_verdicts():
     import httpx as httpx_mod
 
-    task = TASKS_BY_ID["python-theory-7"]
+    task = SEED_TASKS_BY_ID["python-theory-7"]
     review = UserReview(
         id="review-theory",
         task_id=task.id,
@@ -683,7 +935,7 @@ async def test_analyze_review_deduplicates_theory_issue_verdicts():
 async def test_analyze_review_theory_uses_normalized_score_over_ai_score():
     import httpx as httpx_mod
 
-    task = TASKS_BY_ID["python-theory-9"]
+    task = SEED_TASKS_BY_ID["python-theory-9"]
     review = UserReview(
         id="review-theory-2",
         task_id=task.id,

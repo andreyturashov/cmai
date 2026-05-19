@@ -1,5 +1,12 @@
 from typing import TypedDict
 
+from app.additional_task_prompts import (
+    DJANGO_TASK_PROMPTS,
+    EXTRA_PYTHON_TASK_PROMPTS,
+    FASTAPI_TASK_PROMPTS,
+    REACT_TASK_PROMPTS,
+    SingleIssueReviewTaskPrompt,
+)
 from app.models import Issue, Severity, Task
 
 
@@ -419,6 +426,198 @@ PYTHON_THEORY_PROMPTS: list[PythonTheoryPrompt] = [
 ]
 
 
+PYTHON_THEORY_HARD_PROMPTS: list[PythonTheoryPrompt] = [
+    {
+        "title": "Method resolution order",
+        "description": "Explain how attribute lookup works with multiple inheritance.",
+        "question": "What is Python's method resolution order (MRO), and why does it matter when a class uses multiple inheritance?",
+        "focus_points": ["lookup order", "C3 linearization", "super() behavior"],
+        "expected_answer": "The MRO defines the order Python uses to search classes for methods and attributes. In modern Python it is based on C3 linearization, which creates a consistent order across complex inheritance graphs. It matters because method lookup and super() both follow that order, so understanding it prevents surprising behavior in multiple inheritance hierarchies.",
+    },
+    {
+        "title": "Descriptors",
+        "description": "Explain the protocol behind properties and bound methods.",
+        "question": "What is a descriptor in Python, and how does the descriptor protocol affect attribute access?",
+        "focus_points": ["__get__", "__set__", "managed attributes"],
+        "expected_answer": "A descriptor is an object that defines methods like __get__, __set__, or __delete__ to control attribute access. When a descriptor is stored on a class, Python consults those methods during attribute lookup instead of returning the raw object directly. Properties, functions becoming bound methods, and many ORM fields rely on this protocol to manage access behavior.",
+    },
+    {
+        "title": "Metaclasses",
+        "description": "Explain what metaclasses customize.",
+        "question": "What is a metaclass in Python, and when would you use one instead of a class decorator or base class?",
+        "focus_points": ["class creation", "type", "advanced customization"],
+        "expected_answer": "A metaclass controls how classes themselves are created, just as a class controls how its instances behave. The default metaclass is type, but a custom metaclass can validate class definitions or inject behavior at class creation time. You normally use one only for advanced framework-level customization, because class decorators or base classes are usually simpler when they can solve the problem.",
+    },
+    {
+        "title": "Asyncio event loop",
+        "description": "Explain the event loop's role in asynchronous Python.",
+        "question": "What does the asyncio event loop do, and why is non-blocking I/O important for it?",
+        "focus_points": [
+            "task scheduling",
+            "cooperative concurrency",
+            "blocking calls",
+        ],
+        "expected_answer": "The asyncio event loop schedules and resumes coroutines when they are ready to make progress, usually around I/O boundaries. It provides cooperative concurrency, meaning tasks yield control explicitly instead of being preempted like OS threads. Blocking I/O is a problem because it stops the loop from servicing other tasks, which defeats the benefit of asynchronous execution.",
+    },
+    {
+        "title": "Coroutine vs task",
+        "description": "Explain the difference between defining async work and scheduling it.",
+        "question": "What is the difference between a coroutine object and an asyncio Task in Python?",
+        "focus_points": ["coroutine object", "scheduling", "concurrent execution"],
+        "expected_answer": "A coroutine object is the result of calling an async function, but by itself it is just an awaitable object that has not been scheduled yet. An asyncio Task wraps a coroutine and schedules it on the event loop so it can run concurrently with other tasks. In practice, await runs a coroutine directly, while create_task starts it independently under the loop's management.",
+    },
+    {
+        "title": "Context variables",
+        "description": "Explain request-local state in concurrent async code.",
+        "question": "What problem do contextvars solve in Python, especially in asynchronous applications?",
+        "focus_points": [
+            "context-local state",
+            "async task isolation",
+            "avoid globals",
+        ],
+        "expected_answer": "contextvars provide context-local state that can vary per logical execution flow without relying on unsafe globals. They are especially useful in async code, where many tasks run interleaved and thread-local storage is not enough to model request-specific state. This makes them useful for things like request IDs, tracing context, or user/session metadata.",
+    },
+    {
+        "title": "__slots__",
+        "description": "Explain the tradeoffs of restricting instance attributes.",
+        "question": "What does __slots__ do in a Python class, and what tradeoffs come with using it?",
+        "focus_points": [
+            "memory optimization",
+            "attribute restrictions",
+            "__dict__ limitations",
+        ],
+        "expected_answer": "__slots__ declares a fixed set of instance attributes and can reduce memory overhead by avoiding a normal per-instance __dict__. That can be useful when you create many small objects. The tradeoff is reduced flexibility, since dynamic attributes are restricted unless you explicitly include __dict__ or related slots.",
+    },
+    {
+        "title": "Reference counting and GC",
+        "description": "Explain how Python reclaims memory.",
+        "question": "How do reference counting and cyclic garbage collection work together in CPython?",
+        "focus_points": ["reference counting", "cycles", "CPython memory model"],
+        "expected_answer": "CPython primarily frees objects through reference counting, so objects are usually destroyed as soon as their reference count reaches zero. That alone cannot reclaim cycles where objects reference each other, so CPython also includes a cyclic garbage collector to detect and clean unreachable reference cycles. Together they provide prompt cleanup for most objects and extra handling for cycles.",
+    },
+    {
+        "title": "Weak references",
+        "description": "Explain non-owning references to objects.",
+        "question": "What is a weak reference in Python, and when would you choose it over a normal reference?",
+        "focus_points": [
+            "does not keep object alive",
+            "caches",
+            "memory-sensitive relationships",
+        ],
+        "expected_answer": "A weak reference points to an object without increasing the reference count needed to keep it alive. That means the referenced object can still be garbage-collected normally when no strong references remain. Weak references are useful for caches, registries, or observer-style relationships where you do not want the reference itself to prevent cleanup.",
+    },
+    {
+        "title": "Abstract base classes vs protocols",
+        "description": "Explain nominal and structural typing approaches.",
+        "question": "What is the difference between an abstract base class and a Protocol in Python typing?",
+        "focus_points": ["nominal typing", "structural typing", "interface modeling"],
+        "expected_answer": "An abstract base class usually models an interface through explicit inheritance, so it is mainly a nominal typing approach. A Protocol models structural typing, meaning an object can match the protocol if it has the required methods or attributes even without inheriting from it. Protocols are often better when you want flexible interface checking based on behavior rather than inheritance.",
+    },
+    {
+        "title": "Variance in generics",
+        "description": "Explain why subtype relationships can change inside containers.",
+        "question": "What do covariance, contravariance, and invariance mean in Python type hints?",
+        "focus_points": ["subtyping rules", "generic containers", "type safety"],
+        "expected_answer": "These terms describe how subtype relationships behave when types are wrapped in generics. Covariance preserves the subtype relationship, contravariance reverses it, and invariance allows no substitution in either direction. They matter because mutable and callable types can become unsafe if type checkers allow the wrong kind of substitution.",
+    },
+    {
+        "title": "Monkey patching risks",
+        "description": "Explain why runtime mutation of modules or classes is dangerous.",
+        "question": "Why can monkey patching be risky in Python, even though the language makes it easy?",
+        "focus_points": [
+            "runtime mutation",
+            "coupling",
+            "testing and maintenance risk",
+        ],
+        "expected_answer": "Monkey patching changes behavior at runtime by replacing attributes on modules, classes, or objects, which can make systems harder to reason about. It increases hidden coupling because other code may rely on behavior that has been altered elsewhere. While it can be useful in tests or controlled integration points, it often creates maintenance and debugging problems in production code.",
+    },
+    {
+        "title": "Import system caching",
+        "description": "Explain why imports usually run only once.",
+        "question": "Why does Python normally execute a module only once per process, and what role does sys.modules play?",
+        "focus_points": ["module cache", "import reuse", "initialization side effects"],
+        "expected_answer": "Python caches imported modules in sys.modules, so later imports usually reuse the existing module object instead of executing the file again. That improves performance and keeps imports consistent within a process. It also means import-time side effects normally happen once, which is convenient but can cause surprises if module initialization does too much work.",
+    },
+    {
+        "title": "Bytecode and interpretation",
+        "description": "Explain what happens after Python source is parsed.",
+        "question": "What is Python bytecode, and how is it different from machine code?",
+        "focus_points": [
+            "intermediate representation",
+            "virtual machine",
+            "portability",
+        ],
+        "expected_answer": "Python bytecode is an intermediate instruction format generated from source code after compilation. It is executed by the Python virtual machine rather than directly by the CPU, which makes it different from native machine code. This layer helps portability and supports the interpreter model, although it usually has more runtime overhead than compiled native binaries.",
+    },
+    {
+        "title": "Async generators",
+        "description": "Explain lazy async iteration.",
+        "question": "What is an async generator in Python, and how is it different from a normal generator?",
+        "focus_points": [
+            "async def with yield",
+            "async iteration",
+            "awaitable data production",
+        ],
+        "expected_answer": "An async generator is defined with async def and yield, and it produces values through asynchronous iteration. Unlike a normal generator, advancing it may involve awaits and integration with the event loop. It is useful when values arrive over time from async sources such as network streams or asynchronous database cursors.",
+    },
+    {
+        "title": "Async context managers",
+        "description": "Explain resource management in async code.",
+        "question": "What is an asynchronous context manager, and when is it preferable to a normal context manager?",
+        "focus_points": [
+            "__aenter__/__aexit__",
+            "async with",
+            "awaitable setup or cleanup",
+        ],
+        "expected_answer": "An asynchronous context manager defines __aenter__ and __aexit__ and is used with async with. It is preferable when entering or exiting the context requires awaiting asynchronous work, such as opening or closing a network-backed resource. A normal context manager is still fine when setup and cleanup are fully synchronous.",
+    },
+    {
+        "title": "Package entry points",
+        "description": "Explain how installed tools expose console commands.",
+        "question": "What are Python package entry points, and how do tools like pip use them to create CLI commands?",
+        "focus_points": [
+            "distribution metadata",
+            "console scripts",
+            "callable exposure",
+        ],
+        "expected_answer": "Entry points are package metadata declarations that expose named callables for specific integration points. For command-line tools, packages commonly declare console_scripts so installers like pip can generate executable wrappers that call the target Python function. This allows a package to expose CLI commands without manually writing separate shell scripts.",
+    },
+    {
+        "title": "Hashability",
+        "description": "Explain what makes an object usable as a dict key.",
+        "question": "What does it mean for an object to be hashable in Python, and why are mutable objects often not hashable?",
+        "focus_points": [
+            "__hash__",
+            "dictionary/set keys",
+            "immutability expectations",
+        ],
+        "expected_answer": "A hashable object has a stable hash value and an equality behavior compatible with using that hash in dictionaries and sets. Mutable objects are often not hashable because changing their contents could change the value used for equality or hashing, which would break hash table correctness. Immutable objects are usually safer keys because their identity for hashing stays stable over time.",
+    },
+    {
+        "title": "Data model dunder methods",
+        "description": "Explain how Python objects integrate with language syntax.",
+        "question": "Why are special methods like __iter__, __len__, and __repr__ important in Python's data model?",
+        "focus_points": [
+            "language protocol hooks",
+            "custom object behavior",
+            "idiomatic integration",
+        ],
+        "expected_answer": "Special methods are protocol hooks that let custom objects participate in core Python syntax and built-in behavior. For example, __iter__ enables iteration, __len__ supports len(), and __repr__ controls developer-facing representations. Implementing the right dunder methods makes custom types behave like first-class Python objects instead of awkward wrappers.",
+    },
+    {
+        "title": "Thread safety and the GIL",
+        "description": "Explain why the GIL does not eliminate all concurrency bugs.",
+        "question": "Why doesn't the Python GIL automatically make threaded programs thread-safe?",
+        "focus_points": [
+            "shared mutable state",
+            "race conditions",
+            "atomicity misconceptions",
+        ],
+        "expected_answer": "The GIL only limits how Python bytecode is executed in CPython; it does not turn sequences of operations into safe transactions. Threads can still interleave around shared mutable state and create race conditions or inconsistent updates. Proper synchronization is still needed whenever correctness depends on coordinating shared data across threads.",
+    },
+]
+
+
 def build_simple_python_question_task(index: int, prompt: SimplePythonQuestionPrompt) -> Task:
     return Task(
         id=f"python-question-{index}",
@@ -485,6 +684,48 @@ def build_python_theory_task(index: int, prompt: PythonTheoryPrompt) -> Task:
                 description=prompt["expected_answer"],
                 suggestion="Expected answer should cover: " + ", ".join(prompt["focus_points"]),
                 code=prompt["expected_answer"],
+            )
+        ],
+    )
+
+
+SIMPLE_REVIEW_REQUIREMENTS = [
+    "Spot the main bug",
+    "Explain why it matters",
+    "Suggest a targeted fix",
+]
+
+
+SIMPLE_REVIEW_INSTRUCTIONS = [
+    "Review the code in the viewer",
+    "Call out the main issue",
+    "Suggest a corrected version",
+]
+
+
+def build_single_issue_review_task(
+    *,
+    task_id: str,
+    language: str,
+    prompt: SingleIssueReviewTaskPrompt,
+) -> Task:
+    return Task(
+        id=task_id,
+        title=prompt["title"],
+        description=prompt["description"],
+        requirements=SIMPLE_REVIEW_REQUIREMENTS,
+        instructions=SIMPLE_REVIEW_INSTRUCTIONS,
+        language=language,
+        code=prompt["code"],
+        reference_issues=[
+            Issue(
+                id=f"{task_id}-i1",
+                line=prompt["issue_line"],
+                severity=Severity(prompt["issue_severity"]),
+                title=prompt["issue_title"],
+                description=prompt["issue_description"],
+                suggestion=prompt["issue_suggestion"],
+                code=prompt["issue_code"],
             )
         ],
     )
@@ -3719,7 +3960,42 @@ TASKS = [
     ],
     *[
         build_python_theory_task(index, prompt)
-        for index, prompt in enumerate(PYTHON_THEORY_PROMPTS, start=1)
+        for index, prompt in enumerate(
+            [*PYTHON_THEORY_PROMPTS, *PYTHON_THEORY_HARD_PROMPTS],
+            start=1,
+        )
+    ],
+    *[
+        build_single_issue_review_task(
+            task_id=f"task-{index}",
+            language="python",
+            prompt=prompt,
+        )
+        for index, prompt in enumerate(EXTRA_PYTHON_TASK_PROMPTS, start=26)
+    ],
+    *[
+        build_single_issue_review_task(
+            task_id=f"fastapi-task-{index}",
+            language="fastapi",
+            prompt=prompt,
+        )
+        for index, prompt in enumerate(FASTAPI_TASK_PROMPTS, start=1)
+    ],
+    *[
+        build_single_issue_review_task(
+            task_id=f"django-task-{index}",
+            language="django",
+            prompt=prompt,
+        )
+        for index, prompt in enumerate(DJANGO_TASK_PROMPTS, start=1)
+    ],
+    *[
+        build_single_issue_review_task(
+            task_id=f"react-task-{index}",
+            language="react",
+            prompt=prompt,
+        )
+        for index, prompt in enumerate(REACT_TASK_PROMPTS, start=1)
     ],
 ]
 

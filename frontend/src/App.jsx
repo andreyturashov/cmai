@@ -1,7 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { api } from './api/client';
+import AuthControls from './components/AuthControls';
 import LeftPanel from './components/LeftPanel';
 import CodeReviewPanel from './components/CodeReviewPanel';
+
+const LANGUAGE_OPTIONS = [
+  { value: 'python', label: 'Python' },
+  { value: 'python_questions', label: 'Python (questions)' },
+  { value: 'python_theory', label: 'Python (theory)' },
+  { value: 'fastapi', label: 'FastAPI' },
+  { value: 'django', label: 'Django' },
+  { value: 'react', label: 'React' },
+  { value: 'javascript', label: 'JavaScript' },
+];
 
 export default function App() {
   const [taskList, setTaskList] = useState([]);
@@ -14,6 +25,21 @@ export default function App() {
   const [showReference, setShowReference] = useState(false);
   const [error, setError] = useState('');
   const [language, setLanguage] = useState('python');
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(false);
+
+  useEffect(() => {
+    async function loadAuthSession() {
+      try {
+        const session = await api.getAuthSession();
+        setCurrentUser(session.user || null);
+      } catch {
+        setCurrentUser(null);
+      }
+    }
+
+    loadAuthSession();
+  }, []);
 
   useEffect(() => {
     async function loadTasks() {
@@ -93,37 +119,57 @@ export default function App() {
     }
   }
 
+  async function handleGoogleLogin(credential) {
+    try {
+      setAuthLoading(true);
+      setError('');
+      const session = await api.loginWithGoogle({ credential });
+      setCurrentUser(session.user || null);
+    } catch (e) {
+      setError(e.message || 'Failed to sign in with Google');
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function handleLogout() {
+    try {
+      setAuthLoading(true);
+      setError('');
+      const session = await api.logout();
+      setCurrentUser(session.user || null);
+    } catch (e) {
+      setError(e.message || 'Failed to log out');
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar reveal">
         <h1>Code Mentor</h1>
         <p>Train your engineering judgment with realistic pull request reviews.</p>
+        <div className="topbar-auth">
+          <AuthControls
+            user={currentUser}
+            loading={authLoading}
+            onLogin={handleGoogleLogin}
+            onLogout={handleLogout}
+            onError={setError}
+          />
+        </div>
         <div className="task-switcher">
           <div className="language-toggle">
-            <button
-              className={language === 'python' ? 'lang-active' : ''}
-              onClick={() => setLanguage('python')}
-            >
-              Python
-            </button>
-            <button
-              className={language === 'python_questions' ? 'lang-active' : ''}
-              onClick={() => setLanguage('python_questions')}
-            >
-              Python (questions)
-            </button>
-            <button
-              className={language === 'python_theory' ? 'lang-active' : ''}
-              onClick={() => setLanguage('python_theory')}
-            >
-              Python (theory)
-            </button>
-            <button
-              className={language === 'javascript' ? 'lang-active' : ''}
-              onClick={() => setLanguage('javascript')}
-            >
-              JavaScript
-            </button>
+            {LANGUAGE_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                className={language === option.value ? 'lang-active' : ''}
+                onClick={() => setLanguage(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
           <button onClick={() => moveTask(taskIndex + 1)} disabled={!taskList.length}>
             Next Task
