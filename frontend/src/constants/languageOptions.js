@@ -6,4 +6,5 @@ export const LANGUAGE_OPTIONS = [
   { value: 'django', label: 'Django' },
   { value: 'react', label: 'React' },
   { value: 'javascript', label: 'JavaScript' },
+  { value: 'sql', label: 'SQL' },
 ];

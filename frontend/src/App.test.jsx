@@ -139,6 +139,7 @@ describe('App', () => {
     expect(screen.getByText('Django')).toBeInTheDocument();
     expect(screen.getByText('React')).toBeInTheDocument();
     expect(screen.getByText('JavaScript')).toBeInTheDocument();
+    expect(screen.getByText('SQL')).toBeInTheDocument();
     expect(screen.getByText('Task Scheduler')).toBeInTheDocument();
     expect(screen.getByText('User Interests')).toBeInTheDocument();
     await waitFor(() => expect(api.getTasks).toHaveBeenCalled());
@@ -388,6 +389,25 @@ describe('App', () => {
 
     await userEvent.click(screen.getByText('React'));
     await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('react'));
+  });
+
+  it('switches to SQL language', async () => {
+    render(<App />);
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python'));
+
+    api.getTasks.mockResolvedValue([
+      { id: 'sql-task-1', title: 'Customers without orders', language: 'sql' },
+    ]);
+    api.getTaskById.mockResolvedValue({
+      ...fullTask,
+      id: 'sql-task-1',
+      title: 'Customers without orders',
+      language: 'sql',
+      code: 'SELECT c.id FROM customers c;',
+    });
+
+    await userEvent.click(screen.getByText('SQL'));
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('sql'));
   });
 
   it('submits a theory answer for analysis', async () => {

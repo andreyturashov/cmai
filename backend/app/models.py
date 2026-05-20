@@ -12,6 +12,7 @@ ALLOWED_INTERESTS = {
     "django",
     "react",
     "javascript",
+    "sql",
 }
 
 
