@@ -3,18 +3,26 @@ import { api } from './api/client';
 import AuthControls from './components/AuthControls';
 import LeftPanel from './components/LeftPanel';
 import CodeReviewPanel from './components/CodeReviewPanel';
+import TaskProgressPage from './components/TaskProgressPage';
+import TaskSchedulerPage from './components/TaskSchedulerPage';
+import UserInterestsPage from './components/UserInterestsPage';
+import { LANGUAGE_OPTIONS } from './constants/languageOptions';
 
-const LANGUAGE_OPTIONS = [
-  { value: 'python', label: 'Python' },
-  { value: 'python_questions', label: 'Python (questions)' },
-  { value: 'python_theory', label: 'Python (theory)' },
-  { value: 'fastapi', label: 'FastAPI' },
-  { value: 'django', label: 'Django' },
-  { value: 'react', label: 'React' },
-  { value: 'javascript', label: 'JavaScript' },
-];
+const REVIEW_PATH = '/';
+const TASK_PROGRESS_PATH = '/task-progress';
+const TASK_SCHEDULER_PATH = '/task-scheduler';
+const USER_INTERESTS_PATH = '/user-interests';
+
+function getCurrentPath() {
+  if (typeof window === 'undefined') return REVIEW_PATH;
+  if (window.location.pathname === TASK_PROGRESS_PATH) return TASK_PROGRESS_PATH;
+  if (window.location.pathname === TASK_SCHEDULER_PATH) return TASK_SCHEDULER_PATH;
+  if (window.location.pathname === USER_INTERESTS_PATH) return USER_INTERESTS_PATH;
+  return REVIEW_PATH;
+}
 
 export default function App() {
+  const [path, setPath] = useState(getCurrentPath);
   const [taskList, setTaskList] = useState([]);
   const [taskIndex, setTaskIndex] = useState(0);
   const [task, setTask] = useState(null);
@@ -27,6 +35,15 @@ export default function App() {
   const [language, setLanguage] = useState('python');
   const [currentUser, setCurrentUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(false);
+
+  useEffect(() => {
+    function handlePopState() {
+      setPath(getCurrentPath());
+    }
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   useEffect(() => {
     async function loadAuthSession() {
@@ -145,61 +162,125 @@ export default function App() {
     }
   }
 
+  function navigateTo(nextPath) {
+    const normalizedPath =
+      nextPath === TASK_PROGRESS_PATH
+        ? TASK_PROGRESS_PATH
+        : nextPath === TASK_SCHEDULER_PATH
+          ? TASK_SCHEDULER_PATH
+          : nextPath === USER_INTERESTS_PATH
+            ? USER_INTERESTS_PATH
+            : REVIEW_PATH;
+    if (normalizedPath === path) return;
+
+    window.history.pushState({}, '', normalizedPath);
+    setPath(normalizedPath);
+    setError('');
+  }
+
+  const isTaskProgressPage = path === TASK_PROGRESS_PATH;
+  const isTaskSchedulerPage = path === TASK_SCHEDULER_PATH;
+  const isUserInterestsPage = path === USER_INTERESTS_PATH;
+  const isReviewPage = path === REVIEW_PATH;
+
   return (
     <main className="app-shell">
       <header className="topbar reveal">
-        <h1>Code Mentor</h1>
-        <p>Train your engineering judgment with realistic pull request reviews.</p>
-        <div className="topbar-auth">
-          <AuthControls
-            user={currentUser}
-            loading={authLoading}
-            onLogin={handleGoogleLogin}
-            onLogout={handleLogout}
-            onError={setError}
-          />
-        </div>
-        <div className="task-switcher">
-          <div className="language-toggle">
-            {LANGUAGE_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                className={language === option.value ? 'lang-active' : ''}
-                onClick={() => setLanguage(option.value)}
-              >
-                {option.label}
-              </button>
-            ))}
+        <div className="topbar-main-row">
+          <h1>Code Mentor</h1>
+          <div className="topbar-auth">
+            <AuthControls
+              user={currentUser}
+              loading={authLoading}
+              onLogin={handleGoogleLogin}
+              onLogout={handleLogout}
+              onError={setError}
+            />
           </div>
-          <button onClick={() => moveTask(taskIndex + 1)} disabled={!taskList.length}>
-            Next Task
+        </div>
+        <p>Train your engineering judgment with realistic pull request reviews.</p>
+        <div className="page-nav">
+          <button
+            type="button"
+            className={isReviewPage ? 'page-nav-active' : 'ghost'}
+            onClick={() => navigateTo(REVIEW_PATH)}
+          >
+            Code Review
+          </button>
+          <button
+            type="button"
+            className={isTaskProgressPage ? 'page-nav-active' : 'ghost'}
+            onClick={() => navigateTo(TASK_PROGRESS_PATH)}
+          >
+            TaskProgress
+          </button>
+          <button
+            type="button"
+            className={isTaskSchedulerPage ? 'page-nav-active' : 'ghost'}
+            onClick={() => navigateTo(TASK_SCHEDULER_PATH)}
+          >
+            Task Scheduler
+          </button>
+          <button
+            type="button"
+            className={isUserInterestsPage ? 'page-nav-active' : 'ghost'}
+            onClick={() => navigateTo(USER_INTERESTS_PATH)}
+          >
+            User Interests
           </button>
         </div>
+        {isReviewPage ? (
+          <div className="task-switcher">
+            <div className="language-toggle">
+              {LANGUAGE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  className={language === option.value ? 'lang-active' : ''}
+                  onClick={() => setLanguage(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => moveTask(taskIndex + 1)} disabled={!taskList.length}>
+              Next Task
+            </button>
+          </div>
+        ) : null}
       </header>
 
       {error ? <div className="error-banner">{error}</div> : null}
 
-      <section className="layout-grid">
-        <LeftPanel task={task} aiAnalysis={aiAnalysis} aiLoading={aiLoading} />
-        <CodeReviewPanel
-          code={task?.code || ''}
-          language={task?.language || 'python'}
-          instructions={task?.instructions || []}
-          responseMode={task?.submission_mode || 'comments'}
-          comments={comments}
-          answer={answer}
-          answerEditorKey={task?.id || `${language}-${taskIndex}`}
-          referenceIssues={showReference ? task?.reference_issues || [] : []}
-          showReference={showReference}
-          onToggleReference={() => setShowReference((v) => !v)}
-          onAddComment={(c) => setComments((prev) => [...prev, c])}
-          onEditComment={(idx, updated) =>
-            setComments((prev) => prev.map((c, i) => (i === idx ? updated : c)))
-          }
-          onAnswerChange={setAnswer}
-          onSubmitReview={submitReview}
-        />
-      </section>
+      {isTaskProgressPage ? (
+        <TaskProgressPage currentUser={currentUser} onError={setError} />
+      ) : isTaskSchedulerPage ? (
+        <TaskSchedulerPage currentUser={currentUser} onError={setError} />
+      ) : isUserInterestsPage ? (
+        <UserInterestsPage currentUser={currentUser} onError={setError} />
+      ) : (
+        <section className="layout-grid">
+          <LeftPanel task={task} aiAnalysis={aiAnalysis} aiLoading={aiLoading} />
+          <CodeReviewPanel
+            code={task?.code || ''}
+            language={task?.language || 'python'}
+            instructions={task?.instructions || []}
+            responseMode={task?.submission_mode || 'comments'}
+            comments={comments}
+            answer={answer}
+            answerEditorKey={task?.id || `${language}-${taskIndex}`}
+            referenceIssues={showReference ? task?.reference_issues || [] : []}
+            referenceIssueCount={task?.reference_issues?.length || 0}
+            showReference={showReference}
+            onToggleReference={() => setShowReference((v) => !v)}
+            onAddComment={(c) => setComments((prev) => [...prev, c])}
+            onEditComment={(idx, updated) =>
+              setComments((prev) => prev.map((c, i) => (i === idx ? updated : c)))
+            }
+            onAnswerChange={setAnswer}
+            onSubmitReview={submitReview}
+          />
+        </section>
+      )}
     </main>
   );
 }

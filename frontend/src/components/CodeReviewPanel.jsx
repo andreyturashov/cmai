@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-python';
 import 'prismjs/components/prism-javascript';
+import 'prismjs/components/prism-sql';
 import CommentForm from './CommentForm';
 import MarkdownContent from './MarkdownContent';
 import RichAnswerEditor from './RichAnswerEditor';
@@ -17,7 +18,7 @@ export default function CodeReviewPanel({
   language,
   instructions = [],
   responseMode = 'comments',
-  comments,
+  comments = [],
   answer = '',
   answerEditorKey = 'answer-editor',
   referenceIssues = [],
@@ -27,6 +28,10 @@ export default function CodeReviewPanel({
   onEditComment,
   onAnswerChange,
   onSubmitReview,
+  readOnly = false,
+  savedAnswer = '',
+  title = 'Code Viewer',
+  referenceIssueCount = 0,
 }) {
   const [selStart, setSelStart] = useState(null);
   const [selEnd, setSelEnd] = useState(null);
@@ -76,7 +81,7 @@ export default function CodeReviewPanel({
   const editMax = editingComment?.end_line ?? editMin;
 
   function handleMouseDown(lineNumber, e) {
-    if (responseMode !== 'comments') return;
+    if (responseMode !== 'comments' || readOnly) return;
     e.preventDefault();
     if (editingIdx != null) setEditingIdx(null);
     dragStart.current = lineNumber;
@@ -105,7 +110,7 @@ export default function CodeReviewPanel({
     if (node) node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, []);
 
-  const showForm = responseMode === 'comments' && selStart != null && !dragging;
+  const showForm = responseMode === 'comments' && !readOnly && selStart != null && !dragging;
   const panelInstructions = instructions.length
     ? instructions
     : [
@@ -116,12 +121,13 @@ export default function CodeReviewPanel({
         '(Optional) Provide fixed code',
       ];
   const submitDisabled = responseMode === 'answer' ? !answer.trim() : false;
+  const hasReferenceIssues = referenceIssueCount > 0;
 
   return (
     <section className="right-panel card reveal">
       <header className="review-header">
         <div className="review-title">
-          <h3>Code Viewer</h3>
+          <h3>{title}</h3>
           <div className="info-icon-wrap">
             <span className="info-icon">&#9432;</span>
             <div className="info-tooltip">
@@ -135,15 +141,19 @@ export default function CodeReviewPanel({
           </div>
         </div>
         <div className="review-header-actions">
-          <button
-            className={`ghost toggle-ref${showReference ? ' toggle-ref-active' : ''}`}
-            onClick={onToggleReference}
-          >
-            {showReference ? 'Hide Answer' : 'Show Answer'}
-          </button>
-          <button onClick={onSubmitReview} disabled={submitDisabled}>
-            Submit Review
-          </button>
+          {hasReferenceIssues ? (
+            <button
+              className={`ghost toggle-ref${showReference ? ' toggle-ref-active' : ''}`}
+              onClick={onToggleReference}
+            >
+              {showReference ? 'Hide Answer' : 'Show Answer'}
+            </button>
+          ) : null}
+          {!readOnly ? (
+            <button onClick={onSubmitReview} disabled={submitDisabled}>
+              Submit Review
+            </button>
+          ) : null}
         </div>
       </header>
 
@@ -188,19 +198,24 @@ export default function CodeReviewPanel({
                       />
                       <div className="inline-comment-actions">
                         <span className="comment-meta">{rangeLabel}</span>
-                        <button
-                          type="button"
-                          className="ghost edit-btn"
-                          onClick={() => {
-                            setEditingIdx(globalIdx);
-                            setSelStart(null);
-                            setSelEnd(null);
-                          }}
-                        >
-                          Edit
-                        </button>
+                        {!readOnly ? (
+                          <button
+                            type="button"
+                            className="ghost edit-btn"
+                            onClick={() => {
+                              setEditingIdx(globalIdx);
+                              setSelStart(null);
+                              setSelEnd(null);
+                            }}
+                          >
+                            Edit
+                          </button>
+                        ) : null}
                       </div>
                     </div>
+                    {c.suggestion ? (
+                      <p className="comment-suggestion-text">Suggestion: {c.suggestion}</p>
+                    ) : null}
                   </div>
                 );
               })}
@@ -285,12 +300,22 @@ export default function CodeReviewPanel({
         <div className="answer-form">
           <label>
             Your Answer
-            <RichAnswerEditor
-              key={answerEditorKey}
-              value={answer}
-              onChange={onAnswerChange}
-              ariaLabel="Your Answer"
-            />
+            {readOnly ? (
+              <div className="saved-answer-card">
+                {savedAnswer.trim() ? (
+                  <MarkdownContent content={savedAnswer} className="markdown-content" />
+                ) : (
+                  <p className="muted">No written answer was saved for this submission.</p>
+                )}
+              </div>
+            ) : (
+              <RichAnswerEditor
+                key={answerEditorKey}
+                value={answer}
+                onChange={onAnswerChange}
+                ariaLabel="Your Answer"
+              />
+            )}
           </label>
         </div>
       ) : null}

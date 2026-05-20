@@ -23,10 +23,17 @@ body {
 }
 
 .app-shell {
-  max-width: 1440px;
+  max-width: 1680px;
   margin: 0 auto;
   padding: 24px;
   position: relative;
+}
+
+.topbar-main-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
 }
 
 .topbar h1 {
@@ -41,9 +48,19 @@ body {
 }
 
 .topbar-auth {
-  margin-top: 14px;
   display: flex;
   justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.page-nav {
+  margin-top: 16px;
+  display: flex;
+  gap: 10px;
+}
+
+.page-nav-active {
+  background: linear-gradient(120deg, var(--accent-2) 0%, #1f5f74 100%);
 }
 
 .auth-controls {
@@ -397,6 +414,12 @@ body {
   color: rgba(29, 41, 48, 0.7);
 }
 
+.comment-suggestion-text {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  color: rgba(29, 41, 48, 0.72);
+}
+
 .markdown-content p,
 .markdown-content ul,
 .markdown-content ol,
@@ -527,6 +550,14 @@ body {
 .answer-form label {
   display: grid;
   gap: 8px;
+}
+
+.saved-answer-card {
+  border: 1px solid rgba(29, 41, 48, 0.2);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.94);
+  padding: 12px;
+  min-height: 120px;
 }
 
 .lexical-answer-shell {
@@ -1010,6 +1041,182 @@ button:disabled {
   padding: 10px 12px;
 }
 
+.progress-suggestion {
+  white-space: pre-wrap;
+}
+
+.task-progress-layout {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.task-scheduler-layout {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.task-progress-menu,
+.task-progress-empty,
+.task-scheduler-menu,
+.task-scheduler-empty,
+.user-interests-panel,
+.user-interests-empty {
+  padding: 18px;
+}
+
+.task-progress-menu-header h2,
+.task-progress-empty h2,
+.task-scheduler-header h2,
+.task-scheduler-empty h2,
+.user-interests-empty h2,
+.user-interests-header h2 {
+  margin: 0;
+}
+
+.task-scheduler-actions {
+  margin: 16px 0 12px;
+}
+
+.task-scheduler-item-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: var(--accent-2);
+  font-weight: 700;
+}
+
+.task-scheduler-item-progress-pending {
+  color: rgba(29, 41, 48, 0.56);
+}
+
+.user-interests-header {
+  max-width: 720px;
+}
+
+.user-interests-meta {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: rgba(29, 41, 48, 0.72);
+}
+
+.user-interests-saved {
+  color: var(--accent-2);
+  font-weight: 700;
+}
+
+.user-interests-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+.interest-chip {
+  width: 100%;
+  min-height: 72px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.interest-chip-selected {
+  background: linear-gradient(120deg, rgba(47, 125, 121, 0.12) 0%, rgba(47, 125, 121, 0.2) 100%);
+  border-color: var(--accent-2);
+  color: var(--ink);
+  box-shadow: 0 0 0 2px rgba(47, 125, 121, 0.12);
+}
+
+.user-interests-selection {
+  margin-top: 18px;
+  padding: 16px;
+}
+
+.user-interests-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.user-interest-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(47, 125, 121, 0.12);
+  color: var(--accent-2);
+  font-weight: 700;
+}
+
+.user-interests-actions {
+  margin-top: 18px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.task-progress-list {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.task-progress-item {
+  width: 100%;
+  text-align: left;
+  display: grid;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.task-progress-item:hover {
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.task-progress-item-active {
+  border-color: var(--accent-2);
+  box-shadow: 0 0 0 2px rgba(47, 125, 121, 0.12);
+}
+
+.task-progress-item-title {
+  font-weight: 700;
+}
+
+.task-progress-item-meta {
+  font-size: 0.82rem;
+  color: rgba(29, 41, 48, 0.64);
+}
+
+.task-progress-detail {
+  margin-top: 0;
+  grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.78fr);
+}
+
+.task-scheduler-detail {
+  margin-top: 0;
+  grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.78fr);
+}
+
+.task-progress-menu,
+.task-scheduler-menu,
+.task-progress-detail,
+.task-scheduler-detail {
+  height: 100%;
+}
+
 .reveal {
   animation: rise 450ms ease both;
 }
@@ -1093,11 +1300,28 @@ button:disabled {
 /* ── end Content Editor ───────────────────────────────── */
 
 @media (max-width: 980px) {
+  .topbar-main-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .topbar-auth {
     justify-content: flex-start;
   }
 
+  .page-nav {
+    flex-wrap: wrap;
+  }
+
   .layout-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .task-progress-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .task-scheduler-layout {
     grid-template-columns: 1fr;
   }
 

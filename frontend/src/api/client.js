@@ -29,11 +29,23 @@ export const api = {
     request('/auth/logout', {
       method: 'POST',
     }),
+  getUserInterests: () => request('/me/interests'),
+  updateUserInterests: (payload) =>
+    request('/me/interests', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  getTaskSchedule: () => request('/me/task-schedule'),
+  regenerateTaskSchedule: () =>
+    request('/me/task-schedule/regenerate', {
+      method: 'POST',
+    }),
   getTasks: (language) => {
     const params = language ? `?language=${encodeURIComponent(language)}` : '';
     return request(`/tasks${params}`);
   },
   getTaskById: (id) => request(`/tasks/${id}`),
+  getUserProgress: () => request('/me/progress'),
   createReview: (payload) =>
     request('/reviews', {
       method: 'POST',

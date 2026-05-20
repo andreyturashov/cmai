@@ -1,6 +1,18 @@
 import React from 'react';
 
-export default function LeftPanel({ task, aiAnalysis, aiLoading }) {
+function formatTimestamp(value) {
+  if (!value) return '';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+}
+
+export default function LeftPanel({ task, aiAnalysis, aiLoading, progressEntry = null }) {
   if (!task) {
     return <aside className="left-panel card">Loading task...</aside>;
   }
@@ -24,6 +36,20 @@ export default function LeftPanel({ task, aiAnalysis, aiLoading }) {
           ))}
         </ul>
       </section>
+
+      {progressEntry ? (
+        <section className="eval-section">
+          <p className="eyebrow">TaskProgress</p>
+          <p className="score">Score: {progressEntry.score} / 10</p>
+          <p className="eval-stats">Attempts: {progressEntry.submission_count}</p>
+          {progressEntry.updated_at ? (
+            <p className="eval-stats">Last updated: {formatTimestamp(progressEntry.updated_at)}</p>
+          ) : null}
+          {progressEntry.user_answer?.trim() ? null : (
+            <p className="eval-missed">No written answer was saved for this submission.</p>
+          )}
+        </section>
+      ) : null}
 
       {aiLoading ? (
         <section className="ai-section">

@@ -2,7 +2,18 @@ from __future__ import annotations
 
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+ALLOWED_INTERESTS = {
+    "python",
+    "python_questions",
+    "python_theory",
+    "fastapi",
+    "django",
+    "react",
+    "javascript",
+    "sql",
+}
 
 
 class Severity(str, Enum):
@@ -62,6 +73,40 @@ class AuthSession(BaseModel):
     user: AuthenticatedUser | None = None
 
 
+class UserInterestsResponse(BaseModel):
+    interests: list[str] = Field(default_factory=list)
+
+
+class UserInterestsUpdate(BaseModel):
+    interests: list[str] = Field(default_factory=list, max_length=5)
+
+    @field_validator("interests")
+    @classmethod
+    def validate_interests(cls, interests: list[str]) -> list[str]:
+        if len(interests) != len(set(interests)):
+            raise ValueError("Interests must be unique")
+
+        invalid = [interest for interest in interests if interest not in ALLOWED_INTERESTS]
+        if invalid:
+            raise ValueError(f"Unsupported interests: {', '.join(invalid)}")
+
+        return interests
+
+
+class ScheduledTaskEntry(BaseModel):
+    id: str
+    title: str
+    description: str
+    requirements: list[str]
+    instructions: list[str]
+    language: str
+    submission_mode: str = "comments"
+
+
+class TaskScheduleResponse(BaseModel):
+    tasks: list[ScheduledTaskEntry] = Field(default_factory=list)
+
+
 class UserReview(BaseModel):
     id: str
     task_id: str
@@ -107,3 +152,29 @@ class AIAnalysisResult(BaseModel):
     feedback: list[str]
     issues: list[AIIssueVerdict]
     summary: str
+
+
+class UserProgressTaskSummary(BaseModel):
+    id: str
+    title: str
+    description: str
+    requirements: list[str]
+    instructions: list[str]
+    language: str
+    submission_mode: str = "comments"
+    code: str
+    reference_issues: list[Issue] = Field(default_factory=list)
+
+
+class UserProgressEntry(BaseModel):
+    id: int
+    task_id: str
+    score: float
+    suggestion: str
+    ai_analysis: AIAnalysisResult | None = None
+    user_answer: str
+    user_comments: list[InlineComment] = Field(default_factory=list)
+    submission_count: int
+    created_at: str
+    updated_at: str
+    task: UserProgressTaskSummary

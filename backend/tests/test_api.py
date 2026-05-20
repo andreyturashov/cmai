@@ -123,6 +123,201 @@ def test_google_logout_clears_session(client):
     assert session_resp.json() == {"user": None}
 
 
+def test_get_user_interests_requires_authentication(client):
+    resp = client.get("/me/interests")
+
+    assert resp.status_code == 401
+    assert resp.json() == {"detail": "Authentication required"}
+
+
+def test_update_user_interests_persists_selection(client):
+    with (
+        patch("app.main.GOOGLE_CLIENT_ID", "test-client-id"),
+        patch(
+            "app.main.verify_google_credential",
+            return_value={
+                "sub": "interests-user-1",
+                "email": "interests@example.com",
+                "name": "Interests User",
+                "avatar_url": "",
+            },
+        ),
+    ):
+        client.post("/auth/google", json={"credential": "google-id-token"})
+
+    update_resp = client.put(
+        "/me/interests",
+        json={"interests": ["python_theory", "javascript", "fastapi"]},
+    )
+
+    assert update_resp.status_code == 200
+    assert update_resp.json() == {"interests": ["python_theory", "javascript", "fastapi"]}
+
+    get_resp = client.get("/me/interests")
+
+    assert get_resp.status_code == 200
+    assert get_resp.json() == {"interests": ["python_theory", "javascript", "fastapi"]}
+
+
+def test_update_user_interests_rejects_more_than_five(client):
+    with (
+        patch("app.main.GOOGLE_CLIENT_ID", "test-client-id"),
+        patch(
+            "app.main.verify_google_credential",
+            return_value={
+                "sub": "interests-user-2",
+                "email": "toomany@example.com",
+                "name": "Too Many",
+                "avatar_url": "",
+            },
+        ),
+    ):
+        client.post("/auth/google", json={"credential": "google-id-token"})
+
+    resp = client.put(
+        "/me/interests",
+        json={
+            "interests": [
+                "python",
+                "python_questions",
+                "python_theory",
+                "fastapi",
+                "django",
+                "react",
+            ]
+        },
+    )
+
+    assert resp.status_code == 422
+
+
+def test_get_task_schedule_requires_authentication(client):
+    resp = client.get("/me/task-schedule")
+
+    assert resp.status_code == 401
+    assert resp.json() == {"detail": "Authentication required"}
+
+
+def test_get_task_schedule_uses_interests_and_excludes_completed_tasks(client):
+    with (
+        patch("app.main.GOOGLE_CLIENT_ID", "test-client-id"),
+        patch(
+            "app.main.verify_google_credential",
+            return_value={
+                "sub": "schedule-user-1",
+                "email": "schedule@example.com",
+                "name": "Schedule User",
+                "avatar_url": "",
+            },
+        ),
+    ):
+        client.post("/auth/google", json={"credential": "google-id-token"})
+
+    interests_resp = client.put(
+        "/me/interests",
+        json={"interests": ["python_theory", "javascript"]},
+    )
+    assert interests_resp.status_code == 200
+
+    review = client.post(
+        "/reviews",
+        json={
+            "task_id": "python-theory-1",
+            "comments": [],
+            "answer": "Completed once already.",
+        },
+    ).json()
+
+    mocked_result = AIAnalysisResult(
+        all_fixed=True,
+        score=8.0,
+        detected_critical=0,
+        total_critical=0,
+        detected_medium=1,
+        total_medium=1,
+        detected_low=0,
+        total_low=0,
+        missed_issues=[],
+        feedback=["Good enough"],
+        issues=[
+            AIIssueVerdict(
+                issue_id="python-theory-1-i1",
+                title="Existing completion",
+                severity="medium",
+                addressed=True,
+                explanation="Already completed.",
+            )
+        ],
+        summary="Stored completion.",
+    )
+
+    with patch("app.main.analyze_review", new=AsyncMock(return_value=mocked_result)):
+        analyze_resp = client.post("/ai-analyze", json={"review_id": review["id"]})
+
+    assert analyze_resp.status_code == 200
+
+    with patch("app.main.random.shuffle", side_effect=lambda tasks: tasks.reverse()):
+        schedule_resp = client.get("/me/task-schedule")
+
+    assert schedule_resp.status_code == 200
+    data = schedule_resp.json()
+    assert data["tasks"]
+    assert len(data["tasks"]) <= 5
+    assert all(task["language"] in {"python_theory", "javascript"} for task in data["tasks"])
+    assert all(task["id"] != "python-theory-1" for task in data["tasks"])
+
+    second_schedule_resp = client.get("/me/task-schedule")
+    assert second_schedule_resp.status_code == 200
+    assert second_schedule_resp.json() == data
+
+
+def test_regenerate_task_schedule_replaces_stored_schedule(client):
+    with (
+        patch("app.main.GOOGLE_CLIENT_ID", "test-client-id"),
+        patch(
+            "app.main.verify_google_credential",
+            return_value={
+                "sub": "schedule-user-2",
+                "email": "schedule2@example.com",
+                "name": "Schedule User 2",
+                "avatar_url": "",
+            },
+        ),
+    ):
+        client.post("/auth/google", json={"credential": "google-id-token"})
+
+    interests_resp = client.put(
+        "/me/interests",
+        json={"interests": ["python_theory", "javascript"]},
+    )
+    assert interests_resp.status_code == 200
+
+    with patch("app.main.random.shuffle", side_effect=lambda tasks: None):
+        initial_resp = client.get("/me/task-schedule")
+
+    assert initial_resp.status_code == 200
+    initial_ids = [task["id"] for task in initial_resp.json()["tasks"]]
+
+    with patch("app.main.random.shuffle", side_effect=lambda tasks: tasks.reverse()):
+        regenerated_resp = client.post("/me/task-schedule/regenerate")
+
+    assert regenerated_resp.status_code == 200
+    regenerated_ids = [task["id"] for task in regenerated_resp.json()["tasks"]]
+    assert regenerated_ids
+    assert regenerated_ids != initial_ids
+
+    persisted_resp = client.get("/me/task-schedule")
+    assert persisted_resp.status_code == 200
+    assert [task["id"] for task in persisted_resp.json()["tasks"]] == regenerated_ids
+
+
+def test_get_user_progress_requires_authentication(client):
+    resp = client.get("/me/progress")
+
+    assert resp.status_code == 401
+    assert resp.json() == {"detail": "Authentication required"}
+
+
 def test_ai_analyze_stores_user_progress_for_authenticated_user(client):
     with (
         patch("app.main.GOOGLE_CLIENT_ID", "test-client-id"),
@@ -142,7 +337,14 @@ def test_ai_analyze_stores_user_progress_for_authenticated_user(client):
         "/reviews",
         json={
             "task_id": "python-theory-1",
-            "comments": [],
+            "comments": [
+                {
+                    "line": 1,
+                    "comment": "Explain why the current implementation fails for direct list input.",
+                    "suggestion": "Serialize the list before writing.",
+                    "severity": "medium",
+                }
+            ],
             "answer": "Lists are mutable and tuples are immutable.",
         },
     ).json()
@@ -188,8 +390,104 @@ def test_ai_analyze_stores_user_progress_for_authenticated_user(client):
     progress = progress_rows[0]
     assert progress.task_id == "python-theory-1"
     assert progress.user_answer == "Lists are mutable and tuples are immutable."
+    assert progress.user_comments == [
+        {
+            "line": 1,
+            "end_line": None,
+            "severity": "medium",
+            "comment": "Explain why the current implementation fails for direct list input.",
+            "suggestion": "Serialize the list before writing.",
+        }
+    ]
     assert progress.score == 9.5
+    assert progress.ai_analysis["score"] == 9.5
+    assert progress.ai_analysis["summary"] == "Clear explanation with good terminology."
+    assert progress.ai_analysis["issues"][0]["issue_id"] == "python-theory-1-i1"
     assert "Clear explanation with good terminology." in progress.suggestion
+
+
+def test_get_user_progress_returns_saved_progress_with_task_details(client):
+    with (
+        patch("app.main.GOOGLE_CLIENT_ID", "test-client-id"),
+        patch(
+            "app.main.verify_google_credential",
+            return_value={
+                "sub": "progress-user-2",
+                "email": "history@example.com",
+                "name": "History User",
+                "avatar_url": "",
+            },
+        ),
+    ):
+        client.post("/auth/google", json={"credential": "google-id-token"})
+
+    review = client.post(
+        "/reviews",
+        json={
+            "task_id": "python-theory-1",
+            "comments": [
+                {
+                    "line": 2,
+                    "comment": "This should mention the immutable tuple contract.",
+                    "suggestion": "Add an explicit mutability comparison.",
+                    "severity": "low",
+                }
+            ],
+            "answer": "Tuples are immutable, lists are mutable.",
+        },
+    ).json()
+
+    mocked_result = AIAnalysisResult(
+        all_fixed=True,
+        score=8.5,
+        detected_critical=0,
+        total_critical=0,
+        detected_medium=1,
+        total_medium=1,
+        detected_low=0,
+        total_low=0,
+        missed_issues=[],
+        feedback=["Good explanation"],
+        issues=[
+            AIIssueVerdict(
+                issue_id="python-theory-1-i1",
+                title="List vs tuple",
+                severity="medium",
+                addressed=True,
+                explanation="Correctly identified mutability.",
+            )
+        ],
+        summary="Solid answer.",
+    )
+
+    with patch("app.main.analyze_review", new=AsyncMock(return_value=mocked_result)):
+        analyze_resp = client.post("/ai-analyze", json={"review_id": review["id"]})
+
+    assert analyze_resp.status_code == 200
+
+    resp = client.get("/me/progress")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["task_id"] == "python-theory-1"
+    assert data[0]["score"] == 8.5
+    assert data[0]["ai_analysis"]["score"] == 8.5
+    assert data[0]["ai_analysis"]["summary"] == "Solid answer."
+    assert data[0]["ai_analysis"]["issues"][0]["title"] == "List vs tuple"
+    assert data[0]["user_answer"] == "Tuples are immutable, lists are mutable."
+    assert data[0]["user_comments"] == [
+        {
+            "line": 2,
+            "end_line": None,
+            "severity": "low",
+            "comment": "This should mention the immutable tuple contract.",
+            "suggestion": "Add an explicit mutability comparison.",
+        }
+    ]
+    assert data[0]["task"]["id"] == "python-theory-1"
+    assert data[0]["task"]["submission_mode"] == "answer"
+    assert data[0]["task"]["reference_issues"]
 
 
 def test_ai_analyze_does_not_store_progress_for_anonymous_user(client):

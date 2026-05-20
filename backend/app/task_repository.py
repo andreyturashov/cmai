@@ -60,3 +60,40 @@ class TaskRepository:
         if record is None:
             return None
         return _task_from_record(record)
+
+    async def list_tasks_for_languages(
+        self,
+        languages: list[str],
+        *,
+        exclude_task_ids: set[str] | None = None,
+    ) -> list[Task]:
+        if not languages:
+            return []
+
+        stmt = (
+            select(TaskRecord)
+            .options(selectinload(TaskRecord.reference_issues))
+            .where(TaskRecord.language.in_(languages))
+            .order_by(TaskRecord.id)
+        )
+        if exclude_task_ids:
+            stmt = stmt.where(TaskRecord.id.not_in(exclude_task_ids))
+
+        records = (await self.session.scalars(stmt)).all()
+        return [_task_from_record(record) for record in records]
+
+    async def list_tasks_by_ids(self, task_ids: list[str]) -> list[Task]:
+        if not task_ids:
+            return []
+
+        stmt = (
+            select(TaskRecord)
+            .options(selectinload(TaskRecord.reference_issues))
+            .where(TaskRecord.id.in_(task_ids))
+        )
+        records = (await self.session.scalars(stmt)).all()
+        records_by_id = {record.id: record for record in records}
+        ordered_records = [
+            records_by_id[task_id] for task_id in task_ids if task_id in records_by_id
+        ]
+        return [_task_from_record(record) for record in ordered_records]

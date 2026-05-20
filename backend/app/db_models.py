@@ -28,6 +28,8 @@ class UserRecord(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     avatar_url: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    user_interests: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    scheduled_task_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
@@ -127,7 +129,9 @@ class UserProgressRecord(Base):
     )
     score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     suggestion: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    ai_analysis: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
     user_answer: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    user_comments: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default=list)
     submission_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
