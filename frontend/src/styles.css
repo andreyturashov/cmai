@@ -1046,8 +1046,18 @@ button:disabled {
   align-items: start;
 }
 
+.task-scheduler-layout {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
 .task-progress-menu,
 .task-progress-empty,
+.task-scheduler-menu,
+.task-scheduler-empty,
 .user-interests-panel,
 .user-interests-empty {
   padding: 18px;
@@ -1055,9 +1065,29 @@ button:disabled {
 
 .task-progress-menu-header h2,
 .task-progress-empty h2,
+.task-scheduler-header h2,
+.task-scheduler-empty h2,
 .user-interests-empty h2,
 .user-interests-header h2 {
   margin: 0;
+}
+
+.task-scheduler-actions {
+  margin: 16px 0 12px;
+}
+
+.task-scheduler-item-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: var(--accent-2);
+  font-weight: 700;
+}
+
+.task-scheduler-item-progress-pending {
+  color: rgba(29, 41, 48, 0.56);
 }
 
 .user-interests-header {
@@ -1168,6 +1198,11 @@ button:disabled {
   grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.78fr);
 }
 
+.task-scheduler-detail {
+  margin-top: 0;
+  grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.78fr);
+}
+
 .reveal {
   animation: rise 450ms ease both;
 }
@@ -1264,6 +1299,10 @@ button:disabled {
   }
 
   .task-progress-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .task-scheduler-layout {
     grid-template-columns: 1fr;
   }
 

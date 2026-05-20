@@ -14,6 +14,8 @@ vi.mock('./api/client', () => ({
     getUserProgress: vi.fn(),
     getUserInterests: vi.fn(),
     updateUserInterests: vi.fn(),
+    getTaskSchedule: vi.fn(),
+    regenerateTaskSchedule: vi.fn(),
     createReview: vi.fn(),
     aiAnalyze: vi.fn(),
   },
@@ -76,6 +78,8 @@ describe('App', () => {
     api.getUserProgress.mockResolvedValue([]);
     api.getUserInterests.mockResolvedValue({ interests: [] });
     api.updateUserInterests.mockResolvedValue({ interests: [] });
+    api.getTaskSchedule.mockResolvedValue({ tasks: [] });
+    api.regenerateTaskSchedule.mockResolvedValue({ tasks: [] });
   });
 
   it('renders the header', async () => {
@@ -87,7 +91,9 @@ describe('App', () => {
   it('shows Google login without blocking the main page', async () => {
     render(<App />);
     expect(screen.getByText('Sign in with Google')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText('Validate Input')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Validate Input' })).toBeInTheDocument(),
+    );
   });
 
   it('logs in with Google and shows the signed-in user', async () => {
@@ -133,8 +139,124 @@ describe('App', () => {
     expect(screen.getByText('Django')).toBeInTheDocument();
     expect(screen.getByText('React')).toBeInTheDocument();
     expect(screen.getByText('JavaScript')).toBeInTheDocument();
+    expect(screen.getByText('Task Scheduler')).toBeInTheDocument();
     expect(screen.getByText('User Interests')).toBeInTheDocument();
     await waitFor(() => expect(api.getTasks).toHaveBeenCalled());
+  });
+
+  it('navigates to Task Scheduler and regenerates tasks', async () => {
+    api.getAuthSession.mockResolvedValue({
+      user: {
+        id: 1,
+        email: 'user@example.com',
+        name: 'Example User',
+        avatar_url: '',
+      },
+    });
+    api.getUserInterests.mockResolvedValue({ interests: ['python', 'javascript'] });
+    api.getTaskSchedule.mockResolvedValueOnce({
+      tasks: [
+        {
+          id: 'task-1',
+          title: 'Validate Input',
+          description: 'Check user registration fields',
+          requirements: ['Validate name'],
+          instructions: ['Review the code'],
+          language: 'python',
+          submission_mode: 'comments',
+        },
+      ],
+    });
+    api.regenerateTaskSchedule.mockResolvedValueOnce({
+      tasks: [
+        {
+          id: 'task-2',
+          title: 'Escape SQL values',
+          description: 'Protect the query path',
+          requirements: ['Use parameterized queries'],
+          instructions: ['Review the code'],
+          language: 'javascript',
+          submission_mode: 'comments',
+        },
+      ],
+    });
+    api.getTaskById.mockResolvedValueOnce(fullTask).mockResolvedValueOnce({
+      ...fullTask,
+      id: 'task-2',
+      title: 'Escape SQL values',
+      description: 'Protect the query path',
+      language: 'javascript',
+    });
+
+    render(<App />);
+    await userEvent.click(screen.getByText('Task Scheduler'));
+
+    await waitFor(() => expect(api.getTaskSchedule).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByText("Today's Tasks")).toBeInTheDocument());
+    expect(screen.getByText('Validate Input')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByText('Regenerate Tasks'));
+
+    await waitFor(() => expect(api.regenerateTaskSchedule).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByText('Escape SQL values')).toBeInTheDocument());
+    expect(window.location.pathname).toBe('/task-scheduler');
+  });
+
+  it("shows per-task progress in the Today's Tasks panel after analysis", async () => {
+    api.getAuthSession.mockResolvedValue({
+      user: {
+        id: 1,
+        email: 'user@example.com',
+        name: 'Example User',
+        avatar_url: '',
+      },
+    });
+    api.getUserInterests.mockResolvedValue({ interests: ['python', 'javascript'] });
+    api.getTaskSchedule.mockResolvedValue({
+      tasks: [
+        {
+          id: 'task-1',
+          title: 'Validate Input',
+          description: 'Check edge cases',
+          requirements: ['Spot the main bug'],
+          instructions: ['Explain why it matters'],
+          language: 'python',
+          submission_mode: 'comments',
+        },
+      ],
+    });
+    api.getTaskById.mockResolvedValue(fullTask);
+    api.createReview.mockResolvedValue({ id: 'scheduled-review-1' });
+    api.aiAnalyze.mockResolvedValue({
+      analysis: {
+        all_fixed: false,
+        score: 6,
+        detected_critical: 1,
+        total_critical: 1,
+        detected_medium: 1,
+        total_medium: 2,
+        detected_low: 0,
+        total_low: 1,
+        missed_issues: ['Missing tests'],
+        feedback: ['Catch the remaining medium issue.'],
+        summary: 'Decent start.',
+        issues: [],
+      },
+    });
+
+    render(<App />);
+    await userEvent.click(screen.getByText('Task Scheduler'));
+
+    await waitFor(() => expect(screen.getByText("Today's Tasks")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Validate Input' })).toBeInTheDocument(),
+    );
+
+    await userEvent.click(screen.getByText('Submit Review'));
+
+    await waitFor(() => expect(screen.getAllByText('Score: 6 / 10')).toHaveLength(2));
+    expect(screen.getByText('Progress: 50%')).toBeInTheDocument();
+    expect(screen.queryByText('Latest Result')).toBeNull();
   });
 
   it('navigates to User Interests and saves up to five interests', async () => {

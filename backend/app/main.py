@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 from typing import Annotated
 from uuid import uuid4
 
@@ -29,6 +30,8 @@ from app.models import (
     GoogleLoginRequest,
     Issue,
     ReviewCreate,
+    ScheduledTaskEntry,
+    TaskScheduleResponse,
     UserInterestsResponse,
     UserInterestsUpdate,
     UserProgressEntry,
@@ -52,6 +55,8 @@ app.add_middleware(
 
 admin = setup_admin(app)
 
+TASK_SCHEDULE_LIMIT = 5
+
 REVIEWS: dict[str, UserReview] = {}
 
 
@@ -72,6 +77,57 @@ def serialize_user(user: UserRecord) -> AuthenticatedUser:
         name=user.name,
         avatar_url=user.avatar_url,
     )
+
+
+def serialize_scheduled_tasks(tasks: list) -> TaskScheduleResponse:
+    return TaskScheduleResponse(
+        tasks=[
+            ScheduledTaskEntry(
+                id=task.id,
+                title=task.title,
+                description=task.description,
+                requirements=task.requirements,
+                instructions=task.instructions,
+                language=task.language,
+                submission_mode=task.submission_mode,
+            )
+            for task in tasks
+        ]
+    )
+
+
+async def generate_and_store_task_schedule(
+    *,
+    current_user: UserRecord,
+    session: AsyncSession,
+    task_repository: TaskRepository,
+) -> TaskScheduleResponse:
+    interests = list(current_user.user_interests or [])
+    if not interests:
+        current_user.scheduled_task_ids = []
+        await session.commit()
+        return TaskScheduleResponse(tasks=[])
+
+    completed_task_ids = set(
+        (
+            await session.execute(
+                select(UserProgressRecord.task_id).where(
+                    UserProgressRecord.user_id == current_user.id
+                )
+            )
+        ).scalars()
+    )
+
+    candidate_tasks = await task_repository.list_tasks_for_languages(
+        interests,
+        exclude_task_ids=completed_task_ids,
+    )
+    random.shuffle(candidate_tasks)
+
+    scheduled_tasks = candidate_tasks[:TASK_SCHEDULE_LIMIT]
+    current_user.scheduled_task_ids = [task.id for task in scheduled_tasks]
+    await session.commit()
+    return serialize_scheduled_tasks(scheduled_tasks)
 
 
 async def save_user_progress(
@@ -205,6 +261,42 @@ async def update_user_interests(
     await session.commit()
 
     return UserInterestsResponse(interests=current_user.user_interests)
+
+
+@app.get("/me/task-schedule")
+async def get_task_schedule(
+    current_user: CurrentUserDependency,
+    task_repository: TaskRepositoryDependency,
+    session: SessionDependency,
+) -> TaskScheduleResponse:
+    if current_user is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    if current_user.scheduled_task_ids:
+        scheduled_tasks = await task_repository.list_tasks_by_ids(current_user.scheduled_task_ids)
+        return serialize_scheduled_tasks(scheduled_tasks)
+
+    return await generate_and_store_task_schedule(
+        current_user=current_user,
+        session=session,
+        task_repository=task_repository,
+    )
+
+
+@app.post("/me/task-schedule/regenerate")
+async def regenerate_task_schedule(
+    current_user: CurrentUserDependency,
+    task_repository: TaskRepositoryDependency,
+    session: SessionDependency,
+) -> TaskScheduleResponse:
+    if current_user is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    return await generate_and_store_task_schedule(
+        current_user=current_user,
+        session=session,
+        task_repository=task_repository,
+    )
 
 
 @app.get("/me/progress")

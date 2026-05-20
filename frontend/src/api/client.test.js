@@ -144,6 +144,33 @@ describe('api client', () => {
     expect(result).toEqual(payload);
   });
 
+  it('getTaskSchedule fetches the authenticated task schedule', async () => {
+    const schedule = { tasks: [{ id: 'task-1', title: 'Task 1' }] };
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(schedule),
+    });
+
+    const result = await api.getTaskSchedule();
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/me/task-schedule`, expect.anything());
+    expect(result).toEqual(schedule);
+  });
+
+  it('regenerateTaskSchedule sends POST', async () => {
+    const schedule = { tasks: [{ id: 'task-2', title: 'Task 2' }] };
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(schedule),
+    });
+
+    const result = await api.regenerateTaskSchedule();
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/me/task-schedule/regenerate`,
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(result).toEqual(schedule);
+  });
+
   it('throws on non-ok response', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,

@@ -92,6 +92,20 @@ class UserInterestsUpdate(BaseModel):
         return interests
 
 
+class ScheduledTaskEntry(BaseModel):
+    id: str
+    title: str
+    description: str
+    requirements: list[str]
+    instructions: list[str]
+    language: str
+    submission_mode: str = "comments"
+
+
+class TaskScheduleResponse(BaseModel):
+    tasks: list[ScheduledTaskEntry] = Field(default_factory=list)
+
+
 class UserReview(BaseModel):
     id: str
     task_id: str

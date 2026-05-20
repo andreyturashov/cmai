@@ -191,6 +191,126 @@ def test_update_user_interests_rejects_more_than_five(client):
     assert resp.status_code == 422
 
 
+def test_get_task_schedule_requires_authentication(client):
+    resp = client.get("/me/task-schedule")
+
+    assert resp.status_code == 401
+    assert resp.json() == {"detail": "Authentication required"}
+
+
+def test_get_task_schedule_uses_interests_and_excludes_completed_tasks(client):
+    with (
+        patch("app.main.GOOGLE_CLIENT_ID", "test-client-id"),
+        patch(
+            "app.main.verify_google_credential",
+            return_value={
+                "sub": "schedule-user-1",
+                "email": "schedule@example.com",
+                "name": "Schedule User",
+                "avatar_url": "",
+            },
+        ),
+    ):
+        client.post("/auth/google", json={"credential": "google-id-token"})
+
+    interests_resp = client.put(
+        "/me/interests",
+        json={"interests": ["python_theory", "javascript"]},
+    )
+    assert interests_resp.status_code == 200
+
+    review = client.post(
+        "/reviews",
+        json={
+            "task_id": "python-theory-1",
+            "comments": [],
+            "answer": "Completed once already.",
+        },
+    ).json()
+
+    mocked_result = AIAnalysisResult(
+        all_fixed=True,
+        score=8.0,
+        detected_critical=0,
+        total_critical=0,
+        detected_medium=1,
+        total_medium=1,
+        detected_low=0,
+        total_low=0,
+        missed_issues=[],
+        feedback=["Good enough"],
+        issues=[
+            AIIssueVerdict(
+                issue_id="python-theory-1-i1",
+                title="Existing completion",
+                severity="medium",
+                addressed=True,
+                explanation="Already completed.",
+            )
+        ],
+        summary="Stored completion.",
+    )
+
+    with patch("app.main.analyze_review", new=AsyncMock(return_value=mocked_result)):
+        analyze_resp = client.post("/ai-analyze", json={"review_id": review["id"]})
+
+    assert analyze_resp.status_code == 200
+
+    with patch("app.main.random.shuffle", side_effect=lambda tasks: tasks.reverse()):
+        schedule_resp = client.get("/me/task-schedule")
+
+    assert schedule_resp.status_code == 200
+    data = schedule_resp.json()
+    assert data["tasks"]
+    assert len(data["tasks"]) <= 5
+    assert all(task["language"] in {"python_theory", "javascript"} for task in data["tasks"])
+    assert all(task["id"] != "python-theory-1" for task in data["tasks"])
+
+    second_schedule_resp = client.get("/me/task-schedule")
+    assert second_schedule_resp.status_code == 200
+    assert second_schedule_resp.json() == data
+
+
+def test_regenerate_task_schedule_replaces_stored_schedule(client):
+    with (
+        patch("app.main.GOOGLE_CLIENT_ID", "test-client-id"),
+        patch(
+            "app.main.verify_google_credential",
+            return_value={
+                "sub": "schedule-user-2",
+                "email": "schedule2@example.com",
+                "name": "Schedule User 2",
+                "avatar_url": "",
+            },
+        ),
+    ):
+        client.post("/auth/google", json={"credential": "google-id-token"})
+
+    interests_resp = client.put(
+        "/me/interests",
+        json={"interests": ["python_theory", "javascript"]},
+    )
+    assert interests_resp.status_code == 200
+
+    with patch("app.main.random.shuffle", side_effect=lambda tasks: None):
+        initial_resp = client.get("/me/task-schedule")
+
+    assert initial_resp.status_code == 200
+    initial_ids = [task["id"] for task in initial_resp.json()["tasks"]]
+
+    with patch("app.main.random.shuffle", side_effect=lambda tasks: tasks.reverse()):
+        regenerated_resp = client.post("/me/task-schedule/regenerate")
+
+    assert regenerated_resp.status_code == 200
+    regenerated_ids = [task["id"] for task in regenerated_resp.json()["tasks"]]
+    assert regenerated_ids
+    assert regenerated_ids != initial_ids
+
+    persisted_resp = client.get("/me/task-schedule")
+    assert persisted_resp.status_code == 200
+    assert [task["id"] for task in persisted_resp.json()["tasks"]] == regenerated_ids
+
+
 def test_get_user_progress_requires_authentication(client):
     resp = client.get("/me/progress")
 

@@ -29,6 +29,7 @@ class UserRecord(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     avatar_url: Mapped[str] = mapped_column(Text, nullable=False, default="")
     user_interests: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    scheduled_task_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),

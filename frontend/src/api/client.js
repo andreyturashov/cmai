@@ -35,6 +35,11 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(payload),
     }),
+  getTaskSchedule: () => request('/me/task-schedule'),
+  regenerateTaskSchedule: () =>
+    request('/me/task-schedule/regenerate', {
+      method: 'POST',
+    }),
   getTasks: (language) => {
     const params = language ? `?language=${encodeURIComponent(language)}` : '';
     return request(`/tasks${params}`);

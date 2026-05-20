@@ -4,16 +4,19 @@ import AuthControls from './components/AuthControls';
 import LeftPanel from './components/LeftPanel';
 import CodeReviewPanel from './components/CodeReviewPanel';
 import TaskProgressPage from './components/TaskProgressPage';
+import TaskSchedulerPage from './components/TaskSchedulerPage';
 import UserInterestsPage from './components/UserInterestsPage';
 import { LANGUAGE_OPTIONS } from './constants/languageOptions';
 
 const REVIEW_PATH = '/';
 const TASK_PROGRESS_PATH = '/task-progress';
+const TASK_SCHEDULER_PATH = '/task-scheduler';
 const USER_INTERESTS_PATH = '/user-interests';
 
 function getCurrentPath() {
   if (typeof window === 'undefined') return REVIEW_PATH;
   if (window.location.pathname === TASK_PROGRESS_PATH) return TASK_PROGRESS_PATH;
+  if (window.location.pathname === TASK_SCHEDULER_PATH) return TASK_SCHEDULER_PATH;
   if (window.location.pathname === USER_INTERESTS_PATH) return USER_INTERESTS_PATH;
   return REVIEW_PATH;
 }
@@ -163,9 +166,11 @@ export default function App() {
     const normalizedPath =
       nextPath === TASK_PROGRESS_PATH
         ? TASK_PROGRESS_PATH
-        : nextPath === USER_INTERESTS_PATH
-          ? USER_INTERESTS_PATH
-          : REVIEW_PATH;
+        : nextPath === TASK_SCHEDULER_PATH
+          ? TASK_SCHEDULER_PATH
+          : nextPath === USER_INTERESTS_PATH
+            ? USER_INTERESTS_PATH
+            : REVIEW_PATH;
     if (normalizedPath === path) return;
 
     window.history.pushState({}, '', normalizedPath);
@@ -174,6 +179,7 @@ export default function App() {
   }
 
   const isTaskProgressPage = path === TASK_PROGRESS_PATH;
+  const isTaskSchedulerPage = path === TASK_SCHEDULER_PATH;
   const isUserInterestsPage = path === USER_INTERESTS_PATH;
   const isReviewPage = path === REVIEW_PATH;
 
@@ -196,6 +202,13 @@ export default function App() {
             onClick={() => navigateTo(TASK_PROGRESS_PATH)}
           >
             TaskProgress
+          </button>
+          <button
+            type="button"
+            className={isTaskSchedulerPage ? 'page-nav-active' : 'ghost'}
+            onClick={() => navigateTo(TASK_SCHEDULER_PATH)}
+          >
+            Task Scheduler
           </button>
           <button
             type="button"
@@ -238,6 +251,8 @@ export default function App() {
 
       {isTaskProgressPage ? (
         <TaskProgressPage currentUser={currentUser} onError={setError} />
+      ) : isTaskSchedulerPage ? (
+        <TaskSchedulerPage currentUser={currentUser} onError={setError} />
       ) : isUserInterestsPage ? (
         <UserInterestsPage currentUser={currentUser} onError={setError} />
       ) : (
