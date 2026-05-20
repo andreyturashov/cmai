@@ -3,6 +3,7 @@ import { api } from './api/client';
 import AuthControls from './components/AuthControls';
 import LeftPanel from './components/LeftPanel';
 import CodeReviewPanel from './components/CodeReviewPanel';
+import TaskProgressPage from './components/TaskProgressPage';
 
 const LANGUAGE_OPTIONS = [
   { value: 'python', label: 'Python' },
@@ -14,7 +15,16 @@ const LANGUAGE_OPTIONS = [
   { value: 'javascript', label: 'JavaScript' },
 ];
 
+const REVIEW_PATH = '/';
+const TASK_PROGRESS_PATH = '/task-progress';
+
+function getCurrentPath() {
+  if (typeof window === 'undefined') return REVIEW_PATH;
+  return window.location.pathname === TASK_PROGRESS_PATH ? TASK_PROGRESS_PATH : REVIEW_PATH;
+}
+
 export default function App() {
+  const [path, setPath] = useState(getCurrentPath);
   const [taskList, setTaskList] = useState([]);
   const [taskIndex, setTaskIndex] = useState(0);
   const [task, setTask] = useState(null);
@@ -27,6 +37,15 @@ export default function App() {
   const [language, setLanguage] = useState('python');
   const [currentUser, setCurrentUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(false);
+
+  useEffect(() => {
+    function handlePopState() {
+      setPath(getCurrentPath());
+    }
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   useEffect(() => {
     async function loadAuthSession() {
@@ -145,11 +164,38 @@ export default function App() {
     }
   }
 
+  function navigateTo(nextPath) {
+    const normalizedPath = nextPath === TASK_PROGRESS_PATH ? TASK_PROGRESS_PATH : REVIEW_PATH;
+    if (normalizedPath === path) return;
+
+    window.history.pushState({}, '', normalizedPath);
+    setPath(normalizedPath);
+    setError('');
+  }
+
+  const isTaskProgressPage = path === TASK_PROGRESS_PATH;
+
   return (
     <main className="app-shell">
       <header className="topbar reveal">
         <h1>Code Mentor</h1>
         <p>Train your engineering judgment with realistic pull request reviews.</p>
+        <div className="page-nav">
+          <button
+            type="button"
+            className={isTaskProgressPage ? 'ghost' : 'page-nav-active'}
+            onClick={() => navigateTo(REVIEW_PATH)}
+          >
+            Code Review
+          </button>
+          <button
+            type="button"
+            className={isTaskProgressPage ? 'page-nav-active' : 'ghost'}
+            onClick={() => navigateTo(TASK_PROGRESS_PATH)}
+          >
+            TaskProgress
+          </button>
+        </div>
         <div className="topbar-auth">
           <AuthControls
             user={currentUser}
@@ -159,47 +205,54 @@ export default function App() {
             onError={setError}
           />
         </div>
-        <div className="task-switcher">
-          <div className="language-toggle">
-            {LANGUAGE_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                className={language === option.value ? 'lang-active' : ''}
-                onClick={() => setLanguage(option.value)}
-              >
-                {option.label}
-              </button>
-            ))}
+        {!isTaskProgressPage ? (
+          <div className="task-switcher">
+            <div className="language-toggle">
+              {LANGUAGE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  className={language === option.value ? 'lang-active' : ''}
+                  onClick={() => setLanguage(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => moveTask(taskIndex + 1)} disabled={!taskList.length}>
+              Next Task
+            </button>
           </div>
-          <button onClick={() => moveTask(taskIndex + 1)} disabled={!taskList.length}>
-            Next Task
-          </button>
-        </div>
+        ) : null}
       </header>
 
       {error ? <div className="error-banner">{error}</div> : null}
 
-      <section className="layout-grid">
-        <LeftPanel task={task} aiAnalysis={aiAnalysis} aiLoading={aiLoading} />
-        <CodeReviewPanel
-          code={task?.code || ''}
-          language={task?.language || 'python'}
-          instructions={task?.instructions || []}
-          responseMode={task?.submission_mode || 'comments'}
-          comments={comments}
-          answer={answer}
-          answerEditorKey={task?.id || `${language}-${taskIndex}`}
-          referenceIssues={showReference ? task?.reference_issues || [] : []}
-          showReference={showReference}
-          onToggleReference={() => setShowReference((v) => !v)}
-          onAddComment={(c) => setComments((prev) => [...prev, c])}
-          onEditComment={(idx, updated) =>
-            setComments((prev) => prev.map((c, i) => (i === idx ? updated : c)))
-          }
-          onAnswerChange={setAnswer}
-          onSubmitReview={submitReview}
-        />
-      </section>
+      {isTaskProgressPage ? (
+        <TaskProgressPage currentUser={currentUser} onError={setError} />
+      ) : (
+        <section className="layout-grid">
+          <LeftPanel task={task} aiAnalysis={aiAnalysis} aiLoading={aiLoading} />
+          <CodeReviewPanel
+            code={task?.code || ''}
+            language={task?.language || 'python'}
+            instructions={task?.instructions || []}
+            responseMode={task?.submission_mode || 'comments'}
+            comments={comments}
+            answer={answer}
+            answerEditorKey={task?.id || `${language}-${taskIndex}`}
+            referenceIssues={showReference ? task?.reference_issues || [] : []}
+            referenceIssueCount={task?.reference_issues?.length || 0}
+            showReference={showReference}
+            onToggleReference={() => setShowReference((v) => !v)}
+            onAddComment={(c) => setComments((prev) => [...prev, c])}
+            onEditComment={(idx, updated) =>
+              setComments((prev) => prev.map((c, i) => (i === idx ? updated : c)))
+            }
+            onAnswerChange={setAnswer}
+            onSubmitReview={submitReview}
+          />
+        </section>
+      )}
     </main>
   );
 }

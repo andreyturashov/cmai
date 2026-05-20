@@ -8,6 +8,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.admin import setup_admin
@@ -19,14 +20,17 @@ from app.auth import (
     verify_google_credential,
 )
 from app.db import get_session
-from app.db_models import UserProgressRecord, UserRecord
+from app.db_models import TaskRecord, UserProgressRecord, UserRecord
 from app.evaluator import evaluate_review
 from app.models import (
     AuthenticatedUser,
     AuthSession,
     EvaluationRequest,
     GoogleLoginRequest,
+    Issue,
     ReviewCreate,
+    UserProgressEntry,
+    UserProgressTaskSummary,
     UserReview,
 )
 from app.task_repository import TaskRepository
@@ -74,8 +78,10 @@ async def save_user_progress(
     user: UserRecord,
     task_id: str,
     answer: str,
+    comments: list,
     score: float,
     suggestion: str,
+    ai_analysis: dict,
 ) -> None:
     statement = select(UserProgressRecord).where(
         UserProgressRecord.user_id == user.id,
@@ -88,14 +94,18 @@ async def save_user_progress(
             user_id=user.id,
             task_id=task_id,
             user_answer=answer,
+            user_comments=comments,
             score=score,
             suggestion=suggestion,
+            ai_analysis=ai_analysis,
         )
         session.add(progress)
     else:
         progress.user_answer = answer
+        progress.user_comments = comments
         progress.score = score
         progress.suggestion = suggestion
+        progress.ai_analysis = ai_analysis
         progress.submission_count += 1
 
     await session.commit()
@@ -168,6 +178,61 @@ async def login_with_google(
 async def logout(request: Request) -> AuthSession:
     request.session.clear()
     return AuthSession(user=None)
+
+
+@app.get("/me/progress")
+async def get_user_progress(
+    current_user: CurrentUserDependency,
+    session: SessionDependency,
+) -> list[UserProgressEntry]:
+    if current_user is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    statement = (
+        select(UserProgressRecord)
+        .options(selectinload(UserProgressRecord.task).selectinload(TaskRecord.reference_issues))
+        .where(UserProgressRecord.user_id == current_user.id)
+        .order_by(UserProgressRecord.updated_at.desc(), UserProgressRecord.id.desc())
+    )
+    progress_records = (await session.execute(statement)).scalars().all()
+
+    return [
+        UserProgressEntry(
+            id=record.id,
+            task_id=record.task_id,
+            score=record.score,
+            suggestion=record.suggestion,
+            ai_analysis=record.ai_analysis,
+            user_answer=record.user_answer,
+            user_comments=record.user_comments,
+            submission_count=record.submission_count,
+            created_at=record.created_at.isoformat(),
+            updated_at=record.updated_at.isoformat(),
+            task=UserProgressTaskSummary(
+                id=record.task.id,
+                title=record.task.title,
+                description=record.task.description,
+                requirements=record.task.requirements,
+                instructions=record.task.instructions,
+                language=record.task.language,
+                submission_mode=record.task.submission_mode,
+                code=record.task.code,
+                reference_issues=[
+                    Issue(
+                        id=issue.id,
+                        line=issue.line,
+                        severity=issue.severity,
+                        title=issue.title,
+                        description=issue.description,
+                        suggestion=issue.suggestion,
+                        code=issue.code,
+                    )
+                    for issue in record.task.reference_issues
+                ],
+            ),
+        )
+        for record in progress_records
+    ]
 
 
 @app.get("/tasks")
@@ -275,8 +340,10 @@ async def ai_analyze(
             user=current_user,
             task_id=review.task_id,
             answer=review.answer,
+            comments=[comment.model_dump(mode="json") for comment in review.comments],
             score=result.score,
             suggestion=suggestion,
+            ai_analysis=result.model_dump(mode="json"),
         )
 
     return {

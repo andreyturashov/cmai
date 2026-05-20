@@ -11,6 +11,7 @@ vi.mock('./api/client', () => ({
     logout: vi.fn(),
     getTasks: vi.fn(),
     getTaskById: vi.fn(),
+    getUserProgress: vi.fn(),
     createReview: vi.fn(),
     aiAnalyze: vi.fn(),
   },
@@ -57,6 +58,7 @@ const fullTask = {
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.history.replaceState({}, '', '/');
     api.getAuthSession.mockResolvedValue({ user: null });
     api.loginWithGoogle.mockResolvedValue({
       user: {
@@ -69,6 +71,7 @@ describe('App', () => {
     api.logout.mockResolvedValue({ user: null });
     api.getTasks.mockResolvedValue([taskSummary]);
     api.getTaskById.mockResolvedValue(fullTask);
+    api.getUserProgress.mockResolvedValue([]);
   });
 
   it('renders the header', async () => {
@@ -291,6 +294,92 @@ describe('App', () => {
     render(<App />);
     await waitFor(() => expect(api.getTasks).toHaveBeenCalled());
     expect(screen.getByText('Next Task')).toBeInTheDocument();
+  });
+
+  it('navigates to TaskProgress and loads saved progress', async () => {
+    api.getAuthSession.mockResolvedValue({
+      user: {
+        id: 1,
+        email: 'user@example.com',
+        name: 'Example User',
+        avatar_url: '',
+      },
+    });
+    api.getUserProgress.mockResolvedValue([
+      {
+        id: 101,
+        task_id: 'task-1',
+        score: 8.5,
+        suggestion: 'Strong answer. Expand on tradeoffs next time.',
+        ai_analysis: {
+          all_fixed: false,
+          score: 8.5,
+          detected_critical: 0,
+          total_critical: 0,
+          detected_medium: 1,
+          total_medium: 2,
+          detected_low: 1,
+          total_low: 1,
+          missed_issues: ['Missing edge-case handling'],
+          feedback: ['Good structure', 'Add explicit validation'],
+          issues: [
+            {
+              issue_id: 'issue-1',
+              title: 'Missing edge-case handling',
+              severity: 'medium',
+              addressed: false,
+              explanation: 'The review did not mention absent env vars.',
+            },
+          ],
+          summary: 'Some important configuration checks are still missing.',
+        },
+        user_answer: 'Lists are mutable while tuples are immutable.',
+        user_comments: [
+          {
+            line: 2,
+            end_line: null,
+            severity: 'medium',
+            comment: 'Guard against writing raw arrays directly.',
+            suggestion: 'Join the ids before writing them.',
+          },
+        ],
+        submission_count: 2,
+        created_at: '2026-05-20T10:00:00Z',
+        updated_at: '2026-05-20T11:00:00Z',
+        task: {
+          ...fullTask,
+          submission_mode: 'answer',
+          reference_issues: [
+            {
+              id: 'issue-1',
+              line: 1,
+              severity: 'medium',
+              title: 'Expected answer',
+              description: 'Explain mutability.',
+              suggestion: 'Mention immutable tuples.',
+              code: 'Tuples are immutable.',
+            },
+          ],
+        },
+      },
+    ]);
+
+    render(<App />);
+    await userEvent.click(screen.getByText('TaskProgress'));
+
+    await waitFor(() => expect(api.getUserProgress).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByText('Completed Tasks')).toBeInTheDocument());
+    expect(screen.getAllByText('Score: 8.5 / 10')).toHaveLength(2);
+    expect(screen.getByText('✗ Some issues remain')).toBeInTheDocument();
+    expect(screen.getByText('Good structure')).toBeInTheDocument();
+    expect(
+      screen.getByText('Some important configuration checks are still missing.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Missing edge-case handling')).toBeInTheDocument();
+    expect(screen.getByText('Lists are mutable while tuples are immutable.')).toBeInTheDocument();
+    expect(screen.getByText('Guard against writing raw arrays directly.')).toBeInTheDocument();
+    expect(screen.getByText('Suggestion: Join the ids before writing them.')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/task-progress');
   });
 
   it('shows error banner on API failure', async () => {

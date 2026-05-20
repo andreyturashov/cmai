@@ -102,6 +102,18 @@ describe('api client', () => {
     expect(result).toEqual({ analysis: {} });
   });
 
+  it('getUserProgress fetches the authenticated user progress list', async () => {
+    const progress = [{ id: 1, task_id: 'task-1' }];
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(progress),
+    });
+
+    const result = await api.getUserProgress();
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/me/progress`, expect.anything());
+    expect(result).toEqual(progress);
+  });
+
   it('throws on non-ok response', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,

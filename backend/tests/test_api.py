@@ -123,6 +123,13 @@ def test_google_logout_clears_session(client):
     assert session_resp.json() == {"user": None}
 
 
+def test_get_user_progress_requires_authentication(client):
+    resp = client.get("/me/progress")
+
+    assert resp.status_code == 401
+    assert resp.json() == {"detail": "Authentication required"}
+
+
 def test_ai_analyze_stores_user_progress_for_authenticated_user(client):
     with (
         patch("app.main.GOOGLE_CLIENT_ID", "test-client-id"),
@@ -142,7 +149,14 @@ def test_ai_analyze_stores_user_progress_for_authenticated_user(client):
         "/reviews",
         json={
             "task_id": "python-theory-1",
-            "comments": [],
+            "comments": [
+                {
+                    "line": 1,
+                    "comment": "Explain why the current implementation fails for direct list input.",
+                    "suggestion": "Serialize the list before writing.",
+                    "severity": "medium",
+                }
+            ],
             "answer": "Lists are mutable and tuples are immutable.",
         },
     ).json()
@@ -188,8 +202,104 @@ def test_ai_analyze_stores_user_progress_for_authenticated_user(client):
     progress = progress_rows[0]
     assert progress.task_id == "python-theory-1"
     assert progress.user_answer == "Lists are mutable and tuples are immutable."
+    assert progress.user_comments == [
+        {
+            "line": 1,
+            "end_line": None,
+            "severity": "medium",
+            "comment": "Explain why the current implementation fails for direct list input.",
+            "suggestion": "Serialize the list before writing.",
+        }
+    ]
     assert progress.score == 9.5
+    assert progress.ai_analysis["score"] == 9.5
+    assert progress.ai_analysis["summary"] == "Clear explanation with good terminology."
+    assert progress.ai_analysis["issues"][0]["issue_id"] == "python-theory-1-i1"
     assert "Clear explanation with good terminology." in progress.suggestion
+
+
+def test_get_user_progress_returns_saved_progress_with_task_details(client):
+    with (
+        patch("app.main.GOOGLE_CLIENT_ID", "test-client-id"),
+        patch(
+            "app.main.verify_google_credential",
+            return_value={
+                "sub": "progress-user-2",
+                "email": "history@example.com",
+                "name": "History User",
+                "avatar_url": "",
+            },
+        ),
+    ):
+        client.post("/auth/google", json={"credential": "google-id-token"})
+
+    review = client.post(
+        "/reviews",
+        json={
+            "task_id": "python-theory-1",
+            "comments": [
+                {
+                    "line": 2,
+                    "comment": "This should mention the immutable tuple contract.",
+                    "suggestion": "Add an explicit mutability comparison.",
+                    "severity": "low",
+                }
+            ],
+            "answer": "Tuples are immutable, lists are mutable.",
+        },
+    ).json()
+
+    mocked_result = AIAnalysisResult(
+        all_fixed=True,
+        score=8.5,
+        detected_critical=0,
+        total_critical=0,
+        detected_medium=1,
+        total_medium=1,
+        detected_low=0,
+        total_low=0,
+        missed_issues=[],
+        feedback=["Good explanation"],
+        issues=[
+            AIIssueVerdict(
+                issue_id="python-theory-1-i1",
+                title="List vs tuple",
+                severity="medium",
+                addressed=True,
+                explanation="Correctly identified mutability.",
+            )
+        ],
+        summary="Solid answer.",
+    )
+
+    with patch("app.main.analyze_review", new=AsyncMock(return_value=mocked_result)):
+        analyze_resp = client.post("/ai-analyze", json={"review_id": review["id"]})
+
+    assert analyze_resp.status_code == 200
+
+    resp = client.get("/me/progress")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["task_id"] == "python-theory-1"
+    assert data[0]["score"] == 8.5
+    assert data[0]["ai_analysis"]["score"] == 8.5
+    assert data[0]["ai_analysis"]["summary"] == "Solid answer."
+    assert data[0]["ai_analysis"]["issues"][0]["title"] == "List vs tuple"
+    assert data[0]["user_answer"] == "Tuples are immutable, lists are mutable."
+    assert data[0]["user_comments"] == [
+        {
+            "line": 2,
+            "end_line": None,
+            "severity": "low",
+            "comment": "This should mention the immutable tuple contract.",
+            "suggestion": "Add an explicit mutability comparison.",
+        }
+    ]
+    assert data[0]["task"]["id"] == "python-theory-1"
+    assert data[0]["task"]["submission_mode"] == "answer"
+    assert data[0]["task"]["reference_issues"]
 
 
 def test_ai_analyze_does_not_store_progress_for_anonymous_user(client):

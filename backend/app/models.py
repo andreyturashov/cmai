@@ -107,3 +107,29 @@ class AIAnalysisResult(BaseModel):
     feedback: list[str]
     issues: list[AIIssueVerdict]
     summary: str
+
+
+class UserProgressTaskSummary(BaseModel):
+    id: str
+    title: str
+    description: str
+    requirements: list[str]
+    instructions: list[str]
+    language: str
+    submission_mode: str = "comments"
+    code: str
+    reference_issues: list[Issue] = Field(default_factory=list)
+
+
+class UserProgressEntry(BaseModel):
+    id: int
+    task_id: str
+    score: float
+    suggestion: str
+    ai_analysis: AIAnalysisResult | None = None
+    user_answer: str
+    user_comments: list[InlineComment] = Field(default_factory=list)
+    submission_count: int
+    created_at: str
+    updated_at: str
+    task: UserProgressTaskSummary
