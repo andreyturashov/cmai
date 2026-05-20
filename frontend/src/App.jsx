@@ -186,7 +186,18 @@ export default function App() {
   return (
     <main className="app-shell">
       <header className="topbar reveal">
-        <h1>Code Mentor</h1>
+        <div className="topbar-main-row">
+          <h1>Code Mentor</h1>
+          <div className="topbar-auth">
+            <AuthControls
+              user={currentUser}
+              loading={authLoading}
+              onLogin={handleGoogleLogin}
+              onLogout={handleLogout}
+              onError={setError}
+            />
+          </div>
+        </div>
         <p>Train your engineering judgment with realistic pull request reviews.</p>
         <div className="page-nav">
           <button
@@ -217,15 +228,6 @@ export default function App() {
           >
             User Interests
           </button>
-        </div>
-        <div className="topbar-auth">
-          <AuthControls
-            user={currentUser}
-            loading={authLoading}
-            onLogin={handleGoogleLogin}
-            onLogout={handleLogout}
-            onError={setError}
-          />
         </div>
         {isReviewPage ? (
           <div className="task-switcher">
