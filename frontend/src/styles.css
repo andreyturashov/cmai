@@ -23,7 +23,7 @@ body {
 }
 
 .app-shell {
-  max-width: 1440px;
+  max-width: 1680px;
   margin: 0 auto;
   padding: 24px;
   position: relative;
@@ -1041,8 +1041,9 @@ button:disabled {
 .task-progress-layout {
   margin-top: 20px;
   display: grid;
-  grid-template-columns: minmax(250px, 320px) minmax(0, 1fr);
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
   gap: 16px;
+  align-items: start;
 }
 
 .task-progress-menu,
@@ -1091,6 +1092,7 @@ button:disabled {
 
 .task-progress-detail {
   margin-top: 0;
+  grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.78fr);
 }
 
 .reveal {
