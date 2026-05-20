@@ -1047,13 +1047,86 @@ button:disabled {
 }
 
 .task-progress-menu,
-.task-progress-empty {
+.task-progress-empty,
+.user-interests-panel,
+.user-interests-empty {
   padding: 18px;
 }
 
 .task-progress-menu-header h2,
-.task-progress-empty h2 {
+.task-progress-empty h2,
+.user-interests-empty h2,
+.user-interests-header h2 {
   margin: 0;
+}
+
+.user-interests-header {
+  max-width: 720px;
+}
+
+.user-interests-meta {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: rgba(29, 41, 48, 0.72);
+}
+
+.user-interests-saved {
+  color: var(--accent-2);
+  font-weight: 700;
+}
+
+.user-interests-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+.interest-chip {
+  width: 100%;
+  min-height: 72px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.interest-chip-selected {
+  background: linear-gradient(120deg, rgba(47, 125, 121, 0.12) 0%, rgba(47, 125, 121, 0.2) 100%);
+  border-color: var(--accent-2);
+  color: var(--ink);
+  box-shadow: 0 0 0 2px rgba(47, 125, 121, 0.12);
+}
+
+.user-interests-selection {
+  margin-top: 18px;
+  padding: 16px;
+}
+
+.user-interests-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.user-interest-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(47, 125, 121, 0.12);
+  color: var(--accent-2);
+  font-weight: 700;
+}
+
+.user-interests-actions {
+  margin-top: 18px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .task-progress-list {

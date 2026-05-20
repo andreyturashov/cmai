@@ -123,6 +123,74 @@ def test_google_logout_clears_session(client):
     assert session_resp.json() == {"user": None}
 
 
+def test_get_user_interests_requires_authentication(client):
+    resp = client.get("/me/interests")
+
+    assert resp.status_code == 401
+    assert resp.json() == {"detail": "Authentication required"}
+
+
+def test_update_user_interests_persists_selection(client):
+    with (
+        patch("app.main.GOOGLE_CLIENT_ID", "test-client-id"),
+        patch(
+            "app.main.verify_google_credential",
+            return_value={
+                "sub": "interests-user-1",
+                "email": "interests@example.com",
+                "name": "Interests User",
+                "avatar_url": "",
+            },
+        ),
+    ):
+        client.post("/auth/google", json={"credential": "google-id-token"})
+
+    update_resp = client.put(
+        "/me/interests",
+        json={"interests": ["python_theory", "javascript", "fastapi"]},
+    )
+
+    assert update_resp.status_code == 200
+    assert update_resp.json() == {"interests": ["python_theory", "javascript", "fastapi"]}
+
+    get_resp = client.get("/me/interests")
+
+    assert get_resp.status_code == 200
+    assert get_resp.json() == {"interests": ["python_theory", "javascript", "fastapi"]}
+
+
+def test_update_user_interests_rejects_more_than_five(client):
+    with (
+        patch("app.main.GOOGLE_CLIENT_ID", "test-client-id"),
+        patch(
+            "app.main.verify_google_credential",
+            return_value={
+                "sub": "interests-user-2",
+                "email": "toomany@example.com",
+                "name": "Too Many",
+                "avatar_url": "",
+            },
+        ),
+    ):
+        client.post("/auth/google", json={"credential": "google-id-token"})
+
+    resp = client.put(
+        "/me/interests",
+        json={
+            "interests": [
+                "python",
+                "python_questions",
+                "python_theory",
+                "fastapi",
+                "django",
+                "react",
+            ]
+        },
+    )
+
+    assert resp.status_code == 422
+
+
 def test_get_user_progress_requires_authentication(client):
     resp = client.get("/me/progress")
 

@@ -29,6 +29,8 @@ from app.models import (
     GoogleLoginRequest,
     Issue,
     ReviewCreate,
+    UserInterestsResponse,
+    UserInterestsUpdate,
     UserProgressEntry,
     UserProgressTaskSummary,
     UserReview,
@@ -178,6 +180,31 @@ async def login_with_google(
 async def logout(request: Request) -> AuthSession:
     request.session.clear()
     return AuthSession(user=None)
+
+
+@app.get("/me/interests")
+async def get_user_interests(
+    current_user: CurrentUserDependency,
+) -> UserInterestsResponse:
+    if current_user is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    return UserInterestsResponse(interests=current_user.user_interests or [])
+
+
+@app.put("/me/interests")
+async def update_user_interests(
+    payload: UserInterestsUpdate,
+    current_user: CurrentUserDependency,
+    session: SessionDependency,
+) -> UserInterestsResponse:
+    if current_user is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    current_user.user_interests = payload.interests
+    await session.commit()
+
+    return UserInterestsResponse(interests=current_user.user_interests)
 
 
 @app.get("/me/progress")

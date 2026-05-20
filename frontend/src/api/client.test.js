@@ -114,6 +114,36 @@ describe('api client', () => {
     expect(result).toEqual(progress);
   });
 
+  it('getUserInterests fetches the authenticated user interests', async () => {
+    const interests = { interests: ['python_theory', 'javascript'] };
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(interests),
+    });
+
+    const result = await api.getUserInterests();
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/me/interests`, expect.anything());
+    expect(result).toEqual(interests);
+  });
+
+  it('updateUserInterests sends PUT with payload', async () => {
+    const payload = { interests: ['python_theory', 'react'] };
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(payload),
+    });
+
+    const result = await api.updateUserInterests(payload);
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/me/interests`,
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      }),
+    );
+    expect(result).toEqual(payload);
+  });
+
   it('throws on non-ok response', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,

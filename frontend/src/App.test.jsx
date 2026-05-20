@@ -12,6 +12,8 @@ vi.mock('./api/client', () => ({
     getTasks: vi.fn(),
     getTaskById: vi.fn(),
     getUserProgress: vi.fn(),
+    getUserInterests: vi.fn(),
+    updateUserInterests: vi.fn(),
     createReview: vi.fn(),
     aiAnalyze: vi.fn(),
   },
@@ -72,6 +74,8 @@ describe('App', () => {
     api.getTasks.mockResolvedValue([taskSummary]);
     api.getTaskById.mockResolvedValue(fullTask);
     api.getUserProgress.mockResolvedValue([]);
+    api.getUserInterests.mockResolvedValue({ interests: [] });
+    api.updateUserInterests.mockResolvedValue({ interests: [] });
   });
 
   it('renders the header', async () => {
@@ -129,7 +133,47 @@ describe('App', () => {
     expect(screen.getByText('Django')).toBeInTheDocument();
     expect(screen.getByText('React')).toBeInTheDocument();
     expect(screen.getByText('JavaScript')).toBeInTheDocument();
+    expect(screen.getByText('User Interests')).toBeInTheDocument();
     await waitFor(() => expect(api.getTasks).toHaveBeenCalled());
+  });
+
+  it('navigates to User Interests and saves up to five interests', async () => {
+    api.getAuthSession.mockResolvedValue({
+      user: {
+        id: 1,
+        email: 'user@example.com',
+        name: 'Example User',
+        avatar_url: '',
+      },
+    });
+    api.getUserInterests.mockResolvedValue({ interests: ['python_theory', 'javascript'] });
+    api.updateUserInterests.mockResolvedValue({
+      interests: ['python_theory', 'javascript', 'fastapi', 'django', 'react'],
+    });
+
+    render(<App />);
+    await userEvent.click(screen.getByText('User Interests'));
+
+    await waitFor(() => expect(api.getUserInterests).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(screen.getByText('Choose up to 5 categories to learn')).toBeInTheDocument(),
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'FastAPI' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Django' }));
+    await userEvent.click(screen.getByRole('button', { name: 'React' }));
+
+    expect(screen.getByRole('button', { name: 'Python' })).toBeDisabled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Save Interests' }));
+
+    await waitFor(() =>
+      expect(api.updateUserInterests).toHaveBeenCalledWith({
+        interests: ['python_theory', 'javascript', 'fastapi', 'django', 'react'],
+      }),
+    );
+    await waitFor(() => expect(screen.getByText('Saved')).toBeInTheDocument());
+    expect(window.location.pathname).toBe('/user-interests');
   });
 
   it('switches to Python questions language', async () => {

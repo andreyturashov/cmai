@@ -4,23 +4,18 @@ import AuthControls from './components/AuthControls';
 import LeftPanel from './components/LeftPanel';
 import CodeReviewPanel from './components/CodeReviewPanel';
 import TaskProgressPage from './components/TaskProgressPage';
-
-const LANGUAGE_OPTIONS = [
-  { value: 'python', label: 'Python' },
-  { value: 'python_questions', label: 'Python (questions)' },
-  { value: 'python_theory', label: 'Python (theory)' },
-  { value: 'fastapi', label: 'FastAPI' },
-  { value: 'django', label: 'Django' },
-  { value: 'react', label: 'React' },
-  { value: 'javascript', label: 'JavaScript' },
-];
+import UserInterestsPage from './components/UserInterestsPage';
+import { LANGUAGE_OPTIONS } from './constants/languageOptions';
 
 const REVIEW_PATH = '/';
 const TASK_PROGRESS_PATH = '/task-progress';
+const USER_INTERESTS_PATH = '/user-interests';
 
 function getCurrentPath() {
   if (typeof window === 'undefined') return REVIEW_PATH;
-  return window.location.pathname === TASK_PROGRESS_PATH ? TASK_PROGRESS_PATH : REVIEW_PATH;
+  if (window.location.pathname === TASK_PROGRESS_PATH) return TASK_PROGRESS_PATH;
+  if (window.location.pathname === USER_INTERESTS_PATH) return USER_INTERESTS_PATH;
+  return REVIEW_PATH;
 }
 
 export default function App() {
@@ -165,7 +160,12 @@ export default function App() {
   }
 
   function navigateTo(nextPath) {
-    const normalizedPath = nextPath === TASK_PROGRESS_PATH ? TASK_PROGRESS_PATH : REVIEW_PATH;
+    const normalizedPath =
+      nextPath === TASK_PROGRESS_PATH
+        ? TASK_PROGRESS_PATH
+        : nextPath === USER_INTERESTS_PATH
+          ? USER_INTERESTS_PATH
+          : REVIEW_PATH;
     if (normalizedPath === path) return;
 
     window.history.pushState({}, '', normalizedPath);
@@ -174,6 +174,8 @@ export default function App() {
   }
 
   const isTaskProgressPage = path === TASK_PROGRESS_PATH;
+  const isUserInterestsPage = path === USER_INTERESTS_PATH;
+  const isReviewPage = path === REVIEW_PATH;
 
   return (
     <main className="app-shell">
@@ -183,7 +185,7 @@ export default function App() {
         <div className="page-nav">
           <button
             type="button"
-            className={isTaskProgressPage ? 'ghost' : 'page-nav-active'}
+            className={isReviewPage ? 'page-nav-active' : 'ghost'}
             onClick={() => navigateTo(REVIEW_PATH)}
           >
             Code Review
@@ -195,6 +197,13 @@ export default function App() {
           >
             TaskProgress
           </button>
+          <button
+            type="button"
+            className={isUserInterestsPage ? 'page-nav-active' : 'ghost'}
+            onClick={() => navigateTo(USER_INTERESTS_PATH)}
+          >
+            User Interests
+          </button>
         </div>
         <div className="topbar-auth">
           <AuthControls
@@ -205,7 +214,7 @@ export default function App() {
             onError={setError}
           />
         </div>
-        {!isTaskProgressPage ? (
+        {isReviewPage ? (
           <div className="task-switcher">
             <div className="language-toggle">
               {LANGUAGE_OPTIONS.map((option) => (
@@ -229,6 +238,8 @@ export default function App() {
 
       {isTaskProgressPage ? (
         <TaskProgressPage currentUser={currentUser} onError={setError} />
+      ) : isUserInterestsPage ? (
+        <UserInterestsPage currentUser={currentUser} onError={setError} />
       ) : (
         <section className="layout-grid">
           <LeftPanel task={task} aiAnalysis={aiAnalysis} aiLoading={aiLoading} />

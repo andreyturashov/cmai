@@ -29,6 +29,12 @@ export const api = {
     request('/auth/logout', {
       method: 'POST',
     }),
+  getUserInterests: () => request('/me/interests'),
+  updateUserInterests: (payload) =>
+    request('/me/interests', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
   getTasks: (language) => {
     const params = language ? `?language=${encodeURIComponent(language)}` : '';
     return request(`/tasks${params}`);

@@ -2,7 +2,17 @@ from __future__ import annotations
 
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+ALLOWED_INTERESTS = {
+    "python",
+    "python_questions",
+    "python_theory",
+    "fastapi",
+    "django",
+    "react",
+    "javascript",
+}
 
 
 class Severity(str, Enum):
@@ -60,6 +70,26 @@ class AuthenticatedUser(BaseModel):
 
 class AuthSession(BaseModel):
     user: AuthenticatedUser | None = None
+
+
+class UserInterestsResponse(BaseModel):
+    interests: list[str] = Field(default_factory=list)
+
+
+class UserInterestsUpdate(BaseModel):
+    interests: list[str] = Field(default_factory=list, max_length=5)
+
+    @field_validator("interests")
+    @classmethod
+    def validate_interests(cls, interests: list[str]) -> list[str]:
+        if len(interests) != len(set(interests)):
+            raise ValueError("Interests must be unique")
+
+        invalid = [interest for interest in interests if interest not in ALLOWED_INTERESTS]
+        if invalid:
+            raise ValueError(f"Unsupported interests: {', '.join(invalid)}")
+
+        return interests
 
 
 class UserReview(BaseModel):

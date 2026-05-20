@@ -12,7 +12,7 @@ class UserAdmin(ModelView, model=UserRecord):
     name = "User"
     name_plural = "Users"
     icon = "fa-solid fa-user"
-    category = "Auth"
+    category = "Users"
 
     column_list = [
         UserRecord.id,
@@ -110,7 +110,7 @@ class UserProgressAdmin(ModelView, model=UserProgressRecord):
     name = "User Progress"
     name_plural = "User Progress"
     icon = "fa-solid fa-chart-line"
-    category = "Progress"
+    category = "Users"
 
     column_list = [
         UserProgressRecord.id,
