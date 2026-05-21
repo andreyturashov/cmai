@@ -183,6 +183,7 @@ describe('App', () => {
     render(<App />);
     expect(screen.getByText('Python')).toBeInTheDocument();
     expect(screen.getByText('Python (questions)')).toBeInTheDocument();
+    expect(screen.getByText('Pandas')).toBeInTheDocument();
     expect(screen.getByText('Python (theory)')).toBeInTheDocument();
     expect(screen.getByText('FastAPI')).toBeInTheDocument();
     expect(screen.getByText('Django')).toBeInTheDocument();
@@ -382,6 +383,25 @@ describe('App', () => {
 
     await userEvent.click(screen.getByText('Python (theory)'));
     await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python_theory'));
+  });
+
+  it('switches to Pandas language', async () => {
+    render(<App />);
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python'));
+
+    api.getTasks.mockResolvedValue([
+      { id: 'pandas-question-1', title: 'Filter rows for a reporting year', language: 'pandas' },
+    ]);
+    api.getTaskById.mockResolvedValue({
+      ...fullTask,
+      id: 'pandas-question-1',
+      title: 'Filter rows for a reporting year',
+      language: 'pandas',
+      code: "import pandas as pd\n\ndef orders_in_2024(df):\n    return df[df['year'] == 2024]\n",
+    });
+
+    await userEvent.click(screen.getByText('Pandas'));
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('pandas'));
   });
 
   it('switches to FastAPI language', async () => {

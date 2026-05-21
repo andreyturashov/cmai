@@ -590,6 +590,13 @@ def test_get_tasks_filter_python_questions(client):
     assert all(t["language"] == "python_questions" for t in data)
 
 
+def test_get_tasks_filter_pandas(client):
+    resp = client.get("/tasks", params={"language": "pandas"})
+    data = resp.json()
+    assert len(data) == 23
+    assert all(t["language"] == "pandas" for t in data)
+
+
 def test_get_tasks_filter_python_theory(client):
     resp = client.get("/tasks", params={"language": "python_theory"})
     data = resp.json()
@@ -629,19 +636,23 @@ def test_get_tasks_no_filter_returns_all(client):
     all_resp = client.get("/tasks")
     py_resp = client.get("/tasks", params={"language": "python"})
     py_questions_resp = client.get("/tasks", params={"language": "python_questions"})
+    pandas_resp = client.get("/tasks", params={"language": "pandas"})
     py_theory_resp = client.get("/tasks", params={"language": "python_theory"})
     fastapi_resp = client.get("/tasks", params={"language": "fastapi"})
     django_resp = client.get("/tasks", params={"language": "django"})
     react_resp = client.get("/tasks", params={"language": "react"})
     js_resp = client.get("/tasks", params={"language": "javascript"})
+    sql_resp = client.get("/tasks", params={"language": "sql"})
     total_filtered = (
         len(py_resp.json())
         + len(py_questions_resp.json())
+        + len(pandas_resp.json())
         + len(py_theory_resp.json())
         + len(fastapi_resp.json())
         + len(django_resp.json())
         + len(react_resp.json())
         + len(js_resp.json())
+        + len(sql_resp.json())
     )
     assert len(all_resp.json()) == total_filtered
 
@@ -840,11 +851,13 @@ def test_all_tasks_have_valid_language():
     valid = {
         "python",
         "python_questions",
+        "pandas",
         "python_theory",
         "fastapi",
         "django",
         "react",
         "javascript",
+        "sql",
     }
     for task in TASKS:
         assert task.language in valid, f"Task {task.id} has invalid language: {task.language}"
@@ -880,7 +893,9 @@ def test_each_language_has_tasks():
     assert "react" in languages
     assert "javascript" in languages
     assert "python_questions" in languages
+    assert "pandas" in languages
     assert "python_theory" in languages
+    assert "sql" in languages
 
 
 # ---------------------------------------------------------------------------

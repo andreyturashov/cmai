@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 ALLOWED_INTERESTS = {
     "python",
     "python_questions",
+    "pandas",
     "python_theory",
     "fastapi",
     "django",
