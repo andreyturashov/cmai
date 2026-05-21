@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 ALLOWED_INTERESTS = {
     "python",
     "python_questions",
+    "pandas",
     "python_theory",
     "fastapi",
     "django",
@@ -178,3 +179,8 @@ class UserProgressEntry(BaseModel):
     created_at: str
     updated_at: str
     task: UserProgressTaskSummary
+
+
+class UserProgressDailySummary(BaseModel):
+    day: str
+    completed_tasks: int

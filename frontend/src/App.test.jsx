@@ -12,6 +12,7 @@ vi.mock('./api/client', () => ({
     getTasks: vi.fn(),
     getTaskById: vi.fn(),
     getUserProgress: vi.fn(),
+    getUserProgressDaily: vi.fn(),
     getUserInterests: vi.fn(),
     updateUserInterests: vi.fn(),
     getTaskSchedule: vi.fn(),
@@ -62,7 +63,7 @@ const fullTask = {
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    window.history.replaceState({}, '', '/');
+    window.history.replaceState({}, '', '/review');
     api.getAuthSession.mockResolvedValue({ user: null });
     api.loginWithGoogle.mockResolvedValue({
       user: {
@@ -76,6 +77,7 @@ describe('App', () => {
     api.getTasks.mockResolvedValue([taskSummary]);
     api.getTaskById.mockResolvedValue(fullTask);
     api.getUserProgress.mockResolvedValue([]);
+    api.getUserProgressDaily.mockResolvedValue([]);
     api.getUserInterests.mockResolvedValue({ interests: [] });
     api.updateUserInterests.mockResolvedValue({ interests: [] });
     api.getTaskSchedule.mockResolvedValue({ tasks: [] });
@@ -84,8 +86,36 @@ describe('App', () => {
 
   it('renders the header', async () => {
     render(<App />);
-    expect(screen.getByText('Code Mentor')).toBeInTheDocument();
+    expect(screen.getByText('Home')).toBeInTheDocument();
+    expect(screen.getByText('Code Review')).toBeInTheDocument();
+    expect(screen.getByText('Task Progress')).toBeInTheDocument();
+    expect(screen.getByText('Task Scheduler')).toBeInTheDocument();
     await waitFor(() => expect(api.getTasks).toHaveBeenCalled());
+  });
+
+  it('renders the landing page separately at root', () => {
+    window.history.replaceState({}, '', '/');
+
+    render(<App />);
+
+    expect(
+      screen.getByText('Practice on realistic diffs before the stakes are real.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Home')).toBeInTheDocument();
+    expect(api.getTasks).not.toHaveBeenCalled();
+  });
+
+  it('navigates from landing page to review workspace', async () => {
+    window.history.replaceState({}, '', '/');
+
+    render(<App />);
+    await userEvent.click(screen.getByText('Start Reviewing'));
+
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python'));
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Validate Input' })).toBeInTheDocument(),
+    );
+    expect(window.location.pathname).toBe('/review');
   });
 
   it('shows Google login without blocking the main page', async () => {
@@ -119,9 +149,30 @@ describe('App', () => {
     render(<App />);
     await waitFor(() => expect(screen.getByText('Example User')).toBeInTheDocument());
 
+    await userEvent.click(screen.getByText('Example User'));
     await userEvent.click(screen.getByText('Log out'));
     await waitFor(() => expect(api.logout).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByText('Sign in with Google')).toBeInTheDocument());
+  });
+
+  it('opens Profile from the user dropdown', async () => {
+    api.getAuthSession.mockResolvedValue({
+      user: {
+        id: 1,
+        email: 'user@example.com',
+        name: 'Example User',
+        avatar_url: '',
+      },
+    });
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByText('Example User')).toBeInTheDocument());
+
+    await userEvent.click(screen.getByText('Example User'));
+    await userEvent.click(screen.getByText('Profile'));
+
+    await waitFor(() => expect(screen.getByText('Your practice profile')).toBeInTheDocument());
+    expect(window.location.pathname).toBe('/profile');
   });
 
   it('loads tasks on mount for default language', async () => {
@@ -134,14 +185,13 @@ describe('App', () => {
     render(<App />);
     expect(screen.getByText('Python')).toBeInTheDocument();
     expect(screen.getByText('Python (questions)')).toBeInTheDocument();
+    expect(screen.getByText('Pandas')).toBeInTheDocument();
     expect(screen.getByText('Python (theory)')).toBeInTheDocument();
     expect(screen.getByText('FastAPI')).toBeInTheDocument();
     expect(screen.getByText('Django')).toBeInTheDocument();
     expect(screen.getByText('React')).toBeInTheDocument();
     expect(screen.getByText('JavaScript')).toBeInTheDocument();
     expect(screen.getByText('SQL')).toBeInTheDocument();
-    expect(screen.getByText('Task Scheduler')).toBeInTheDocument();
-    expect(screen.getByText('User Interests')).toBeInTheDocument();
     await waitFor(() => expect(api.getTasks).toHaveBeenCalled());
   });
 
@@ -189,17 +239,18 @@ describe('App', () => {
       language: 'javascript',
     });
 
+    window.history.replaceState({}, '', '/task-scheduler');
+
     render(<App />);
-    await userEvent.click(screen.getByText('Task Scheduler'));
 
     await waitFor(() => expect(api.getTaskSchedule).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.getByText("Today's Tasks")).toBeInTheDocument());
-    expect(screen.getByText('Validate Input')).toBeInTheDocument();
+    expect(screen.getAllByText('Validate Input').length).toBeGreaterThan(0);
 
     await userEvent.click(screen.getByText('Regenerate Tasks'));
 
     await waitFor(() => expect(api.regenerateTaskSchedule).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.getByText('Escape SQL values')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('Escape SQL values').length).toBeGreaterThan(0));
     expect(window.location.pathname).toBe('/task-scheduler');
   });
 
@@ -245,13 +296,12 @@ describe('App', () => {
       },
     });
 
+    window.history.replaceState({}, '', '/task-scheduler');
+
     render(<App />);
-    await userEvent.click(screen.getByText('Task Scheduler'));
 
     await waitFor(() => expect(screen.getByText("Today's Tasks")).toBeInTheDocument());
-    await waitFor(() =>
-      expect(screen.getByRole('heading', { name: 'Validate Input' })).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getAllByText('Validate Input').length).toBeGreaterThan(0));
 
     await userEvent.click(screen.getByText('Submit Review'));
 
@@ -260,7 +310,7 @@ describe('App', () => {
     expect(screen.queryByText('Latest Result')).toBeNull();
   });
 
-  it('navigates to User Interests and saves up to five interests', async () => {
+  it('navigates to Profile and saves up to five interests', async () => {
     api.getAuthSession.mockResolvedValue({
       user: {
         id: 1,
@@ -274,10 +324,12 @@ describe('App', () => {
       interests: ['python_theory', 'javascript', 'fastapi', 'django', 'react'],
     });
 
+    window.history.replaceState({}, '', '/profile');
+
     render(<App />);
-    await userEvent.click(screen.getByText('User Interests'));
 
     await waitFor(() => expect(api.getUserInterests).toHaveBeenCalled());
+    expect(screen.getByText('Your practice profile')).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByText('Choose up to 5 categories to learn')).toBeInTheDocument(),
     );
@@ -288,15 +340,13 @@ describe('App', () => {
 
     expect(screen.getByRole('button', { name: 'Python' })).toBeDisabled();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Save Interests' }));
-
     await waitFor(() =>
       expect(api.updateUserInterests).toHaveBeenCalledWith({
         interests: ['python_theory', 'javascript', 'fastapi', 'django', 'react'],
       }),
     );
     await waitFor(() => expect(screen.getByText('Saved')).toBeInTheDocument());
-    expect(window.location.pathname).toBe('/user-interests');
+    expect(window.location.pathname).toBe('/profile');
   });
 
   it('switches to Python questions language', async () => {
@@ -335,6 +385,25 @@ describe('App', () => {
 
     await userEvent.click(screen.getByText('Python (theory)'));
     await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python_theory'));
+  });
+
+  it('switches to Pandas language', async () => {
+    render(<App />);
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python'));
+
+    api.getTasks.mockResolvedValue([
+      { id: 'pandas-question-1', title: 'Filter rows for a reporting year', language: 'pandas' },
+    ]);
+    api.getTaskById.mockResolvedValue({
+      ...fullTask,
+      id: 'pandas-question-1',
+      title: 'Filter rows for a reporting year',
+      language: 'pandas',
+      code: "import pandas as pd\n\ndef orders_in_2024(df):\n    return df[df['year'] == 2024]\n",
+    });
+
+    await userEvent.click(screen.getByText('Pandas'));
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('pandas'));
   });
 
   it('switches to FastAPI language', async () => {
@@ -549,11 +618,17 @@ describe('App', () => {
         },
       },
     ]);
+    api.getUserProgressDaily.mockResolvedValue([
+      { day: '2026-05-20', completed_tasks: 1 },
+      { day: '2026-05-21', completed_tasks: 2 },
+    ]);
 
     render(<App />);
-    await userEvent.click(screen.getByText('TaskProgress'));
+    await userEvent.click(screen.getByText('Task Progress'));
 
     await waitFor(() => expect(api.getUserProgress).toHaveBeenCalled());
+    await waitFor(() => expect(api.getUserProgressDaily).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByText('Daily Activity')).toBeInTheDocument());
     await waitFor(() => expect(screen.getByText('Completed Tasks')).toBeInTheDocument());
     expect(screen.getAllByText('Score: 8.5 / 10')).toHaveLength(2);
     expect(screen.getByText('✗ Some issues remain')).toBeInTheDocument();
@@ -749,7 +824,8 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText('Validate Input')).toBeInTheDocument());
 
     // Select line 1 and add a comment
-    const line1 = screen.getByText('1');
+    const line1 = screen.getAllByText('1').find((element) => element.classList.contains('line-no'));
+    expect(line1).toBeTruthy();
     fireEvent.mouseDown(line1);
     fireEvent.mouseUp(line1.closest('.code-scroll') || document);
 

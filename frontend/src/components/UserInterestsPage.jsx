@@ -1,14 +1,17 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
 import { LANGUAGE_OPTIONS } from '../constants/languageOptions';
 
 const MAX_INTERESTS = 5;
+const AUTO_SAVE_DELAY_MS = 200;
 
 export default function UserInterestsPage({ currentUser, onError }) {
   const [selectedInterests, setSelectedInterests] = useState([]);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const lastSavedSelectionRef = useRef('');
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -25,7 +28,9 @@ export default function UserInterestsPage({ currentUser, onError }) {
         onError('');
         const response = await api.getUserInterests();
         if (!active) return;
-        setSelectedInterests(response.interests || []);
+        const nextInterests = response.interests || [];
+        setSelectedInterests(nextInterests);
+        lastSavedSelectionRef.current = JSON.stringify(nextInterests);
         setSaved(false);
       } catch (error) {
         if (!active) return;
@@ -45,10 +50,40 @@ export default function UserInterestsPage({ currentUser, onError }) {
   }, [currentUser, onError]);
 
   const selectionLimitReached = selectedInterests.length >= MAX_INTERESTS;
-  const selectedLabels = useMemo(
-    () => LANGUAGE_OPTIONS.filter((option) => selectedInterests.includes(option.value)),
-    [selectedInterests],
-  );
+  const currentSelectionKey = JSON.stringify(selectedInterests);
+
+  useEffect(() => {
+    if (!currentUser || loading || currentSelectionKey === lastSavedSelectionRef.current) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(async () => {
+      const requestId = requestIdRef.current + 1;
+      requestIdRef.current = requestId;
+
+      try {
+        setSaving(true);
+        onError('');
+        await api.updateUserInterests({ interests: selectedInterests });
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
+
+        lastSavedSelectionRef.current = currentSelectionKey;
+        setSaved(true);
+      } catch (error) {
+        if (requestId === requestIdRef.current) {
+          onError(error.message || 'Failed to save user interests');
+        }
+      } finally {
+        if (requestId === requestIdRef.current) {
+          setSaving(false);
+        }
+      }
+    }, AUTO_SAVE_DELAY_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [currentSelectionKey, currentUser, loading, onError, selectedInterests]);
 
   function toggleInterest(value) {
     setSaved(false);
@@ -63,20 +98,6 @@ export default function UserInterestsPage({ currentUser, onError }) {
 
       return [...previous, value];
     });
-  }
-
-  async function saveInterests() {
-    try {
-      setSaving(true);
-      onError('');
-      const response = await api.updateUserInterests({ interests: selectedInterests });
-      setSelectedInterests(response.interests || []);
-      setSaved(true);
-    } catch (error) {
-      onError(error.message || 'Failed to save user interests');
-    } finally {
-      setSaving(false);
-    }
   }
 
   if (!currentUser) {
@@ -105,7 +126,8 @@ export default function UserInterestsPage({ currentUser, onError }) {
         <span>
           Selected: {selectedInterests.length}/{MAX_INTERESTS}
         </span>
-        {saved ? <span className="user-interests-saved">Saved</span> : null}
+        {saving ? <span className="user-interests-saved">Saving...</span> : null}
+        {!saving && saved ? <span className="user-interests-saved">Saved</span> : null}
       </div>
 
       {loading ? <p className="muted">Loading your saved interests...</p> : null}
@@ -120,33 +142,12 @@ export default function UserInterestsPage({ currentUser, onError }) {
               type="button"
               className={`interest-chip${isSelected ? ' interest-chip-selected' : ''}`}
               onClick={() => toggleInterest(option.value)}
-              disabled={disabled || loading || saving}
+              disabled={disabled || loading}
             >
               <span>{option.label}</span>
             </button>
           );
         })}
-      </div>
-
-      <div className="user-interests-selection card">
-        <p className="eyebrow">Current Selection</p>
-        {selectedLabels.length ? (
-          <div className="user-interests-tags">
-            {selectedLabels.map((option) => (
-              <span key={option.value} className="user-interest-tag">
-                {option.label}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <p className="muted">No categories selected yet.</p>
-        )}
-      </div>
-
-      <div className="user-interests-actions">
-        <button type="button" onClick={saveInterests} disabled={saving || loading}>
-          {saving ? 'Saving...' : 'Save Interests'}
-        </button>
       </div>
     </section>
   );

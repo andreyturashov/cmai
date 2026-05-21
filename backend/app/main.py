@@ -34,6 +34,7 @@ from app.models import (
     TaskScheduleResponse,
     UserInterestsResponse,
     UserInterestsUpdate,
+    UserProgressDailySummary,
     UserProgressEntry,
     UserProgressTaskSummary,
     UserReview,
@@ -351,6 +352,32 @@ async def get_user_progress(
             ),
         )
         for record in progress_records
+    ]
+
+
+@app.get("/me/progress/daily")
+async def get_user_progress_daily(
+    current_user: CurrentUserDependency,
+    session: SessionDependency,
+) -> list[UserProgressDailySummary]:
+    if current_user is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    statement = (
+        select(UserProgressRecord)
+        .where(UserProgressRecord.user_id == current_user.id)
+        .order_by(UserProgressRecord.updated_at.asc(), UserProgressRecord.id.asc())
+    )
+    progress_records = (await session.execute(statement)).scalars().all()
+
+    counts_by_day: dict[str, int] = {}
+    for record in progress_records:
+        day = record.updated_at.date().isoformat()
+        counts_by_day[day] = counts_by_day.get(day, 0) + 1
+
+    return [
+        UserProgressDailySummary(day=day, completed_tasks=counts_by_day[day])
+        for day in sorted(counts_by_day)
     ]
 
 

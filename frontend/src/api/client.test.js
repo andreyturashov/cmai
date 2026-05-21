@@ -114,6 +114,18 @@ describe('api client', () => {
     expect(result).toEqual(progress);
   });
 
+  it('getUserProgressDaily fetches the authenticated user progress summary by day', async () => {
+    const progress = [{ day: '2026-05-20', completed_tasks: 2 }];
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(progress),
+    });
+
+    const result = await api.getUserProgressDaily();
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/me/progress/daily`, expect.anything());
+    expect(result).toEqual(progress);
+  });
+
   it('getUserInterests fetches the authenticated user interests', async () => {
     const interests = { interests: ['python_theory', 'javascript'] };
     global.fetch = vi.fn().mockResolvedValue({

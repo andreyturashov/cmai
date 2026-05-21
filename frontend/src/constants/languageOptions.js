@@ -1,6 +1,7 @@
 export const LANGUAGE_OPTIONS = [
   { value: 'python', label: 'Python' },
   { value: 'python_questions', label: 'Python (questions)' },
+  { value: 'pandas', label: 'Pandas' },
   { value: 'python_theory', label: 'Python (theory)' },
   { value: 'fastapi', label: 'FastAPI' },
   { value: 'django', label: 'Django' },

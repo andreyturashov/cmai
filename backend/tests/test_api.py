@@ -1,5 +1,6 @@
 import asyncio
 import json
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -318,6 +319,13 @@ def test_get_user_progress_requires_authentication(client):
     assert resp.json() == {"detail": "Authentication required"}
 
 
+def test_get_user_progress_daily_requires_authentication(client):
+    resp = client.get("/me/progress/daily")
+
+    assert resp.status_code == 401
+    assert resp.json() == {"detail": "Authentication required"}
+
+
 def test_ai_analyze_stores_user_progress_for_authenticated_user(client):
     with (
         patch("app.main.GOOGLE_CLIENT_ID", "test-client-id"),
@@ -490,6 +498,70 @@ def test_get_user_progress_returns_saved_progress_with_task_details(client):
     assert data[0]["task"]["reference_issues"]
 
 
+def test_get_user_progress_daily_returns_counts_grouped_by_day(client):
+    with (
+        patch("app.main.GOOGLE_CLIENT_ID", "test-client-id"),
+        patch(
+            "app.main.verify_google_credential",
+            return_value={
+                "sub": "progress-user-3",
+                "email": "calendar@example.com",
+                "name": "Calendar User",
+                "avatar_url": "",
+            },
+        ),
+    ):
+        login_resp = client.post("/auth/google", json={"credential": "google-id-token"})
+
+    assert login_resp.status_code == 200
+    user_id = login_resp.json()["user"]["id"]
+
+    session_override = app.dependency_overrides[get_session]
+
+    async def seed_progress_rows() -> None:
+        async for session in session_override():
+            session.add_all(
+                [
+                    UserProgressRecord(
+                        user_id=user_id,
+                        task_id="python-theory-1",
+                        score=8.0,
+                        suggestion="Solid work.",
+                        submission_count=1,
+                        updated_at=datetime.fromisoformat("2026-05-19T09:30:00+00:00"),
+                    ),
+                    UserProgressRecord(
+                        user_id=user_id,
+                        task_id="python-question-1",
+                        score=7.0,
+                        suggestion="Good catch.",
+                        submission_count=1,
+                        updated_at=datetime.fromisoformat("2026-05-19T18:45:00+00:00"),
+                    ),
+                    UserProgressRecord(
+                        user_id=user_id,
+                        task_id="pandas-question-1",
+                        score=9.0,
+                        suggestion="Nice review.",
+                        submission_count=1,
+                        updated_at=datetime.fromisoformat("2026-05-20T12:15:00+00:00"),
+                    ),
+                ]
+            )
+            await session.commit()
+            return
+
+    asyncio.run(seed_progress_rows())
+
+    resp = client.get("/me/progress/daily")
+
+    assert resp.status_code == 200
+    assert resp.json() == [
+        {"day": "2026-05-19", "completed_tasks": 2},
+        {"day": "2026-05-20", "completed_tasks": 1},
+    ]
+
+
 def test_ai_analyze_does_not_store_progress_for_anonymous_user(client):
     review = client.post(
         "/reviews",
@@ -590,6 +662,13 @@ def test_get_tasks_filter_python_questions(client):
     assert all(t["language"] == "python_questions" for t in data)
 
 
+def test_get_tasks_filter_pandas(client):
+    resp = client.get("/tasks", params={"language": "pandas"})
+    data = resp.json()
+    assert len(data) == 23
+    assert all(t["language"] == "pandas" for t in data)
+
+
 def test_get_tasks_filter_python_theory(client):
     resp = client.get("/tasks", params={"language": "python_theory"})
     data = resp.json()
@@ -629,19 +708,23 @@ def test_get_tasks_no_filter_returns_all(client):
     all_resp = client.get("/tasks")
     py_resp = client.get("/tasks", params={"language": "python"})
     py_questions_resp = client.get("/tasks", params={"language": "python_questions"})
+    pandas_resp = client.get("/tasks", params={"language": "pandas"})
     py_theory_resp = client.get("/tasks", params={"language": "python_theory"})
     fastapi_resp = client.get("/tasks", params={"language": "fastapi"})
     django_resp = client.get("/tasks", params={"language": "django"})
     react_resp = client.get("/tasks", params={"language": "react"})
     js_resp = client.get("/tasks", params={"language": "javascript"})
+    sql_resp = client.get("/tasks", params={"language": "sql"})
     total_filtered = (
         len(py_resp.json())
         + len(py_questions_resp.json())
+        + len(pandas_resp.json())
         + len(py_theory_resp.json())
         + len(fastapi_resp.json())
         + len(django_resp.json())
         + len(react_resp.json())
         + len(js_resp.json())
+        + len(sql_resp.json())
     )
     assert len(all_resp.json()) == total_filtered
 
@@ -840,11 +923,13 @@ def test_all_tasks_have_valid_language():
     valid = {
         "python",
         "python_questions",
+        "pandas",
         "python_theory",
         "fastapi",
         "django",
         "react",
         "javascript",
+        "sql",
     }
     for task in TASKS:
         assert task.language in valid, f"Task {task.id} has invalid language: {task.language}"
@@ -880,7 +965,9 @@ def test_each_language_has_tasks():
     assert "react" in languages
     assert "javascript" in languages
     assert "python_questions" in languages
+    assert "pandas" in languages
     assert "python_theory" in languages
+    assert "sql" in languages
 
 
 # ---------------------------------------------------------------------------
