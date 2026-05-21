@@ -42,19 +42,19 @@ describe('CodeReviewPanel', () => {
     expect(screen.getByText('3')).toBeInTheDocument();
   });
 
-  it('renders Show Answer button', () => {
-    render(<CodeReviewPanel {...defaults} />);
+  it('renders Show Answer button when reference issues exist', () => {
+    render(<CodeReviewPanel {...defaults} referenceIssueCount={1} />);
     expect(screen.getByText('Show Answer')).toBeInTheDocument();
   });
 
-  it('renders Hide Answer when showReference is true', () => {
-    render(<CodeReviewPanel {...defaults} showReference={true} />);
+  it('renders Hide Answer when showReference is true and reference issues exist', () => {
+    render(<CodeReviewPanel {...defaults} showReference={true} referenceIssueCount={1} />);
     expect(screen.getByText('Hide Answer')).toBeInTheDocument();
   });
 
-  it('calls onToggleReference when toggle clicked', async () => {
+  it('calls onToggleReference when toggle clicked and reference issues exist', async () => {
     const onToggle = vi.fn();
-    render(<CodeReviewPanel {...defaults} onToggleReference={onToggle} />);
+    render(<CodeReviewPanel {...defaults} onToggleReference={onToggle} referenceIssueCount={1} />);
     await userEvent.click(screen.getByText('Show Answer'));
     expect(onToggle).toHaveBeenCalledOnce();
   });
