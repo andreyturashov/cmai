@@ -88,7 +88,6 @@ describe('App', () => {
     expect(screen.getByText('Code Review')).toBeInTheDocument();
     expect(screen.getByText('Task Progress')).toBeInTheDocument();
     expect(screen.getByText('Task Scheduler')).toBeInTheDocument();
-    expect(screen.getByText('User Interests')).toBeInTheDocument();
     await waitFor(() => expect(api.getTasks).toHaveBeenCalled());
   });
 
@@ -148,9 +147,30 @@ describe('App', () => {
     render(<App />);
     await waitFor(() => expect(screen.getByText('Example User')).toBeInTheDocument());
 
+    await userEvent.click(screen.getByText('Example User'));
     await userEvent.click(screen.getByText('Log out'));
     await waitFor(() => expect(api.logout).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByText('Sign in with Google')).toBeInTheDocument());
+  });
+
+  it('opens Profile from the user dropdown', async () => {
+    api.getAuthSession.mockResolvedValue({
+      user: {
+        id: 1,
+        email: 'user@example.com',
+        name: 'Example User',
+        avatar_url: '',
+      },
+    });
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByText('Example User')).toBeInTheDocument());
+
+    await userEvent.click(screen.getByText('Example User'));
+    await userEvent.click(screen.getByText('Profile'));
+
+    await waitFor(() => expect(screen.getByText('Your practice profile')).toBeInTheDocument());
+    expect(window.location.pathname).toBe('/profile');
   });
 
   it('loads tasks on mount for default language', async () => {
@@ -287,7 +307,7 @@ describe('App', () => {
     expect(screen.queryByText('Latest Result')).toBeNull();
   });
 
-  it('navigates to User Interests and saves up to five interests', async () => {
+  it('navigates to Profile and saves up to five interests', async () => {
     api.getAuthSession.mockResolvedValue({
       user: {
         id: 1,
@@ -301,11 +321,12 @@ describe('App', () => {
       interests: ['python_theory', 'javascript', 'fastapi', 'django', 'react'],
     });
 
-    window.history.replaceState({}, '', '/user-interests');
+    window.history.replaceState({}, '', '/profile');
 
     render(<App />);
 
     await waitFor(() => expect(api.getUserInterests).toHaveBeenCalled());
+    expect(screen.getByText('Your practice profile')).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByText('Choose up to 5 categories to learn')).toBeInTheDocument(),
     );
@@ -316,15 +337,13 @@ describe('App', () => {
 
     expect(screen.getByRole('button', { name: 'Python' })).toBeDisabled();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Save Interests' }));
-
     await waitFor(() =>
       expect(api.updateUserInterests).toHaveBeenCalledWith({
         interests: ['python_theory', 'javascript', 'fastapi', 'django', 'react'],
       }),
     );
     await waitFor(() => expect(screen.getByText('Saved')).toBeInTheDocument());
-    expect(window.location.pathname).toBe('/user-interests');
+    expect(window.location.pathname).toBe('/profile');
   });
 
   it('switches to Python questions language', async () => {

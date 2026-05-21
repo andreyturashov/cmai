@@ -32,6 +32,8 @@ body {
 .topbar {
   position: relative;
   z-index: 1;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(29, 41, 48, 0.1);
 }
 
 .topbar-main-row {
@@ -50,12 +52,24 @@ body {
 .page-nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  align-items: center;
+  gap: 18px;
   flex: 1;
 }
 
+.page-nav-item {
+  padding: 8px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(29, 41, 48, 0.72);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 transparent;
+}
+
 .page-nav-active {
-  background: linear-gradient(120deg, var(--accent-2) 0%, #1f5f74 100%);
+  color: var(--ink);
+  box-shadow: inset 0 -2px 0 var(--accent-2);
 }
 
 .auth-controls {
@@ -69,6 +83,47 @@ body {
   border: 1px solid var(--line);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.7);
+}
+
+.auth-menu {
+  position: relative;
+}
+
+.auth-menu-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.auth-menu-trigger::-webkit-details-marker {
+  display: none;
+}
+
+.auth-menu-caret {
+  color: rgba(29, 41, 48, 0.5);
+  font-size: 0.9rem;
+}
+
+.auth-menu-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 180px;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 10px 28px rgba(25, 28, 31, 0.1);
+  z-index: 20;
+}
+
+.auth-menu-item {
+  width: 100%;
+  text-align: left;
 }
 
 .auth-avatar {
@@ -209,7 +264,7 @@ body {
 }
 
 .hero-example-detail {
-  background: rgba(247, 245, 239, 0.98);
+  background: #fff;
   color: var(--ink);
   padding: 14px;
 }
@@ -1320,28 +1375,6 @@ button:disabled {
   align-items: stretch;
 }
 
-.task-progress-menu,
-.task-progress-empty,
-.task-scheduler-menu,
-.task-scheduler-empty,
-.user-interests-panel,
-.user-interests-empty {
-  padding: 18px;
-}
-
-.task-progress-menu-header h2,
-.task-progress-empty h2,
-.task-scheduler-header h2,
-.task-scheduler-empty h2,
-.user-interests-empty h2,
-.user-interests-header h2 {
-  margin: 0;
-}
-
-.task-scheduler-actions {
-  margin: 16px 0 12px;
-}
-
 .task-scheduler-item-progress {
   display: flex;
   flex-wrap: wrap;
@@ -1354,6 +1387,60 @@ button:disabled {
 
 .task-scheduler-item-progress-pending {
   color: rgba(29, 41, 48, 0.56);
+}
+
+.profile-page {
+  margin-top: 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.user-interests-panel {
+  padding: 18px;
+}
+
+.profile-summary {
+  padding: 18px;
+}
+
+.profile-summary h2 {
+  margin: 0;
+}
+
+.profile-summary-user {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.profile-summary-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.profile-summary-avatar-fallback {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(120deg, var(--accent-2) 0%, #1f5f74 100%);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.profile-summary-meta {
+  display: grid;
+  gap: 4px;
+}
+
+.profile-summary-meta strong {
+  font-size: 1rem;
+}
+
+.profile-summary-meta span {
+  color: rgba(29, 41, 48, 0.62);
 }
 
 .user-interests-header {
@@ -1377,7 +1464,8 @@ button:disabled {
 .user-interests-grid {
   margin-top: 18px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  align-items: stretch;
   gap: 12px;
 }
 
@@ -1397,32 +1485,10 @@ button:disabled {
   box-shadow: 0 0 0 2px rgba(47, 125, 121, 0.12);
 }
 
-.user-interests-selection {
-  margin-top: 18px;
-  padding: 16px;
-}
-
-.user-interests-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.user-interest-tag {
-  display: inline-flex;
-  align-items: center;
-  min-height: 34px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: rgba(47, 125, 121, 0.12);
-  color: var(--accent-2);
-  font-weight: 700;
-}
-
-.user-interests-actions {
-  margin-top: 18px;
-  display: flex;
-  justify-content: flex-end;
+@media (max-width: 720px) {
+  .user-interests-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .task-progress-list {
@@ -1570,6 +1636,7 @@ button:disabled {
 
   .page-nav {
     flex-wrap: wrap;
+    width: 100%;
   }
 
   .landing-page {

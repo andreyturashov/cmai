@@ -3,12 +3,13 @@ import { api } from './api/client';
 import AuthControls from './components/AuthControls';
 import LeftPanel from './components/LeftPanel';
 import CodeReviewPanel from './components/CodeReviewPanel';
+import ProfilePage from './components/ProfilePage';
 import TaskProgressPage from './components/TaskProgressPage';
 import TaskSchedulerPage from './components/TaskSchedulerPage';
-import UserInterestsPage from './components/UserInterestsPage';
 import { LANGUAGE_OPTIONS } from './constants/languageOptions';
 
 const LANDING_PATH = '/';
+const PROFILE_PATH = '/profile';
 const REVIEW_PATH = '/review';
 const TASK_PROGRESS_PATH = '/task-progress';
 const TASK_SCHEDULER_PATH = '/task-scheduler';
@@ -61,10 +62,11 @@ const LANDING_EXAMPLE = {
 
 function getCurrentPath() {
   if (typeof window === 'undefined') return LANDING_PATH;
+  if (window.location.pathname === PROFILE_PATH) return PROFILE_PATH;
   if (window.location.pathname === REVIEW_PATH) return REVIEW_PATH;
   if (window.location.pathname === TASK_PROGRESS_PATH) return TASK_PROGRESS_PATH;
   if (window.location.pathname === TASK_SCHEDULER_PATH) return TASK_SCHEDULER_PATH;
-  if (window.location.pathname === USER_INTERESTS_PATH) return USER_INTERESTS_PATH;
+  if (window.location.pathname === USER_INTERESTS_PATH) return PROFILE_PATH;
   return LANDING_PATH;
 }
 
@@ -217,15 +219,17 @@ export default function App() {
     const normalizedPath =
       nextPath === LANDING_PATH
         ? LANDING_PATH
-        : nextPath === REVIEW_PATH
-          ? REVIEW_PATH
-          : nextPath === TASK_PROGRESS_PATH
-            ? TASK_PROGRESS_PATH
-            : nextPath === TASK_SCHEDULER_PATH
-              ? TASK_SCHEDULER_PATH
-              : nextPath === USER_INTERESTS_PATH
-                ? USER_INTERESTS_PATH
-                : LANDING_PATH;
+        : nextPath === PROFILE_PATH
+          ? PROFILE_PATH
+          : nextPath === REVIEW_PATH
+            ? REVIEW_PATH
+            : nextPath === TASK_PROGRESS_PATH
+              ? TASK_PROGRESS_PATH
+              : nextPath === TASK_SCHEDULER_PATH
+                ? TASK_SCHEDULER_PATH
+                : nextPath === USER_INTERESTS_PATH
+                  ? USER_INTERESTS_PATH
+                  : LANDING_PATH;
     if (normalizedPath === path) return;
 
     window.history.pushState({}, '', normalizedPath);
@@ -234,9 +238,9 @@ export default function App() {
   }
 
   const isLandingPage = path === LANDING_PATH;
+  const isProfilePage = path === PROFILE_PATH;
   const isTaskProgressPage = path === TASK_PROGRESS_PATH;
   const isTaskSchedulerPage = path === TASK_SCHEDULER_PATH;
-  const isUserInterestsPage = path === USER_INTERESTS_PATH;
   const isReviewPage = path === REVIEW_PATH;
   const currentYear = new Date().getFullYear();
 
@@ -244,49 +248,47 @@ export default function App() {
     <main className="app-shell">
       <header className="topbar reveal">
         <div className="topbar-main-row">
-          <div className="page-nav">
+          <nav className="page-nav" aria-label="Primary">
             <button
               type="button"
-              className={isLandingPage ? 'page-nav-active' : 'ghost'}
+              className={`page-nav-item${isLandingPage ? ' page-nav-active' : ''}`}
               onClick={() => navigateTo(LANDING_PATH)}
+              aria-current={isLandingPage ? 'page' : undefined}
             >
               Home
             </button>
             <button
               type="button"
-              className={isReviewPage ? 'page-nav-active' : 'ghost'}
+              className={`page-nav-item${isReviewPage ? ' page-nav-active' : ''}`}
               onClick={() => navigateTo(REVIEW_PATH)}
+              aria-current={isReviewPage ? 'page' : undefined}
             >
               Code Review
             </button>
             <button
               type="button"
-              className={isTaskProgressPage ? 'page-nav-active' : 'ghost'}
+              className={`page-nav-item${isTaskProgressPage ? ' page-nav-active' : ''}`}
               onClick={() => navigateTo(TASK_PROGRESS_PATH)}
+              aria-current={isTaskProgressPage ? 'page' : undefined}
             >
               Task Progress
             </button>
             <button
               type="button"
-              className={isTaskSchedulerPage ? 'page-nav-active' : 'ghost'}
+              className={`page-nav-item${isTaskSchedulerPage ? ' page-nav-active' : ''}`}
               onClick={() => navigateTo(TASK_SCHEDULER_PATH)}
+              aria-current={isTaskSchedulerPage ? 'page' : undefined}
             >
               Task Scheduler
             </button>
-            <button
-              type="button"
-              className={isUserInterestsPage ? 'page-nav-active' : 'ghost'}
-              onClick={() => navigateTo(USER_INTERESTS_PATH)}
-            >
-              User Interests
-            </button>
-          </div>
+          </nav>
           <div className="topbar-auth">
             <AuthControls
               user={currentUser}
               loading={authLoading}
               onLogin={handleGoogleLogin}
               onLogout={handleLogout}
+              onNavigateProfile={() => navigateTo(PROFILE_PATH)}
               onError={setError}
             />
           </div>
@@ -299,8 +301,8 @@ export default function App() {
         <TaskProgressPage currentUser={currentUser} onError={setError} />
       ) : isTaskSchedulerPage ? (
         <TaskSchedulerPage currentUser={currentUser} onError={setError} />
-      ) : isUserInterestsPage ? (
-        <UserInterestsPage currentUser={currentUser} onError={setError} />
+      ) : isProfilePage ? (
+        <ProfilePage currentUser={currentUser} onError={setError} />
       ) : isLandingPage ? (
         <div className="landing-page">
           <section className="hero-panel reveal">
