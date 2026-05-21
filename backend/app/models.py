@@ -179,3 +179,8 @@ class UserProgressEntry(BaseModel):
     created_at: str
     updated_at: str
     task: UserProgressTaskSummary
+
+
+class UserProgressDailySummary(BaseModel):
+    day: str
+    completed_tasks: int

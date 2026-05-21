@@ -12,6 +12,7 @@ vi.mock('./api/client', () => ({
     getTasks: vi.fn(),
     getTaskById: vi.fn(),
     getUserProgress: vi.fn(),
+    getUserProgressDaily: vi.fn(),
     getUserInterests: vi.fn(),
     updateUserInterests: vi.fn(),
     getTaskSchedule: vi.fn(),
@@ -76,6 +77,7 @@ describe('App', () => {
     api.getTasks.mockResolvedValue([taskSummary]);
     api.getTaskById.mockResolvedValue(fullTask);
     api.getUserProgress.mockResolvedValue([]);
+    api.getUserProgressDaily.mockResolvedValue([]);
     api.getUserInterests.mockResolvedValue({ interests: [] });
     api.updateUserInterests.mockResolvedValue({ interests: [] });
     api.getTaskSchedule.mockResolvedValue({ tasks: [] });
@@ -616,11 +618,17 @@ describe('App', () => {
         },
       },
     ]);
+    api.getUserProgressDaily.mockResolvedValue([
+      { day: '2026-05-20', completed_tasks: 1 },
+      { day: '2026-05-21', completed_tasks: 2 },
+    ]);
 
     render(<App />);
     await userEvent.click(screen.getByText('Task Progress'));
 
     await waitFor(() => expect(api.getUserProgress).toHaveBeenCalled());
+    await waitFor(() => expect(api.getUserProgressDaily).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByText('Daily Activity')).toBeInTheDocument());
     await waitFor(() => expect(screen.getByText('Completed Tasks')).toBeInTheDocument());
     expect(screen.getAllByText('Score: 8.5 / 10')).toHaveLength(2);
     expect(screen.getByText('✗ Some issues remain')).toBeInTheDocument();

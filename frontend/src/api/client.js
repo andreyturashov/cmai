@@ -46,6 +46,7 @@ export const api = {
   },
   getTaskById: (id) => request(`/tasks/${id}`),
   getUserProgress: () => request('/me/progress'),
+  getUserProgressDaily: () => request('/me/progress/daily'),
   createReview: (payload) =>
     request('/reviews', {
       method: 'POST',
