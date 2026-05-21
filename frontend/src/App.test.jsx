@@ -62,7 +62,7 @@ const fullTask = {
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    window.history.replaceState({}, '', '/');
+    window.history.replaceState({}, '', '/review');
     api.getAuthSession.mockResolvedValue({ user: null });
     api.loginWithGoogle.mockResolvedValue({
       user: {
@@ -84,8 +84,37 @@ describe('App', () => {
 
   it('renders the header', async () => {
     render(<App />);
-    expect(screen.getByText('Code Mentor')).toBeInTheDocument();
+    expect(screen.getByText('Home')).toBeInTheDocument();
+    expect(screen.getByText('Code Review')).toBeInTheDocument();
+    expect(screen.getByText('Task Progress')).toBeInTheDocument();
+    expect(screen.getByText('Task Scheduler')).toBeInTheDocument();
+    expect(screen.getByText('User Interests')).toBeInTheDocument();
     await waitFor(() => expect(api.getTasks).toHaveBeenCalled());
+  });
+
+  it('renders the landing page separately at root', () => {
+    window.history.replaceState({}, '', '/');
+
+    render(<App />);
+
+    expect(
+      screen.getByText('Practice on realistic diffs before the stakes are real.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Home')).toBeInTheDocument();
+    expect(api.getTasks).not.toHaveBeenCalled();
+  });
+
+  it('navigates from landing page to review workspace', async () => {
+    window.history.replaceState({}, '', '/');
+
+    render(<App />);
+    await userEvent.click(screen.getByText('Start Reviewing'));
+
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python'));
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Validate Input' })).toBeInTheDocument(),
+    );
+    expect(window.location.pathname).toBe('/review');
   });
 
   it('shows Google login without blocking the main page', async () => {
@@ -140,8 +169,6 @@ describe('App', () => {
     expect(screen.getByText('React')).toBeInTheDocument();
     expect(screen.getByText('JavaScript')).toBeInTheDocument();
     expect(screen.getByText('SQL')).toBeInTheDocument();
-    expect(screen.getByText('Task Scheduler')).toBeInTheDocument();
-    expect(screen.getByText('User Interests')).toBeInTheDocument();
     await waitFor(() => expect(api.getTasks).toHaveBeenCalled());
   });
 
@@ -189,17 +216,18 @@ describe('App', () => {
       language: 'javascript',
     });
 
+    window.history.replaceState({}, '', '/task-scheduler');
+
     render(<App />);
-    await userEvent.click(screen.getByText('Task Scheduler'));
 
     await waitFor(() => expect(api.getTaskSchedule).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.getByText("Today's Tasks")).toBeInTheDocument());
-    expect(screen.getByText('Validate Input')).toBeInTheDocument();
+    expect(screen.getAllByText('Validate Input').length).toBeGreaterThan(0);
 
     await userEvent.click(screen.getByText('Regenerate Tasks'));
 
     await waitFor(() => expect(api.regenerateTaskSchedule).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.getByText('Escape SQL values')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('Escape SQL values').length).toBeGreaterThan(0));
     expect(window.location.pathname).toBe('/task-scheduler');
   });
 
@@ -245,13 +273,12 @@ describe('App', () => {
       },
     });
 
+    window.history.replaceState({}, '', '/task-scheduler');
+
     render(<App />);
-    await userEvent.click(screen.getByText('Task Scheduler'));
 
     await waitFor(() => expect(screen.getByText("Today's Tasks")).toBeInTheDocument());
-    await waitFor(() =>
-      expect(screen.getByRole('heading', { name: 'Validate Input' })).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getAllByText('Validate Input').length).toBeGreaterThan(0));
 
     await userEvent.click(screen.getByText('Submit Review'));
 
@@ -274,8 +301,9 @@ describe('App', () => {
       interests: ['python_theory', 'javascript', 'fastapi', 'django', 'react'],
     });
 
+    window.history.replaceState({}, '', '/user-interests');
+
     render(<App />);
-    await userEvent.click(screen.getByText('User Interests'));
 
     await waitFor(() => expect(api.getUserInterests).toHaveBeenCalled());
     await waitFor(() =>
@@ -551,7 +579,7 @@ describe('App', () => {
     ]);
 
     render(<App />);
-    await userEvent.click(screen.getByText('TaskProgress'));
+    await userEvent.click(screen.getByText('Task Progress'));
 
     await waitFor(() => expect(api.getUserProgress).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByText('Completed Tasks')).toBeInTheDocument());
@@ -749,7 +777,8 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText('Validate Input')).toBeInTheDocument());
 
     // Select line 1 and add a comment
-    const line1 = screen.getByText('1');
+    const line1 = screen.getAllByText('1').find((element) => element.classList.contains('line-no'));
+    expect(line1).toBeTruthy();
     fireEvent.mouseDown(line1);
     fireEvent.mouseUp(line1.closest('.code-scroll') || document);
 
