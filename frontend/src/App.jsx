@@ -38,11 +38,32 @@ const LANDING_STEPS = [
   'Use the analysis, progress view, and scheduler to keep improving with intent.',
 ];
 
-const LANDING_STATS = [
-  { value: '7+', label: 'practice tracks across backend, frontend, and SQL' },
-  { value: '3', label: 'feedback loops: inline review, reference issues, AI analysis' },
-  { value: '1', label: 'workspace for review drills, progress, and scheduling' },
-];
+const LANDING_EXAMPLE = {
+  taskTitle: 'Secure avatar uploads',
+  requirementLines: [
+    'Identify the security issue',
+    'Explain the user impact',
+    'Recommend a safer implementation',
+  ],
+  score: '7 / 10',
+  analysisGood:
+    'You correctly flagged the filename handling risk and suggested generating a safe server-side name.',
+  analysisMissing:
+    'You did not mention that the code writes any uploaded file to disk without validating file type or size first.',
+  analysisGoodBadge: 'GOOD CATCH',
+  analysisMissingBadge: 'MISSED',
+  codeLines: [
+    'def save_avatar(file_bytes, filename):',
+    '    destination = f"/srv/app/uploads/{filename}"',
+    '    with open(destination, "wb") as target:',
+    '        target.write(file_bytes)',
+    '    return destination',
+    '',
+    'avatar_path = save_avatar(payload, upload.name)',
+  ],
+  comment:
+    'Use a generated filename here instead of raw user input, otherwise ../ segments can escape the uploads directory.',
+};
 
 function getCurrentPath() {
   if (typeof window === 'undefined') return LANDING_PATH;
@@ -294,8 +315,9 @@ export default function App() {
               <h2>Practice on realistic diffs before the stakes are real.</h2>
               <p className="hero-body">
                 Code Mentor turns review practice into a structured loop: inspect code, leave
-                comments with intent, compare your thinking to reference issues, and keep momentum
-                with progress tracking and scheduled exercises.
+                comments with intent, use AI analysis to sharpen your feedback, compare your
+                thinking to reference issues, and keep momentum with progress tracking and scheduled
+                exercises.
               </p>
               <div className="hero-actions">
                 <button type="button" onClick={() => navigateTo(REVIEW_PATH)}>
@@ -322,21 +344,49 @@ export default function App() {
             </div>
 
             <aside className="hero-signal card">
-              <p className="eyebrow">What the platform covers</p>
-              <div className="hero-stat-grid">
-                {LANDING_STATS.map((item) => (
-                  <div key={item.label} className="hero-stat-item">
-                    <strong>{item.value}</strong>
-                    <span>{item.label}</span>
+              <div className="hero-example-preview">
+                <section className="hero-example-detail">
+                  <p className="hero-example-section-label">PR Title</p>
+                  <h4>{LANDING_EXAMPLE.taskTitle}</h4>
+                  <div className="hero-example-detail-block">
+                    <p className="hero-example-section-label">Requirements</p>
+                    <ul>
+                      {LANDING_EXAMPLE.requirementLines.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
                   </div>
-                ))}
-              </div>
-              <div className="hero-signal-callout">
-                <p className="eyebrow">Designed for deliberate practice</p>
-                <p>
-                  Move from one-off review drills to a consistent routine with saved progress,
-                  AI-assisted analysis, and scheduled tasks tied to your interests.
-                </p>
+                  <div className="hero-example-detail-block">
+                    <p className="hero-example-section-label">AI Analysis</p>
+                    <strong>Score: {LANDING_EXAMPLE.score}</strong>
+                    <p className="hero-example-positive-note">
+                      Good: {LANDING_EXAMPLE.analysisGood}{' '}
+                      <span>({LANDING_EXAMPLE.analysisGoodBadge})</span>
+                    </p>
+                    <p className="hero-example-missing-note">
+                      Missing: {LANDING_EXAMPLE.analysisMissing}{' '}
+                      <span>({LANDING_EXAMPLE.analysisMissingBadge})</span>
+                    </p>
+                  </div>
+                </section>
+
+                <section className="hero-example-code">
+                  <div className="hero-example-code-topbar">
+                    <strong>TaskProgress Viewer</strong>
+                  </div>
+                  <div className="hero-example-code-window">
+                    {LANDING_EXAMPLE.codeLines.map((line, index) => (
+                      <div key={`${index + 1}-${line}`} className="hero-example-code-line">
+                        <span>{index + 1}</span>
+                        <code>{line || ' '}</code>
+                      </div>
+                    ))}
+                    <div className="hero-example-comment-bubble">
+                      <span>{LANDING_EXAMPLE.comment}</span>
+                      <strong>Line 2</strong>
+                    </div>
+                  </div>
+                </section>
               </div>
             </aside>
           </section>
