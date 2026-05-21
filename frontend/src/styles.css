@@ -201,34 +201,6 @@ body {
   gap: 12px;
 }
 
-.hero-highlight-list {
-  margin-top: 18px;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.hero-highlight-item {
-  padding: 12px 14px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.68);
-  border: 1px solid rgba(29, 41, 48, 0.1);
-}
-
-.hero-highlight-item strong,
-.hero-stat-item strong {
-  display: block;
-}
-
-.hero-highlight-item strong {
-  margin-bottom: 6px;
-}
-
-.hero-highlight-item span {
-  color: rgba(29, 41, 48, 0.76);
-  line-height: 1.5;
-}
-
 .card.hero-signal {
   padding: 20px;
   background: rgba(20, 29, 34, 0.92);
@@ -374,26 +346,18 @@ body {
   font-size: 0.72rem;
 }
 
-.landing-support-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.9fr);
-  gap: 14px;
-  align-items: stretch;
-}
-
 .landing-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+  margin-top: 10px;
 }
 
-.landing-card,
-.journey-card {
+.landing-card {
   padding: 18px;
 }
 
 .landing-card h3,
-.journey-card h3,
 .review-workspace-header h3 {
   margin: 0;
   font-size: 1.1rem;
@@ -403,24 +367,8 @@ body {
   margin-top: 8px;
 }
 
-.landing-card p:last-child,
-.journey-card p:last-child {
+.landing-card p:last-child {
   margin-bottom: 0;
-}
-
-.journey-card {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-  align-items: start;
-}
-
-.journey-list {
-  margin: 0;
-  padding-left: 20px;
-  display: grid;
-  gap: 8px;
-  line-height: 1.45;
 }
 
 .review-workspace {
@@ -1640,9 +1588,6 @@ button:disabled {
   }
 
   .hero-panel,
-  .landing-support-grid,
-  .journey-card,
-  .hero-highlight-list,
   .landing-grid {
     grid-template-columns: 1fr;
   }

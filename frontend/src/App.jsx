@@ -32,12 +32,6 @@ const LANDING_FEATURES = [
   },
 ];
 
-const LANDING_STEPS = [
-  'Pick a language track and open a seeded pull request review exercise.',
-  'Leave inline comments or a written recommendation the way you would on a real team.',
-  'Use the analysis, progress view, and scheduler to keep improving with intent.',
-];
-
 const LANDING_EXAMPLE = {
   taskTitle: 'Secure avatar uploads',
   requirementLines: [
@@ -331,16 +325,6 @@ export default function App() {
                   See Progress
                 </button>
               </div>
-              <div className="hero-highlight-list">
-                <div className="hero-highlight-item">
-                  <strong>Inline review workflow</strong>
-                  <span>Comment on code the way you would in a real pull request.</span>
-                </div>
-                <div className="hero-highlight-item">
-                  <strong>Multi-track practice</strong>
-                  <span>Switch between Python, React, JavaScript, SQL, FastAPI, and Django.</span>
-                </div>
-              </div>
             </div>
 
             <aside className="hero-signal card">
@@ -391,29 +375,15 @@ export default function App() {
             </aside>
           </section>
 
-          <div className="landing-support-grid reveal">
-            <section className="landing-grid" aria-label="Product overview">
-              {LANDING_FEATURES.map((feature) => (
-                <article key={feature.title} className="card landing-card">
-                  <p className="eyebrow">Feature</p>
-                  <h3>{feature.title}</h3>
-                  <p>{feature.description}</p>
-                </article>
-              ))}
-            </section>
-
-            <section className="card journey-card">
-              <div>
-                <p className="eyebrow">How it works</p>
-                <h3>From review drill to measurable improvement</h3>
-              </div>
-              <ol className="journey-list">
-                {LANDING_STEPS.map((step) => (
-                  <li key={step}>{step}</li>
-                ))}
-              </ol>
-            </section>
-          </div>
+          <section className="landing-grid reveal" aria-label="Product overview">
+            {LANDING_FEATURES.map((feature) => (
+              <article key={feature.title} className="card landing-card">
+                <p className="eyebrow">Feature</p>
+                <h3>{feature.title}</h3>
+                <p>{feature.description}</p>
+              </article>
+            ))}
+          </section>
 
           <footer className="landing-footer reveal">
             <p>© {currentYear} Code Mentor. All rights reserved.</p>
