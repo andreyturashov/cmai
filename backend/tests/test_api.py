@@ -11,11 +11,11 @@ from sqlalchemy import select
 from app.ai_analyzer import _build_prompt, analyze_review
 from app.db import create_session_factory, get_session
 from app.db import normalize_database_url as normalize_db_url
-from app.db_models import Base, UserProgressRecord
-from app.main import REVIEWS, app
+from app.db_models import Base, TaskRecord, UserProgressRecord, UserRecord
+from app.main import REVIEWS, admin, app
 from app.models import AIAnalysisResult, AIIssueVerdict, InlineComment, UserReview
 from app.seed_data import TASKS
-from app.seed_tasks import replace_seed_tasks
+from app.seed_tasks import add_missing_seed_tasks, replace_seed_tasks
 
 SEED_TASKS_BY_ID = {task.id: task for task in TASKS}
 
@@ -40,11 +40,20 @@ def client(tmp_path):
             yield session
 
     app.dependency_overrides[get_session] = override_get_session
+    previous_admin_session_factory = getattr(app.state, "admin_session_factory", None)
+    previous_admin_auth_session_factory = admin.authentication_backend.session_factory
+    app.state.admin_session_factory = session_factory
+    admin.authentication_backend.session_factory = session_factory
 
     with TestClient(app) as test_client:
         yield test_client
 
     app.dependency_overrides.clear()
+    admin.authentication_backend.session_factory = previous_admin_auth_session_factory
+    if previous_admin_session_factory is None:
+        delattr(app.state, "admin_session_factory")
+    else:
+        app.state.admin_session_factory = previous_admin_session_factory
     asyncio.run(engine.dispose())
 
 
@@ -61,9 +70,8 @@ def test_health(client):
 
 def test_admin_home(client):
     resp = client.get("/admin")
-    assert resp.status_code == 200
-    assert resp.headers["content-type"].startswith("text/html")
-    assert "Code Mentor Admin" in resp.text
+    assert resp.status_code == 403
+    assert "admin user" in resp.text.lower()
 
 
 def test_auth_session_defaults_to_anonymous(client):
@@ -99,6 +107,46 @@ def test_google_login_creates_session(client):
         "avatar_url": "https://example.com/avatar.png",
     }
 
+    admin_resp = client.get("/admin")
+    assert admin_resp.status_code == 403
+
+
+def test_google_login_bootstrap_admin_can_open_admin(client):
+    with (
+        patch("app.main.GOOGLE_CLIENT_ID", "test-client-id"),
+        patch(
+            "app.main.verify_google_credential",
+            return_value={
+                "sub": "google-admin-1",
+                "email": "turashov@gmail.com",
+                "name": "Admin User",
+                "avatar_url": "",
+            },
+        ),
+    ):
+        login_resp = client.post("/auth/google", json={"credential": "google-id-token"})
+
+    assert login_resp.status_code == 200
+
+    admin_resp = client.get("/admin")
+    assert admin_resp.status_code == 200
+    assert admin_resp.headers["content-type"].startswith("text/html")
+    assert "Code Mentor Admin" in admin_resp.text
+
+    session_override = app.dependency_overrides[get_session]
+
+    async def fetch_admin_user() -> UserRecord | None:
+        async for session in session_override():
+            result = await session.execute(
+                select(UserRecord).where(UserRecord.email == "turashov@gmail.com")
+            )
+            return result.scalar_one_or_none()
+        return None
+
+    admin_user = asyncio.run(fetch_admin_user())
+    assert admin_user is not None
+    assert admin_user.is_admin is True
+
 
 def test_google_logout_clears_session(client):
     with (
@@ -122,6 +170,62 @@ def test_google_logout_clears_session(client):
     session_resp = client.get("/auth/session")
     assert session_resp.status_code == 200
     assert session_resp.json() == {"user": None}
+
+
+@pytest.mark.anyio
+async def test_add_missing_seed_tasks_preserves_existing_progress(tmp_path):
+    database_path = Path(tmp_path) / "seed-preserve.db"
+    database_url = normalize_db_url(f"sqlite+aiosqlite:///{database_path}")
+    engine, session_factory = create_session_factory(database_url)
+
+    try:
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+
+        first_task = TASKS[0]
+        second_task = TASKS[1]
+
+        await replace_seed_tasks(session_factory, [first_task])
+
+        async with session_factory() as session:
+            user = UserRecord(
+                google_sub="seed-progress-user",
+                email="seed-progress@example.com",
+                name="Seed Progress User",
+                avatar_url="",
+            )
+            session.add(user)
+            await session.flush()
+            session.add(
+                UserProgressRecord(
+                    user_id=user.id,
+                    task_id=first_task.id,
+                    score=7.0,
+                    suggestion="Keep existing progress",
+                    ai_analysis={"score": 7.0},
+                    user_answer="",
+                    user_comments=[],
+                    submission_count=1,
+                )
+            )
+            await session.commit()
+
+        added_count = await add_missing_seed_tasks(session_factory, [first_task, second_task])
+
+        assert added_count == 1
+
+        async with session_factory() as session:
+            task_result = await session.execute(select(TaskRecord.id))
+            task_ids = set(task_result.scalars().all())
+            progress_result = await session.execute(select(UserProgressRecord))
+            progress_rows = list(progress_result.scalars().all())
+
+        assert task_ids == {first_task.id, second_task.id}
+        assert len(progress_rows) == 1
+        assert progress_rows[0].task_id == first_task.id
+        assert progress_rows[0].score == 7.0
+    finally:
+        await engine.dispose()
 
 
 def test_get_user_interests_requires_authentication(client):
@@ -1083,6 +1187,24 @@ async def test_analyze_review_all_addressed():
     assert result.score == 10.0
     assert result.missed_issues == []
     assert len(result.issues) == len(TASK_1.reference_issues)
+
+
+@pytest.mark.anyio
+async def test_analyze_review_all_addressed_normalizes_contradictory_score():
+    review = _make_review()
+    all_ids = {i.id for i in TASK_1.reference_issues}
+    data = _build_ollama_result(TASK_1, addressed_ids=all_ids, score=5.0)
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        result = await analyze_review(TASK_1, review)
+
+    assert result.all_fixed is True
+    assert result.score == 10.0
 
 
 @pytest.mark.anyio

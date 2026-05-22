@@ -187,7 +187,7 @@ describe('CodeReviewPanel', () => {
 
   it('handles empty code gracefully', () => {
     render(<CodeReviewPanel {...defaults} code="" />);
-    expect(screen.getByText('Code Viewer')).toBeInTheDocument();
+    expect(screen.getByText('Code')).toBeInTheDocument();
   });
 
   it('falls back to python for unknown language', () => {

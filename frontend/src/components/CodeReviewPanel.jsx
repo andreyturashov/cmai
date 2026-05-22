@@ -30,8 +30,10 @@ export default function CodeReviewPanel({
   onSubmitReview,
   readOnly = false,
   savedAnswer = '',
-  title = 'Code Viewer',
+  title = 'Code',
   referenceIssueCount = 0,
+  showHeader = true,
+  eyebrowLabel = '',
 }) {
   const [selStart, setSelStart] = useState(null);
   const [selEnd, setSelEnd] = useState(null);
@@ -125,37 +127,41 @@ export default function CodeReviewPanel({
 
   return (
     <section className="right-panel card reveal">
-      <header className="review-header">
-        <div className="review-title">
-          <h3>{title}</h3>
-          <div className="info-icon-wrap">
-            <span className="info-icon">&#9432;</span>
-            <div className="info-tooltip">
-              <strong>Instructions</strong>
-              <ol>
-                {panelInstructions.map((instruction) => (
-                  <li key={instruction}>{instruction}</li>
-                ))}
-              </ol>
+      {showHeader ? (
+        <header className="review-header">
+          <div className="review-title">
+            <p className="eyebrow">{title}</p>
+            <div className="info-icon-wrap">
+              <span className="info-icon">&#9432;</span>
+              <div className="info-tooltip">
+                <strong>Instructions</strong>
+                <ol>
+                  {panelInstructions.map((instruction) => (
+                    <li key={instruction}>{instruction}</li>
+                  ))}
+                </ol>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="review-header-actions">
-          {hasReferenceIssues ? (
-            <button
-              className={`ghost toggle-ref${showReference ? ' toggle-ref-active' : ''}`}
-              onClick={onToggleReference}
-            >
-              {showReference ? 'Hide Answer' : 'Show Answer'}
-            </button>
-          ) : null}
-          {!readOnly ? (
-            <button onClick={onSubmitReview} disabled={submitDisabled}>
-              Submit Review
-            </button>
-          ) : null}
-        </div>
-      </header>
+          <div className="review-header-actions">
+            {hasReferenceIssues ? (
+              <button
+                className={`ghost toggle-ref${showReference ? ' toggle-ref-active' : ''}`}
+                onClick={onToggleReference}
+              >
+                {showReference ? 'Hide Answer' : 'Show Answer'}
+              </button>
+            ) : null}
+            {!readOnly ? (
+              <button onClick={onSubmitReview} disabled={submitDisabled}>
+                Submit Review
+              </button>
+            ) : null}
+          </div>
+        </header>
+      ) : null}
+
+      {!showHeader && eyebrowLabel ? <p className="eyebrow">{eyebrowLabel}</p> : null}
 
       <div className="code-scroll" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
         {lines.map((line, idx) => {

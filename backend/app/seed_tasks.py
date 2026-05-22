@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import argparse
 import asyncio
 
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db import AsyncSessionFactory
@@ -53,13 +54,43 @@ async def replace_seed_tasks(
     return len(tasks_to_seed)
 
 
-async def seed_from_static_data() -> None:
-    count = await replace_seed_tasks(AsyncSessionFactory)
-    print(f"Seeded {count} tasks into the database.")
+async def add_missing_seed_tasks(
+    session_factory: async_sessionmaker[AsyncSession],
+    tasks: list[Task] | None = None,
+) -> int:
+    tasks_to_seed = tasks or TASKS
+
+    async with session_factory() as session:
+        result = await session.execute(select(TaskRecord.id))
+        existing_ids = set(result.scalars().all())
+        missing_tasks = [task for task in tasks_to_seed if task.id not in existing_ids]
+
+        if missing_tasks:
+            session.add_all([_task_record_from_schema(task) for task in missing_tasks])
+            await session.commit()
+
+    return len(missing_tasks)
+
+
+async def seed_from_static_data(*, replace: bool = False) -> None:
+    if replace:
+        count = await replace_seed_tasks(AsyncSessionFactory)
+        print(f"Replaced tasks with {count} seeded items.")
+    else:
+        count = await add_missing_seed_tasks(AsyncSessionFactory)
+        print(f"Added {count} new task(s) from static seed data.")
 
 
 def main() -> None:
-    asyncio.run(seed_from_static_data())
+    parser = argparse.ArgumentParser(description="Seed static tasks into the database.")
+    parser.add_argument(
+        "--replace",
+        action="store_true",
+        help="Replace all existing tasks instead of only adding missing seeded tasks.",
+    )
+    args = parser.parse_args()
+
+    asyncio.run(seed_from_static_data(replace=args.replace))
 
 
 if __name__ == "__main__":

@@ -2,10 +2,49 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 from sqladmin import Admin, ModelView
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqladmin.authentication import AuthenticationBackend
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from starlette.requests import Request
+from starlette.responses import PlainTextResponse, Response
 
-from app.db import engine
+from app.auth import SESSION_SECRET
+from app.db import AsyncSessionFactory, engine
 from app.db_models import TaskIssueRecord, TaskRecord, UserProgressRecord, UserRecord
+
+
+class SessionAdminAuth(AuthenticationBackend):
+    def __init__(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        secret_key: str,
+    ) -> None:
+        super().__init__(secret_key=secret_key)
+        self.session_factory = session_factory
+
+    async def login(self, request: Request) -> bool:
+        return False
+
+    async def logout(self, request: Request) -> Response | bool:
+        request.session.clear()
+        return True
+
+    async def authenticate(self, request: Request) -> Response | bool:
+        user_id = request.session.get("user_id")
+        if not user_id:
+            return PlainTextResponse(
+                "Admin access requires a signed-in admin user.", status_code=403
+            )
+
+        session_factory = getattr(request.app.state, "admin_session_factory", self.session_factory)
+        async with session_factory() as session:
+            user = await session.get(UserRecord, user_id)
+
+        if user is None or not user.is_admin:
+            return PlainTextResponse(
+                "Admin access requires a signed-in admin user.", status_code=403
+            )
+
+        return True
 
 
 class UserAdmin(ModelView, model=UserRecord):
@@ -18,6 +57,7 @@ class UserAdmin(ModelView, model=UserRecord):
         UserRecord.id,
         UserRecord.email,
         UserRecord.name,
+        UserRecord.is_admin,
         UserRecord.google_sub,
         UserRecord.created_at,
         UserRecord.updated_at,
@@ -33,6 +73,7 @@ class UserAdmin(ModelView, model=UserRecord):
         UserRecord.id,
         UserRecord.email,
         UserRecord.name,
+        UserRecord.is_admin,
         UserRecord.created_at,
         UserRecord.updated_at,
     ]
@@ -144,8 +185,18 @@ class UserProgressAdmin(ModelView, model=UserProgressRecord):
     page_size_options = [25, 50, 100]
 
 
-def setup_admin(app: FastAPI, database_engine: AsyncEngine = engine) -> Admin:
-    admin = Admin(app, database_engine, title="Code Mentor Admin")
+def setup_admin(
+    app: FastAPI,
+    database_engine: AsyncEngine = engine,
+    session_factory: async_sessionmaker[AsyncSession] = AsyncSessionFactory,
+) -> Admin:
+    app.state.admin_session_factory = session_factory
+    admin = Admin(
+        app,
+        database_engine,
+        title="Code Mentor Admin",
+        authentication_backend=SessionAdminAuth(session_factory, SESSION_SECRET),
+    )
     admin.add_view(UserAdmin)
     admin.add_view(UserProgressAdmin)
     admin.add_view(TaskAdmin)

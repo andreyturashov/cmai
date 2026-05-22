@@ -8,6 +8,7 @@ ALLOWED_INTERESTS = {
     "python",
     "python_questions",
     "pandas",
+    "langchain_langgraph",
     "python_theory",
     "fastapi",
     "django",
