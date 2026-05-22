@@ -3,6 +3,7 @@ export const LANGUAGE_OPTIONS = [
   { value: 'python_questions', label: 'Python (questions)' },
   { value: 'pandas', label: 'Pandas' },
   { value: 'langchain_langgraph', label: 'LangChain/LangGraph' },
+  { value: 'machine_learning', label: 'Machine Learning' },
   { value: 'python_theory', label: 'Python (theory)' },
   { value: 'fastapi', label: 'FastAPI' },
   { value: 'django', label: 'Django' },

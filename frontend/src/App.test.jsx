@@ -187,6 +187,7 @@ describe('App', () => {
     expect(screen.getByText('Python (questions)')).toBeInTheDocument();
     expect(screen.getByText('Pandas')).toBeInTheDocument();
     expect(screen.getByText('LangChain/LangGraph')).toBeInTheDocument();
+    expect(screen.getByText('Machine Learning')).toBeInTheDocument();
     expect(screen.getByText('Python (theory)')).toBeInTheDocument();
     expect(screen.getByText('FastAPI')).toBeInTheDocument();
     expect(screen.getByText('Django')).toBeInTheDocument();
@@ -405,6 +406,28 @@ describe('App', () => {
 
     await userEvent.click(screen.getByText('Pandas'));
     await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('pandas'));
+  });
+
+  it('switches to Machine Learning language', async () => {
+    api.getTasks.mockResolvedValue([
+      {
+        id: 'machine-learning-question-1',
+        title: 'Split train and test data correctly',
+        language: 'machine_learning',
+      },
+    ]);
+    api.getTaskById.mockResolvedValue({
+      ...fullTask,
+      id: 'machine-learning-question-1',
+      title: 'Split train and test data correctly',
+      language: 'machine_learning',
+      code: 'from sklearn.model_selection import train_test_split\n\ndef split_data(X, y):\n    return train_test_split(X, y, test_size=0.8)\n',
+    });
+
+    render(<App />);
+
+    await userEvent.click(screen.getByText('Machine Learning'));
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('machine_learning'));
   });
 
   it('switches to FastAPI language', async () => {
