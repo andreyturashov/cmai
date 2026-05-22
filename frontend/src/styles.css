@@ -1498,6 +1498,19 @@ button:disabled {
   color: rgba(29, 41, 48, 0.56);
 }
 
+.task-scheduler-item-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-top: 4px;
+}
+
+.task-scheduler-item-complexity {
+  font-size: 0.72rem;
+  padding: 4px 9px;
+}
+
 .profile-page {
   margin-top: 20px;
   display: grid;
@@ -1639,6 +1652,18 @@ button:disabled {
 .task-progress-item-meta {
   font-size: 0.82rem;
   color: rgba(29, 41, 48, 0.64);
+}
+
+.task-progress-item-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+.task-progress-item-complexity {
+  font-size: 0.72rem;
+  padding: 4px 9px;
 }
 
 .task-progress-detail {

@@ -217,6 +217,7 @@ describe('App', () => {
           requirements: ['Validate name'],
           instructions: ['Review the code'],
           language: 'python',
+          complexity: 'medium',
           submission_mode: 'comments',
         },
       ],
@@ -230,6 +231,7 @@ describe('App', () => {
           requirements: ['Use parameterized queries'],
           instructions: ['Review the code'],
           language: 'javascript',
+          complexity: 'hard',
           submission_mode: 'comments',
         },
       ],
@@ -249,11 +251,13 @@ describe('App', () => {
     await waitFor(() => expect(api.getTaskSchedule).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.getByText("Today's Tasks")).toBeInTheDocument());
     expect(screen.getAllByText('Validate Input').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Medium').length).toBeGreaterThan(0);
 
     await userEvent.click(screen.getByText('Regenerate Tasks'));
 
     await waitFor(() => expect(api.regenerateTaskSchedule).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.getAllByText('Escape SQL values').length).toBeGreaterThan(0));
+    expect(screen.getAllByText('Hard').length).toBeGreaterThan(0);
     expect(window.location.pathname).toBe('/task-scheduler');
   });
 
@@ -276,6 +280,7 @@ describe('App', () => {
           requirements: ['Spot the main bug'],
           instructions: ['Explain why it matters'],
           language: 'python',
+          complexity: 'medium',
           submission_mode: 'comments',
         },
       ],
@@ -655,6 +660,7 @@ describe('App', () => {
     await waitFor(() => expect(api.getUserProgressDaily).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByText('Daily Tasks')).toBeInTheDocument());
     await waitFor(() => expect(screen.getByText('Completed Tasks')).toBeInTheDocument());
+    expect(screen.getAllByText('Medium').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Score: 8.5 / 10')).toHaveLength(2);
     expect(screen.getByText('✗ Some issues remain')).toBeInTheDocument();
     expect(screen.getByText('Good structure')).toBeInTheDocument();
