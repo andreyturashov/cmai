@@ -1086,6 +1086,24 @@ async def test_analyze_review_all_addressed():
 
 
 @pytest.mark.anyio
+async def test_analyze_review_all_addressed_normalizes_contradictory_score():
+    review = _make_review()
+    all_ids = {i.id for i in TASK_1.reference_issues}
+    data = _build_ollama_result(TASK_1, addressed_ids=all_ids, score=5.0)
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
+
+    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+        result = await analyze_review(TASK_1, review)
+
+    assert result.all_fixed is True
+    assert result.score == 10.0
+
+
+@pytest.mark.anyio
 async def test_analyze_review_none_addressed():
     review = _make_review()
     data = _build_ollama_result(TASK_1, addressed_ids=set(), score=0.0)

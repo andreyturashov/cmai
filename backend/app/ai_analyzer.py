@@ -232,13 +232,15 @@ async def analyze_review(task: Task, review: UserReview) -> AIAnalysisResult:
     computed_score = round((addressed_points / total_points) * 10, 1) if total_points else 0.0
     normalized_all_fixed = len(addressed_ids) == len(task.reference_issues)
 
-    # In answer mode, prefer the normalized verdict-derived score to avoid
-    # contradictory AI outputs like addressed=true with score < 10.
+    # Prefer the normalized verdict-derived score whenever every rubric item
+    # is addressed so the stored score cannot contradict all_fixed=true.
     if task.submission_mode == "answer":
         score = computed_score
     else:
         ai_score = data.get("score")
-        if ai_score is not None:
+        if normalized_all_fixed:
+            score = computed_score
+        elif ai_score is not None:
             try:
                 score = round(min(10.0, max(0.0, float(ai_score))), 1)
             except (TypeError, ValueError):
