@@ -7,6 +7,15 @@ function formatMeta(task) {
   return task.language.replaceAll('_', ' ');
 }
 
+function formatComplexity(value = '') {
+  if (!value) return '';
+
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
 function getOverallCompleteness(ai) {
   if (!ai) return null;
 
@@ -203,7 +212,16 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
                 }}
               >
                 <span className="task-progress-item-title">{entry.title}</span>
-                <span className="task-progress-item-meta">{formatMeta(entry)}</span>
+                <span className="task-scheduler-item-summary">
+                  <span className="task-progress-item-meta">{formatMeta(entry)}</span>
+                  {entry.complexity ? (
+                    <span
+                      className={`task-complexity-badge task-scheduler-item-complexity task-complexity-${entry.complexity}`}
+                    >
+                      {formatComplexity(entry.complexity)}
+                    </span>
+                  ) : null}
+                </span>
                 {taskResult ? (
                   <span className="task-scheduler-item-progress">
                     <span>Score: {taskResult.score} / 10</span>

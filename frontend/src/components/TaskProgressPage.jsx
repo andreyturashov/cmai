@@ -74,6 +74,15 @@ function formatMeta(entry) {
   return `${entry.task.language} · ${entry.score}/10 · ${formattedDate}`;
 }
 
+function formatComplexity(value = '') {
+  if (!value) return '';
+
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
 export default function TaskProgressPage({ currentUser, onError }) {
   const [progressEntries, setProgressEntries] = useState([]);
   const [dailyProgress, setDailyProgress] = useState([]);
@@ -336,7 +345,16 @@ export default function TaskProgressPage({ currentUser, onError }) {
                     }}
                   >
                     <span className="task-progress-item-title">{entry.task.title}</span>
-                    <span className="task-progress-item-meta">{formatMeta(entry)}</span>
+                    <span className="task-progress-item-summary">
+                      <span className="task-progress-item-meta">{formatMeta(entry)}</span>
+                      {entry.task.complexity ? (
+                        <span
+                          className={`task-complexity-badge task-progress-item-complexity task-complexity-${entry.task.complexity}`}
+                        >
+                          {formatComplexity(entry.task.complexity)}
+                        </span>
+                      ) : null}
+                    </span>
                   </button>
                 );
               })}

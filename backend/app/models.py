@@ -9,6 +9,7 @@ ALLOWED_INTERESTS = {
     "python_questions",
     "pandas",
     "langchain_langgraph",
+    "machine_learning",
     "python_theory",
     "fastapi",
     "django",
@@ -22,6 +23,12 @@ class Severity(str, Enum):
     critical = "critical"
     medium = "medium"
     low = "low"
+
+
+class Complexity(str, Enum):
+    easy = "easy"
+    medium = "medium"
+    hard = "hard"
 
 
 class Issue(BaseModel):
@@ -41,6 +48,7 @@ class Task(BaseModel):
     requirements: list[str]
     instructions: list[str]
     language: str
+    complexity: Complexity = Complexity.medium
     submission_mode: str = "comments"
     code: str
     reference_issues: list[Issue] = Field(default_factory=list)
@@ -102,6 +110,7 @@ class ScheduledTaskEntry(BaseModel):
     requirements: list[str]
     instructions: list[str]
     language: str
+    complexity: Complexity = Complexity.medium
     submission_mode: str = "comments"
 
 
@@ -163,6 +172,7 @@ class UserProgressTaskSummary(BaseModel):
     requirements: list[str]
     instructions: list[str]
     language: str
+    complexity: Complexity = Complexity.medium
     submission_mode: str = "comments"
     code: str
     reference_issues: list[Issue] = Field(default_factory=list)

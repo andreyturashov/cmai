@@ -13,7 +13,13 @@ from app.db import create_session_factory, get_session
 from app.db import normalize_database_url as normalize_db_url
 from app.db_models import Base, TaskRecord, UserProgressRecord, UserRecord
 from app.main import REVIEWS, admin, app
-from app.models import AIAnalysisResult, AIIssueVerdict, InlineComment, UserReview
+from app.models import (
+    AIAnalysisResult,
+    AIIssueVerdict,
+    Complexity,
+    InlineComment,
+    UserReview,
+)
 from app.seed_data import TASKS
 from app.seed_tasks import add_missing_seed_tasks, replace_seed_tasks
 
@@ -367,7 +373,7 @@ def test_get_task_schedule_uses_interests_and_excludes_completed_tasks(client):
     assert schedule_resp.status_code == 200
     data = schedule_resp.json()
     assert data["tasks"]
-    assert len(data["tasks"]) <= 5
+    assert len(data["tasks"]) <= 10
     assert all(task["language"] in {"python_theory", "javascript"} for task in data["tasks"])
     assert all(task["id"] != "python-theory-1" for task in data["tasks"])
 
@@ -738,6 +744,7 @@ def test_get_tasks_has_expected_fields(client):
         "requirements",
         "instructions",
         "language",
+        "complexity",
     ):
         assert key in item
     # code should NOT be in the list endpoint
@@ -844,6 +851,7 @@ def test_get_task_by_id(client):
     data = resp.json()
     assert data["id"] == "task-1"
     assert "code" in data
+    assert "complexity" in data
     assert "reference_issues" in data
 
 
@@ -1028,6 +1036,8 @@ def test_all_tasks_have_valid_language():
         "python",
         "python_questions",
         "pandas",
+        "langchain_langgraph",
+        "machine_learning",
         "python_theory",
         "fastapi",
         "django",
@@ -1043,6 +1053,11 @@ def test_theory_tasks_use_answer_submission_mode():
     for task in TASKS:
         if task.language == "python_theory":
             assert task.submission_mode == "answer"
+
+
+def test_all_tasks_have_valid_complexity():
+    for task in TASKS:
+        assert task.complexity in set(Complexity), f"Task {task.id} has invalid complexity"
 
 
 def test_all_issues_have_valid_severity():
@@ -1070,6 +1085,8 @@ def test_each_language_has_tasks():
     assert "javascript" in languages
     assert "python_questions" in languages
     assert "pandas" in languages
+    assert "langchain_langgraph" in languages
+    assert "machine_learning" in languages
     assert "python_theory" in languages
     assert "sql" in languages
 

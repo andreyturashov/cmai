@@ -6,6 +6,7 @@ import LeftPanel from './LeftPanel';
 const mockTask = {
   title: 'Validate User Input',
   description: 'A function that processes user registration',
+  complexity: 'medium',
   requirements: ['Check empty fields', 'Validate email format'],
 };
 
@@ -25,6 +26,12 @@ describe('LeftPanel', () => {
     render(<LeftPanel task={mockTask} aiAnalysis={null} aiLoading={false} />);
     expect(screen.getByText('Check empty fields')).toBeInTheDocument();
     expect(screen.getByText('Validate email format')).toBeInTheDocument();
+  });
+
+  it('renders task complexity', () => {
+    render(<LeftPanel task={mockTask} aiAnalysis={null} aiLoading={false} />);
+    expect(screen.getByText('Complexity')).toBeInTheDocument();
+    expect(screen.getByText('Medium')).toBeInTheDocument();
   });
 
   it('shows loading spinner when aiLoading', () => {

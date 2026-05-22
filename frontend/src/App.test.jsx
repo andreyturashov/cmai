@@ -55,6 +55,7 @@ const fullTask = {
   title: 'Validate Input',
   description: 'Check user registration fields',
   language: 'python',
+  complexity: 'medium',
   code: 'def register(name):\n    pass',
   requirements: ['Validate name'],
   reference_issues: [],
@@ -187,6 +188,7 @@ describe('App', () => {
     expect(screen.getByText('Python (questions)')).toBeInTheDocument();
     expect(screen.getByText('Pandas')).toBeInTheDocument();
     expect(screen.getByText('LangChain/LangGraph')).toBeInTheDocument();
+    expect(screen.getByText('Machine Learning')).toBeInTheDocument();
     expect(screen.getByText('Python (theory)')).toBeInTheDocument();
     expect(screen.getByText('FastAPI')).toBeInTheDocument();
     expect(screen.getByText('Django')).toBeInTheDocument();
@@ -215,6 +217,7 @@ describe('App', () => {
           requirements: ['Validate name'],
           instructions: ['Review the code'],
           language: 'python',
+          complexity: 'medium',
           submission_mode: 'comments',
         },
       ],
@@ -228,6 +231,7 @@ describe('App', () => {
           requirements: ['Use parameterized queries'],
           instructions: ['Review the code'],
           language: 'javascript',
+          complexity: 'hard',
           submission_mode: 'comments',
         },
       ],
@@ -247,11 +251,13 @@ describe('App', () => {
     await waitFor(() => expect(api.getTaskSchedule).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.getByText("Today's Tasks")).toBeInTheDocument());
     expect(screen.getAllByText('Validate Input').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Medium').length).toBeGreaterThan(0);
 
     await userEvent.click(screen.getByText('Regenerate Tasks'));
 
     await waitFor(() => expect(api.regenerateTaskSchedule).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.getAllByText('Escape SQL values').length).toBeGreaterThan(0));
+    expect(screen.getAllByText('Hard').length).toBeGreaterThan(0);
     expect(window.location.pathname).toBe('/task-scheduler');
   });
 
@@ -274,6 +280,7 @@ describe('App', () => {
           requirements: ['Spot the main bug'],
           instructions: ['Explain why it matters'],
           language: 'python',
+          complexity: 'medium',
           submission_mode: 'comments',
         },
       ],
@@ -405,6 +412,28 @@ describe('App', () => {
 
     await userEvent.click(screen.getByText('Pandas'));
     await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('pandas'));
+  });
+
+  it('switches to Machine Learning language', async () => {
+    api.getTasks.mockResolvedValue([
+      {
+        id: 'machine-learning-question-1',
+        title: 'Split train and test data correctly',
+        language: 'machine_learning',
+      },
+    ]);
+    api.getTaskById.mockResolvedValue({
+      ...fullTask,
+      id: 'machine-learning-question-1',
+      title: 'Split train and test data correctly',
+      language: 'machine_learning',
+      code: 'from sklearn.model_selection import train_test_split\n\ndef split_data(X, y):\n    return train_test_split(X, y, test_size=0.8)\n',
+    });
+
+    render(<App />);
+
+    await userEvent.click(screen.getByText('Machine Learning'));
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('machine_learning'));
   });
 
   it('switches to FastAPI language', async () => {
@@ -631,6 +660,7 @@ describe('App', () => {
     await waitFor(() => expect(api.getUserProgressDaily).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByText('Daily Tasks')).toBeInTheDocument());
     await waitFor(() => expect(screen.getByText('Completed Tasks')).toBeInTheDocument());
+    expect(screen.getAllByText('Medium').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Score: 8.5 / 10')).toHaveLength(2);
     expect(screen.getByText('✗ Some issues remain')).toBeInTheDocument();
     expect(screen.getByText('Good structure')).toBeInTheDocument();

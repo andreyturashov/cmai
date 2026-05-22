@@ -7,7 +7,7 @@ from app.additional_task_prompts import (
     REACT_TASK_PROMPTS,
     SingleIssueReviewTaskPrompt,
 )
-from app.models import Issue, Severity, Task
+from app.models import Complexity, Issue, Severity, Task
 
 
 class SimplePythonQuestionPrompt(TypedDict):
@@ -1323,6 +1323,230 @@ LANGCHAIN_LANGGRAPH_PYTHON_QUESTION_PROMPTS: list[SimplePythonQuestionPrompt] = 
 ]
 
 
+MACHINE_LEARNING_PYTHON_QUESTION_PROMPTS: list[SimplePythonQuestionPrompt] = [
+    {
+        "slug": "ml-train-test-split-size",
+        "title": "Split train and test data correctly",
+        "description": "Prepares a quick baseline experiment with scikit-learn.",
+        "code": "from sklearn.model_selection import train_test_split\n\ndef split_data(X, y):\n    return train_test_split(X, y, test_size=0.8, random_state=42)\n",
+        "issue_line": 4,
+        "issue_title": "Test split is much too large for a normal baseline",
+        "issue_description": "Using 80% of the data for testing leaves too little training data and weakens the model fit.",
+        "issue_suggestion": "Use a smaller test split such as 0.2 unless there is a clear reason otherwise.",
+        "issue_code": "return train_test_split(X, y, test_size=0.2, random_state=42)",
+    },
+    {
+        "slug": "ml-fit-scaler-before-split",
+        "title": "Scale features without data leakage",
+        "description": "Normalizes tabular features before model training.",
+        "code": "from sklearn.preprocessing import StandardScaler\n\ndef scale_data(X_train, X_test):\n    scaler = StandardScaler()\n    scaler.fit(X_train.append(X_test))\n    return scaler.transform(X_train), scaler.transform(X_test)\n",
+        "issue_line": 5,
+        "issue_title": "Scaler is fit on train and test data together",
+        "issue_description": "Fitting the scaler on both splits leaks test distribution statistics into training.",
+        "issue_suggestion": "Fit the scaler on the training data only, then transform both splits.",
+        "issue_code": "scaler.fit(X_train)",
+    },
+    {
+        "slug": "ml-accuracy-on-regression",
+        "title": "Pick a valid metric for regression",
+        "description": "Scores a regression model after prediction.",
+        "code": "from sklearn.metrics import accuracy_score\n\ndef score_model(y_true, y_pred):\n    return accuracy_score(y_true, y_pred)\n",
+        "issue_line": 4,
+        "issue_title": "Classification accuracy is used for regression output",
+        "issue_description": "Regression predictions are continuous values, so exact-match accuracy is not an appropriate metric.",
+        "issue_suggestion": "Use a regression metric such as MAE, MSE, or R^2.",
+        "issue_code": "from sklearn.metrics import mean_absolute_error\nreturn mean_absolute_error(y_true, y_pred)",
+    },
+    {
+        "slug": "ml-label-encoding-target-leak",
+        "title": "Encode categories without breaking unseen values",
+        "description": "Transforms a categorical feature before training.",
+        "code": "from sklearn.preprocessing import LabelEncoder\n\ndef encode_feature(train_series, test_series):\n    encoder = LabelEncoder()\n    encoder.fit(train_series)\n    return encoder.transform(train_series), encoder.transform(test_series)\n",
+        "issue_line": 5,
+        "issue_title": "LabelEncoder can fail on unseen test categories",
+        "issue_description": "If the test set contains a category absent from training, `transform` raises an error.",
+        "issue_suggestion": 'Use an encoder designed for feature columns, such as `OneHotEncoder(handle_unknown="ignore")`.',
+        "issue_code": "from sklearn.preprocessing import OneHotEncoder\nencoder = OneHotEncoder(handle_unknown='ignore', sparse_output=False)",
+    },
+    {
+        "slug": "ml-kmeans-no-random-state",
+        "title": "Make clustering runs reproducible",
+        "description": "Builds a simple KMeans clustering baseline.",
+        "code": "from sklearn.cluster import KMeans\n\ndef cluster_points(X):\n    model = KMeans(n_clusters=3)\n    return model.fit_predict(X)\n",
+        "issue_line": 4,
+        "issue_title": "Clustering result is not reproducible",
+        "issue_description": "Without a fixed random state, centroid initialization can produce different clusters across runs.",
+        "issue_suggestion": "Set `random_state` so experiments are easier to compare and debug.",
+        "issue_code": "model = KMeans(n_clusters=3, random_state=42)",
+    },
+    {
+        "slug": "ml-logistic-no-max-iter",
+        "title": "Avoid premature convergence warnings",
+        "description": "Trains a logistic regression classifier on a medium-sized dataset.",
+        "code": "from sklearn.linear_model import LogisticRegression\n\ndef train_model(X_train, y_train):\n    model = LogisticRegression()\n    model.fit(X_train, y_train)\n    return model\n",
+        "issue_line": 4,
+        "issue_title": "Default iteration limit may be too low",
+        "issue_description": "Logistic regression often needs a higher `max_iter` on real datasets, especially after scaling or with many features.",
+        "issue_suggestion": "Set a larger iteration budget explicitly.",
+        "issue_code": "model = LogisticRegression(max_iter=1000)",
+    },
+    {
+        "slug": "ml-cross-val-on-test",
+        "title": "Run cross-validation on the correct split",
+        "description": "Evaluates a model using cross-validation.",
+        "code": "from sklearn.model_selection import cross_val_score\n\ndef evaluate(model, X_train, y_train, X_test, y_test):\n    return cross_val_score(model, X_test, y_test, cv=5).mean()\n",
+        "issue_line": 4,
+        "issue_title": "Cross-validation is run on the held-out test set",
+        "issue_description": "The test split should remain untouched until final evaluation, not reused for model selection.",
+        "issue_suggestion": "Run cross-validation on the training data and keep the test set for final scoring.",
+        "issue_code": "return cross_val_score(model, X_train, y_train, cv=5).mean()",
+    },
+    {
+        "slug": "ml-classification-threshold",
+        "title": "Convert probabilities to class labels correctly",
+        "description": "Uses model probabilities to produce binary predictions.",
+        "code": "def to_labels(probabilities):\n    return [1 if prob > 1 else 0 for prob in probabilities]\n",
+        "issue_line": 2,
+        "issue_title": "Probability threshold can never be reached",
+        "issue_description": "Predicted probabilities are typically in the range [0, 1], so `> 1` makes every output negative.",
+        "issue_suggestion": "Use a sensible decision threshold such as 0.5 unless tuned otherwise.",
+        "issue_code": "return [1 if prob >= 0.5 else 0 for prob in probabilities]",
+    },
+    {
+        "slug": "ml-random-forest-regression-metric",
+        "title": "Score feature importances after fitting",
+        "description": "Trains a random forest and then reads feature importances.",
+        "code": "from sklearn.ensemble import RandomForestClassifier\n\ndef feature_importance(X_train, y_train):\n    model = RandomForestClassifier()\n    return model.feature_importances_\n",
+        "issue_line": 4,
+        "issue_title": "Feature importances are read before fitting the model",
+        "issue_description": "`feature_importances_` is only populated after the estimator has been trained.",
+        "issue_suggestion": "Fit the model before accessing learned attributes.",
+        "issue_code": "model.fit(X_train, y_train)\nreturn model.feature_importances_",
+    },
+    {
+        "slug": "ml-pipeline-order-impute-scale",
+        "title": "Order preprocessing steps correctly in a pipeline",
+        "description": "Builds a numeric preprocessing pipeline.",
+        "code": "from sklearn.pipeline import Pipeline\nfrom sklearn.impute import SimpleImputer\nfrom sklearn.preprocessing import StandardScaler\n\ndef build_pipeline():\n    return Pipeline([\n        ('scale', StandardScaler()),\n        ('impute', SimpleImputer(strategy='median')),\n    ])\n",
+        "issue_line": 6,
+        "issue_title": "Scaling runs before missing values are imputed",
+        "issue_description": "Most scalers expect finite numeric inputs and should usually run after imputation.",
+        "issue_suggestion": "Impute missing values before scaling.",
+        "issue_code": "return Pipeline([('impute', SimpleImputer(strategy='median')), ('scale', StandardScaler())])",
+    },
+    {
+        "slug": "ml-confusion-matrix-arg-order",
+        "title": "Build a confusion matrix with correct argument order",
+        "description": "Computes a confusion matrix after predictions are made.",
+        "code": "from sklearn.metrics import confusion_matrix\n\ndef matrix(y_true, y_pred):\n    return confusion_matrix(y_pred, y_true)\n",
+        "issue_line": 4,
+        "issue_title": "True and predicted labels are reversed",
+        "issue_description": "Swapping the arguments changes how the matrix is interpreted and can mislead debugging.",
+        "issue_suggestion": "Pass true labels first, then predictions.",
+        "issue_code": "return confusion_matrix(y_true, y_pred)",
+    },
+    {
+        "slug": "ml-grid-search-fit-test",
+        "title": "Tune hyperparameters on the training split",
+        "description": "Runs a grid search for a classifier.",
+        "code": "from sklearn.model_selection import GridSearchCV\n\ndef tune_model(model, params, X_train, y_train, X_test, y_test):\n    search = GridSearchCV(model, params, cv=3)\n    search.fit(X_test, y_test)\n    return search.best_estimator_\n",
+        "issue_line": 5,
+        "issue_title": "Grid search is fit on the test split",
+        "issue_description": "That leaks evaluation data into tuning and invalidates the final test measurement.",
+        "issue_suggestion": "Fit the search on the training split only.",
+        "issue_code": "search.fit(X_train, y_train)",
+    },
+    {
+        "slug": "ml-pca-before-scaling",
+        "title": "Prepare data correctly before PCA",
+        "description": "Reduces dimensionality for a numeric feature matrix.",
+        "code": "from sklearn.decomposition import PCA\n\ndef reduce_dimensions(X):\n    pca = PCA(n_components=2)\n    return pca.fit_transform(X)\n",
+        "issue_line": 4,
+        "issue_title": "PCA is applied without standardizing feature scales",
+        "issue_description": "Features with larger numeric ranges can dominate the principal components.",
+        "issue_suggestion": "Scale or standardize features before PCA when units differ significantly.",
+        "issue_code": "from sklearn.preprocessing import StandardScaler\nX_scaled = StandardScaler().fit_transform(X)\nreturn pca.fit_transform(X_scaled)",
+    },
+    {
+        "slug": "ml-svc-no-probability",
+        "title": "Request probabilities before calling predict_proba",
+        "description": "Trains an SVC and then needs class probabilities.",
+        "code": "from sklearn.svm import SVC\n\ndef train_and_score(X_train, y_train, X_test):\n    model = SVC()\n    model.fit(X_train, y_train)\n    return model.predict_proba(X_test)\n",
+        "issue_line": 5,
+        "issue_title": "SVC probabilities are disabled by default",
+        "issue_description": "Calling `predict_proba` fails unless `probability=True` was enabled before fitting.",
+        "issue_suggestion": "Initialize the classifier with probability support if probabilities are required.",
+        "issue_code": "model = SVC(probability=True)",
+    },
+    {
+        "slug": "ml-target-shape-ravel",
+        "title": "Provide a 1D target vector to scikit-learn",
+        "description": "Fits a simple classifier on a pandas target column.",
+        "code": "from sklearn.linear_model import LogisticRegression\n\ndef fit_classifier(X_train, y_train):\n    model = LogisticRegression(max_iter=500)\n    model.fit(X_train, y_train[['label']])\n    return model\n",
+        "issue_line": 5,
+        "issue_title": "Target is passed as a 2D frame instead of a 1D vector",
+        "issue_description": "Many estimators expect a one-dimensional target array and warn or error on a single-column frame.",
+        "issue_suggestion": "Flatten the target column before fitting.",
+        "issue_code": "model.fit(X_train, y_train['label'])",
+    },
+    {
+        "slug": "ml-knn-unscaled-features",
+        "title": "Use feature scaling for distance-based models",
+        "description": "Trains a KNN classifier on numeric features with different units.",
+        "code": "from sklearn.neighbors import KNeighborsClassifier\n\ndef train_knn(X_train, y_train):\n    model = KNeighborsClassifier(n_neighbors=5)\n    model.fit(X_train, y_train)\n    return model\n",
+        "issue_line": 4,
+        "issue_title": "KNN is trained on raw features with mismatched scales",
+        "issue_description": "Distance-based models are very sensitive to feature magnitude, so large-unit columns dominate the neighbors.",
+        "issue_suggestion": "Scale the features before training KNN.",
+        "issue_code": "from sklearn.pipeline import make_pipeline\nreturn make_pipeline(StandardScaler(), KNeighborsClassifier(n_neighbors=5)).fit(X_train, y_train)",
+    },
+    {
+        "slug": "ml-class-imbalance-stratify",
+        "title": "Preserve class ratios during a split",
+        "description": "Creates train and test splits for an imbalanced dataset.",
+        "code": "from sklearn.model_selection import train_test_split\n\ndef split_data(X, y):\n    return train_test_split(X, y, test_size=0.2, random_state=42)\n",
+        "issue_line": 4,
+        "issue_title": "Class distribution may drift without stratification",
+        "issue_description": "On imbalanced labels, a plain random split can underrepresent the minority class in one split.",
+        "issue_suggestion": "Stratify by the target labels when splitting classification data.",
+        "issue_code": "return train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)",
+    },
+    {
+        "slug": "ml-threshold-from-predict",
+        "title": "Use probabilities when tuning a custom threshold",
+        "description": "Creates predictions using a custom classification threshold.",
+        "code": "def custom_threshold(model, X_test):\n    labels = model.predict(X_test)\n    return [1 if value > 0.7 else 0 for value in labels]\n",
+        "issue_line": 3,
+        "issue_title": "Thresholding is applied to hard class labels instead of probabilities",
+        "issue_description": "`predict` already returns class labels, so comparing them to 0.7 does not implement a real threshold policy.",
+        "issue_suggestion": "Use predicted probabilities for the positive class before applying the threshold.",
+        "issue_code": "probs = model.predict_proba(X_test)[:, 1]\nreturn [1 if value > 0.7 else 0 for value in probs]",
+    },
+    {
+        "slug": "ml-roc-auc-class-labels",
+        "title": "Compute ROC AUC from scores rather than labels",
+        "description": "Evaluates a binary classifier with ROC AUC.",
+        "code": "from sklearn.metrics import roc_auc_score\n\ndef auc_score(y_true, y_pred):\n    return roc_auc_score(y_true, y_pred)\n",
+        "issue_line": 4,
+        "issue_title": "ROC AUC is computed from discrete labels",
+        "issue_description": "ROC AUC is more informative when built from probabilities or decision scores instead of thresholded class predictions.",
+        "issue_suggestion": "Pass predicted probabilities or decision-function scores.",
+        "issue_code": "return roc_auc_score(y_true, y_scores)",
+    },
+    {
+        "slug": "ml-feature-selection-fit-all",
+        "title": "Select features without leaking the test set",
+        "description": "Uses univariate feature selection before fitting a model.",
+        "code": "from sklearn.feature_selection import SelectKBest\n\ndef select_features(selector, X_train, y_train, X_test):\n    selector.fit(X_train.append(X_test), y_train)\n    return selector.transform(X_train), selector.transform(X_test)\n",
+        "issue_line": 4,
+        "issue_title": "Feature selector is fit with test features included",
+        "issue_description": "Feature selection should learn only from training data to avoid leaking information from the holdout set.",
+        "issue_suggestion": "Fit the selector on the training split only.",
+        "issue_code": "selector.fit(X_train, y_train)",
+    },
+]
+
+
 def build_simple_python_question_task(
     index: int,
     prompt: SimplePythonQuestionPrompt,
@@ -1441,6 +1665,45 @@ def build_single_issue_review_task(
             )
         ],
     )
+
+
+def infer_task_complexity(task: Task) -> Complexity:
+    score = 0
+    code_line_count = len(task.code.splitlines())
+    severity_score = sum(
+        (
+            2
+            if issue.severity == Severity.critical
+            else 1
+            if issue.severity == Severity.medium
+            else 0
+        )
+        for issue in task.reference_issues
+    )
+
+    score += severity_score
+    score += max(0, len(task.requirements) - 3)
+
+    if task.submission_mode == "answer":
+        score -= 1
+
+    if task.language in {"python_questions", "pandas"}:
+        score -= 1
+    elif task.language in {"machine_learning", "langchain_langgraph"}:
+        score += 1
+    elif task.language in {"fastapi", "django", "react", "sql", "javascript"}:
+        score += 2
+
+    if code_line_count >= 35:
+        score += 2
+    elif code_line_count >= 20:
+        score += 1
+
+    if score <= 1:
+        return Complexity.easy
+    if score <= 4:
+        return Complexity.medium
+    return Complexity.hard
 
 
 TASKS = [
@@ -4691,6 +4954,16 @@ TASKS = [
         for index, prompt in enumerate(LANGCHAIN_LANGGRAPH_PYTHON_QUESTION_PROMPTS, start=1)
     ],
     *[
+        build_simple_python_question_task(
+            index,
+            prompt,
+            language="machine_learning",
+            task_prefix="machine-learning-question",
+            issue_prefix="machine-learning-question",
+        )
+        for index, prompt in enumerate(MACHINE_LEARNING_PYTHON_QUESTION_PROMPTS, start=1)
+    ],
+    *[
         build_python_theory_task(index, prompt)
         for index, prompt in enumerate(
             [*PYTHON_THEORY_PROMPTS, *PYTHON_THEORY_HARD_PROMPTS],
@@ -4739,4 +5012,8 @@ TASKS = [
     ],
 ]
 
-TASKS = [task for task in TASKS if task.language not in {"go", "rust"}]
+TASKS = [
+    task.model_copy(update={"complexity": infer_task_complexity(task)})
+    for task in TASKS
+    if task.language not in {"go", "rust"}
+]
