@@ -169,11 +169,7 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
     <section className="task-scheduler-layout">
       <aside className="task-scheduler-menu card reveal">
         <div className="task-scheduler-header">
-          <p className="eyebrow">Task Scheduler</p>
-          <h2>Today&apos;s Tasks</h2>
-          <p className="muted">
-            Randomized from your interests and filtered against completed work.
-          </p>
+          <p className="eyebrow">Today&apos;s Tasks</p>
         </div>
         <div className="task-scheduler-actions">
           <button

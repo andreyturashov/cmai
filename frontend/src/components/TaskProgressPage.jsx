@@ -9,7 +9,7 @@ const CALENDAR_WEEK_START = 1;
 const CALENDAR_BLOCK_MARGIN = 4;
 const DEFAULT_CALENDAR_BLOCK_SIZE = 13;
 const MIN_CALENDAR_BLOCK_SIZE = 10;
-const MAX_CALENDAR_BLOCK_SIZE = 30;
+const MAX_CALENDAR_BLOCK_SIZE = 16;
 const CALENDAR_WEEKDAY_LABEL_SPACE = 56;
 
 function formatDayKey(value) {
@@ -255,12 +255,7 @@ export default function TaskProgressPage({ currentUser, onError }) {
       <section className="task-progress-calendar card reveal">
         <div className="task-progress-calendar-header">
           <div>
-            <p className="eyebrow">TaskProgress</p>
-            <h2>Daily Activity</h2>
-            <p className="muted">
-              Review {calendarYear} activity by day and click an active date to filter completed
-              tasks.
-            </p>
+            <p className="eyebrow">Daily Tasks</p>
           </div>
           {selectedDay ? (
             <button
@@ -314,19 +309,16 @@ export default function TaskProgressPage({ currentUser, onError }) {
         <p className="task-progress-calendar-summary muted">
           {selectedDay
             ? `${selectedDay}: ${selectedDayCount} completed ${selectedDayCount === 1 ? 'task' : 'tasks'}`
-            : 'Select a highlighted day to filter the completed tasks list.'}
+            : ''}
         </p>
       </section>
 
       <section className="task-progress-layout">
         <aside className="task-progress-menu card reveal">
           <div className="task-progress-menu-header">
-            <p className="eyebrow">TaskProgress</p>
-            <h2>{selectedDay ? 'Completed Tasks for Selected Day' : 'Completed Tasks'}</h2>
+            <p className="eyebrow">Completed Tasks</p>
             <p className="muted">
-              {selectedDay
-                ? 'Review submissions completed on the selected calendar day.'
-                : 'Review saved work, scores, and the original task details.'}
+              {selectedDay ? 'Review submissions completed on the selected calendar day.' : ''}
             </p>
           </div>
           {filteredProgressEntries.length ? (
@@ -364,7 +356,6 @@ export default function TaskProgressPage({ currentUser, onError }) {
             aiLoading={false}
           />
           <CodeReviewPanel
-            title="TaskProgress Viewer"
             code={selectedEntry?.task.code || ''}
             language={selectedEntry?.task.language || 'python'}
             instructions={selectedEntry?.task.instructions || []}
@@ -373,7 +364,7 @@ export default function TaskProgressPage({ currentUser, onError }) {
             answer={selectedEntry?.user_answer || ''}
             savedAnswer={selectedEntry?.user_answer || ''}
             referenceIssues={showReference ? selectedEntry?.task.reference_issues || [] : []}
-            referenceIssueCount={selectedEntry?.task.reference_issues?.length || 0}
+            referenceIssueCount={0}
             showReference={showReference}
             onToggleReference={() => setShowReference((value) => !value)}
             onAddComment={() => {}}
@@ -381,6 +372,8 @@ export default function TaskProgressPage({ currentUser, onError }) {
             onAnswerChange={() => {}}
             onSubmitReview={() => {}}
             readOnly
+            showHeader={false}
+            eyebrowLabel="Code"
           />
         </div>
       </section>

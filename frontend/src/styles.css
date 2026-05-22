@@ -421,8 +421,8 @@ body {
 
 .review-workspace-header {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
+  align-items: flex-start;
+  justify-content: flex-start;
   gap: 20px;
 }
 
@@ -517,16 +517,27 @@ body {
   gap: 8px;
 }
 
+.review-title .eyebrow {
+  margin: 0;
+  line-height: 1;
+}
+
 .review-title h3 {
   margin: 0;
 }
 
 .info-icon-wrap {
   position: relative;
+  display: inline-flex;
+  align-items: center;
 }
 
 .info-icon {
-  font-size: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  line-height: 1;
   color: rgba(29, 41, 48, 0.5);
   cursor: help;
 }
@@ -1362,7 +1373,7 @@ button:disabled {
 .task-progress-layout {
   display: grid;
   grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
-  gap: 16px;
+  gap: 24px;
   align-items: stretch;
 }
 
@@ -1403,11 +1414,27 @@ button:disabled {
   margin-top: 14px;
 }
 
+.task-progress-empty,
+.task-scheduler-empty {
+  margin-top: 20px;
+  padding: 18px;
+}
+
+.task-progress-empty h2,
+.task-scheduler-empty h2 {
+  margin: 0;
+}
+
+.task-progress-empty .muted,
+.task-scheduler-empty .muted {
+  margin: 14px 0 0;
+}
+
 .task-scheduler-layout {
   margin-top: 20px;
   display: grid;
   grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
-  gap: 16px;
+  gap: 24px;
   align-items: stretch;
 }
 
@@ -1540,12 +1567,14 @@ button:disabled {
 
 .task-progress-item {
   width: 100%;
+  padding: 16px 18px;
   text-align: left;
   display: grid;
   gap: 4px;
   background: rgba(255, 255, 255, 0.82);
   color: var(--ink);
   border: 1px solid var(--line);
+  border-radius: 16px;
 }
 
 .task-progress-item:hover {
@@ -1581,6 +1610,11 @@ button:disabled {
 .task-progress-detail,
 .task-scheduler-detail {
   height: 100%;
+}
+
+.task-progress-menu,
+.task-scheduler-menu {
+  padding: 18px;
 }
 
 .reveal {

@@ -332,7 +332,7 @@ export default function App() {
             <aside className="hero-signal card">
               <div className="hero-example-preview">
                 <section className="hero-example-detail">
-                  <p className="hero-example-section-label">PR Title</p>
+                  <p className="hero-example-section-label">Task</p>
                   <h4>{LANDING_EXAMPLE.taskTitle}</h4>
                   <div className="hero-example-detail-block">
                     <p className="hero-example-section-label">Requirements</p>
@@ -394,10 +394,6 @@ export default function App() {
       ) : (
         <section className="review-workspace reveal">
           <div className="review-workspace-header">
-            <div>
-              <p className="eyebrow">Practice arena</p>
-              <h3>Open a task and review it like a teammate would.</h3>
-            </div>
             <div className="task-switcher">
               <div className="language-toggle">
                 {LANGUAGE_OPTIONS.map((option) => (

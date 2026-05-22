@@ -628,7 +628,7 @@ describe('App', () => {
 
     await waitFor(() => expect(api.getUserProgress).toHaveBeenCalled());
     await waitFor(() => expect(api.getUserProgressDaily).toHaveBeenCalled());
-    await waitFor(() => expect(screen.getByText('Daily Activity')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Daily Tasks')).toBeInTheDocument());
     await waitFor(() => expect(screen.getByText('Completed Tasks')).toBeInTheDocument());
     expect(screen.getAllByText('Score: 8.5 / 10')).toHaveLength(2);
     expect(screen.getByText('✗ Some issues remain')).toBeInTheDocument();
@@ -640,6 +640,7 @@ describe('App', () => {
     expect(screen.getByText('Lists are mutable while tuples are immutable.')).toBeInTheDocument();
     expect(screen.getByText('Guard against writing raw arrays directly.')).toBeInTheDocument();
     expect(screen.getByText('Suggestion: Join the ids before writing them.')).toBeInTheDocument();
+    expect(screen.queryByText('Show Answer')).not.toBeInTheDocument();
     expect(window.location.pathname).toBe('/task-progress');
   });
 
