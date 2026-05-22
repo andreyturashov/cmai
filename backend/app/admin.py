@@ -93,16 +93,23 @@ class TaskAdmin(ModelView, model=TaskRecord):
         TaskRecord.id,
         TaskRecord.title,
         TaskRecord.language,
+        TaskRecord.complexity,
         TaskRecord.submission_mode,
         TaskRecord.created_at,
         TaskRecord.updated_at,
     ]
     column_details_list = "__all__"
-    column_searchable_list = [TaskRecord.id, TaskRecord.title, TaskRecord.language]
+    column_searchable_list = [
+        TaskRecord.id,
+        TaskRecord.title,
+        TaskRecord.language,
+        TaskRecord.complexity,
+    ]
     column_sortable_list = [
         TaskRecord.id,
         TaskRecord.title,
         TaskRecord.language,
+        TaskRecord.complexity,
         TaskRecord.created_at,
         TaskRecord.updated_at,
     ]

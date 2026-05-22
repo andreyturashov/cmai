@@ -55,6 +55,7 @@ const fullTask = {
   title: 'Validate Input',
   description: 'Check user registration fields',
   language: 'python',
+  complexity: 'medium',
   code: 'def register(name):\n    pass',
   requirements: ['Validate name'],
   reference_issues: [],

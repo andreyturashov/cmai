@@ -57,7 +57,7 @@ app.add_middleware(
 
 admin = setup_admin(app)
 
-TASK_SCHEDULE_LIMIT = 5
+TASK_SCHEDULE_LIMIT = 10
 
 REVIEWS: dict[str, UserReview] = {}
 
@@ -91,6 +91,7 @@ def serialize_scheduled_tasks(tasks: list) -> TaskScheduleResponse:
                 requirements=task.requirements,
                 instructions=task.instructions,
                 language=task.language,
+                complexity=task.complexity,
                 submission_mode=task.submission_mode,
             )
             for task in tasks
@@ -337,6 +338,7 @@ async def get_user_progress(
                 requirements=record.task.requirements,
                 instructions=record.task.instructions,
                 language=record.task.language,
+                complexity=record.task.complexity,
                 submission_mode=record.task.submission_mode,
                 code=record.task.code,
                 reference_issues=[
@@ -397,6 +399,7 @@ async def get_tasks(
             "requirements": task.requirements,
             "instructions": task.instructions,
             "language": task.language,
+            "complexity": task.complexity,
             "submission_mode": task.submission_mode,
         }
         for task in filtered

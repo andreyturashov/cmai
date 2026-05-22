@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db_models import TaskIssueRecord, TaskRecord
-from app.models import Issue, Severity, Task
+from app.models import Complexity, Issue, Severity, Task
 
 
 def _issue_from_record(issue: TaskIssueRecord) -> Issue:
@@ -28,6 +28,7 @@ def _task_from_record(task: TaskRecord) -> Task:
         requirements=list(task.requirements or []),
         instructions=list(task.instructions or []),
         language=task.language,
+        complexity=Complexity(task.complexity),
         submission_mode=task.submission_mode,
         code=task.code,
         reference_issues=[_issue_from_record(issue) for issue in task.reference_issues],

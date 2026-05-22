@@ -25,6 +25,12 @@ class Severity(str, Enum):
     low = "low"
 
 
+class Complexity(str, Enum):
+    easy = "easy"
+    medium = "medium"
+    hard = "hard"
+
+
 class Issue(BaseModel):
     id: str
     line: int
@@ -42,6 +48,7 @@ class Task(BaseModel):
     requirements: list[str]
     instructions: list[str]
     language: str
+    complexity: Complexity = Complexity.medium
     submission_mode: str = "comments"
     code: str
     reference_issues: list[Issue] = Field(default_factory=list)
@@ -103,6 +110,7 @@ class ScheduledTaskEntry(BaseModel):
     requirements: list[str]
     instructions: list[str]
     language: str
+    complexity: Complexity = Complexity.medium
     submission_mode: str = "comments"
 
 
@@ -164,6 +172,7 @@ class UserProgressTaskSummary(BaseModel):
     requirements: list[str]
     instructions: list[str]
     language: str
+    complexity: Complexity = Complexity.medium
     submission_mode: str = "comments"
     code: str
     reference_issues: list[Issue] = Field(default_factory=list)

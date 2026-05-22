@@ -1,5 +1,14 @@
 import React from 'react';
 
+function formatComplexity(value = '') {
+  if (!value) return '';
+
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
 function formatTimestamp(value) {
   if (!value) return '';
 
@@ -26,6 +35,14 @@ export default function LeftPanel({ task, aiAnalysis, aiLoading, progressEntry =
         <p className="eyebrow">Task</p>
         <h2>{task.title}</h2>
         <p className="muted">{task.description}</p>
+        {task.complexity ? (
+          <div className="task-complexity-row">
+            <span className="task-complexity-label">Complexity</span>
+            <span className={`task-complexity-badge task-complexity-${task.complexity}`}>
+              {formatComplexity(task.complexity)}
+            </span>
+          </div>
+        ) : null}
       </section>
 
       <section>

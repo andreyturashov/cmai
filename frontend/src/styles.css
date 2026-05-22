@@ -485,6 +485,52 @@ body {
   margin: 0 0 8px;
 }
 
+.task-complexity-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 0;
+}
+
+.task-complexity-label {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: rgba(29, 41, 48, 0.68);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.task-complexity-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1;
+  border: 1px solid transparent;
+}
+
+.task-complexity-easy {
+  background: rgba(55, 168, 107, 0.12);
+  border-color: rgba(55, 168, 107, 0.2);
+  color: #1f6b45;
+}
+
+.task-complexity-medium {
+  background: rgba(255, 193, 59, 0.16);
+  border-color: rgba(255, 193, 59, 0.24);
+  color: #8a5a00;
+}
+
+.task-complexity-hard {
+  background: rgba(214, 72, 72, 0.12);
+  border-color: rgba(214, 72, 72, 0.18);
+  color: #9b2e2e;
+}
+
 .left-panel ul,
 .left-panel ol {
   margin: 10px 0 0;

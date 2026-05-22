@@ -7,7 +7,7 @@ from app.additional_task_prompts import (
     REACT_TASK_PROMPTS,
     SingleIssueReviewTaskPrompt,
 )
-from app.models import Issue, Severity, Task
+from app.models import Complexity, Issue, Severity, Task
 
 
 class SimplePythonQuestionPrompt(TypedDict):
@@ -1665,6 +1665,45 @@ def build_single_issue_review_task(
             )
         ],
     )
+
+
+def infer_task_complexity(task: Task) -> Complexity:
+    score = 0
+    code_line_count = len(task.code.splitlines())
+    severity_score = sum(
+        (
+            2
+            if issue.severity == Severity.critical
+            else 1
+            if issue.severity == Severity.medium
+            else 0
+        )
+        for issue in task.reference_issues
+    )
+
+    score += severity_score
+    score += max(0, len(task.requirements) - 3)
+
+    if task.submission_mode == "answer":
+        score -= 1
+
+    if task.language in {"python_questions", "pandas"}:
+        score -= 1
+    elif task.language in {"machine_learning", "langchain_langgraph"}:
+        score += 1
+    elif task.language in {"fastapi", "django", "react", "sql", "javascript"}:
+        score += 2
+
+    if code_line_count >= 35:
+        score += 2
+    elif code_line_count >= 20:
+        score += 1
+
+    if score <= 1:
+        return Complexity.easy
+    if score <= 4:
+        return Complexity.medium
+    return Complexity.hard
 
 
 TASKS = [
@@ -4973,4 +5012,8 @@ TASKS = [
     ],
 ]
 
-TASKS = [task for task in TASKS if task.language not in {"go", "rust"}]
+TASKS = [
+    task.model_copy(update={"complexity": infer_task_complexity(task)})
+    for task in TASKS
+    if task.language not in {"go", "rust"}
+]

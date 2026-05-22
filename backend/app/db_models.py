@@ -62,6 +62,12 @@ class TaskRecord(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     language: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    complexity: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="medium",
+        server_default=text("'medium'"),
+    )
     submission_mode: Mapped[str] = mapped_column(String(32), nullable=False, default="comments")
     code: Mapped[str] = mapped_column(Text, nullable=False)
     requirements: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
