@@ -186,6 +186,7 @@ describe('App', () => {
     expect(screen.getByText('Python')).toBeInTheDocument();
     expect(screen.getByText('Python (questions)')).toBeInTheDocument();
     expect(screen.getByText('Pandas')).toBeInTheDocument();
+    expect(screen.getByText('LangChain/LangGraph')).toBeInTheDocument();
     expect(screen.getByText('Python (theory)')).toBeInTheDocument();
     expect(screen.getByText('FastAPI')).toBeInTheDocument();
     expect(screen.getByText('Django')).toBeInTheDocument();

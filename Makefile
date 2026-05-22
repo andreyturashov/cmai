@@ -2,7 +2,7 @@ SHELL := /bin/zsh
 
 BACKEND_PORT ?= 8000
 
-.PHONY: backend frontend both migrate backend-seed backend-db-setup
+.PHONY: backend frontend both migrate backend-seed add-data replace-data backend-db-setup
 
 backend:
 	cd backend && uv run uvicorn app.main:app --reload --port $(BACKEND_PORT)
@@ -18,5 +18,11 @@ migrate:
 
 backend-seed:
 	cd backend && uv run python -m app.seed_tasks
+
+add-data:
+	cd backend && uv run python -m app.seed_tasks
+
+replace-data:
+	cd backend && uv run python -m app.seed_tasks --replace
 
 backend-db-setup: backend-migrate backend-seed

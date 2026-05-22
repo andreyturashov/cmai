@@ -12,6 +12,9 @@ uv run python -m app.seed_tasks
 uv run uvicorn app.main:app --reload --port 8000
 ```
 
+The default seed command only adds missing tasks from `seed_data.py` and preserves existing task-linked user progress.
+Use `uv run python -m app.seed_tasks --replace` only when you intentionally want to rebuild the task catalog from scratch.
+
 ## Database
 
 The backend now loads tasks from Postgres using async SQLAlchemy.
@@ -27,6 +30,7 @@ Useful commands:
 ```bash
 uv run alembic upgrade head
 uv run python -m app.seed_tasks
+uv run python -m app.seed_tasks --replace
 ```
 
 ## Google Auth
