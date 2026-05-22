@@ -12,6 +12,7 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 SESSION_SECRET = os.getenv("SESSION_SECRET", "dev-session-secret")
+ADMIN_EMAILS = os.getenv("ADMIN_EMAILS", "turashov@gmail.com")
 
 _google_request = google_requests.Request()
 
@@ -22,6 +23,14 @@ def get_cors_origins() -> list[str]:
         "http://localhost:5173,http://127.0.0.1:5173",
     )
     return [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+
+
+def get_admin_emails() -> set[str]:
+    return {email.strip().lower() for email in ADMIN_EMAILS.split(",") if email.strip()}
+
+
+def is_bootstrap_admin_email(email: str) -> bool:
+    return email.strip().lower() in get_admin_emails()
 
 
 def verify_google_credential(credential: str) -> dict[str, str]:

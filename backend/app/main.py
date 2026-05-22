@@ -18,6 +18,7 @@ from app.auth import (
     GOOGLE_CLIENT_ID,
     SESSION_SECRET,
     get_cors_origins,
+    is_bootstrap_admin_email,
     verify_google_credential,
 )
 from app.db import get_session
@@ -219,6 +220,7 @@ async def login_with_google(
             email=google_profile["email"],
             name=google_profile["name"],
             avatar_url=google_profile["avatar_url"],
+            is_admin=is_bootstrap_admin_email(google_profile["email"]),
         )
         session.add(user)
     else:

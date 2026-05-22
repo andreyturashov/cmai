@@ -12,7 +12,7 @@ from app.ai_analyzer import _build_prompt, analyze_review
 from app.db import create_session_factory, get_session
 from app.db import normalize_database_url as normalize_db_url
 from app.db_models import Base, TaskRecord, UserProgressRecord, UserRecord
-from app.main import REVIEWS, app
+from app.main import REVIEWS, admin, app
 from app.models import AIAnalysisResult, AIIssueVerdict, InlineComment, UserReview
 from app.seed_data import TASKS
 from app.seed_tasks import add_missing_seed_tasks, replace_seed_tasks
@@ -40,11 +40,20 @@ def client(tmp_path):
             yield session
 
     app.dependency_overrides[get_session] = override_get_session
+    previous_admin_session_factory = getattr(app.state, "admin_session_factory", None)
+    previous_admin_auth_session_factory = admin.authentication_backend.session_factory
+    app.state.admin_session_factory = session_factory
+    admin.authentication_backend.session_factory = session_factory
 
     with TestClient(app) as test_client:
         yield test_client
 
     app.dependency_overrides.clear()
+    admin.authentication_backend.session_factory = previous_admin_auth_session_factory
+    if previous_admin_session_factory is None:
+        delattr(app.state, "admin_session_factory")
+    else:
+        app.state.admin_session_factory = previous_admin_session_factory
     asyncio.run(engine.dispose())
 
 
@@ -61,9 +70,8 @@ def test_health(client):
 
 def test_admin_home(client):
     resp = client.get("/admin")
-    assert resp.status_code == 200
-    assert resp.headers["content-type"].startswith("text/html")
-    assert "Code Mentor Admin" in resp.text
+    assert resp.status_code == 403
+    assert "admin user" in resp.text.lower()
 
 
 def test_auth_session_defaults_to_anonymous(client):
@@ -98,6 +106,46 @@ def test_google_login_creates_session(client):
         "name": "Example User",
         "avatar_url": "https://example.com/avatar.png",
     }
+
+    admin_resp = client.get("/admin")
+    assert admin_resp.status_code == 403
+
+
+def test_google_login_bootstrap_admin_can_open_admin(client):
+    with (
+        patch("app.main.GOOGLE_CLIENT_ID", "test-client-id"),
+        patch(
+            "app.main.verify_google_credential",
+            return_value={
+                "sub": "google-admin-1",
+                "email": "turashov@gmail.com",
+                "name": "Admin User",
+                "avatar_url": "",
+            },
+        ),
+    ):
+        login_resp = client.post("/auth/google", json={"credential": "google-id-token"})
+
+    assert login_resp.status_code == 200
+
+    admin_resp = client.get("/admin")
+    assert admin_resp.status_code == 200
+    assert admin_resp.headers["content-type"].startswith("text/html")
+    assert "Code Mentor Admin" in admin_resp.text
+
+    session_override = app.dependency_overrides[get_session]
+
+    async def fetch_admin_user() -> UserRecord | None:
+        async for session in session_override():
+            result = await session.execute(
+                select(UserRecord).where(UserRecord.email == "turashov@gmail.com")
+            )
+            return result.scalar_one_or_none()
+        return None
+
+    admin_user = asyncio.run(fetch_admin_user())
+    assert admin_user is not None
+    assert admin_user.is_admin is True
 
 
 def test_google_logout_clears_session(client):
