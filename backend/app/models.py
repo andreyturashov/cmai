@@ -7,6 +7,13 @@ from pydantic import BaseModel, Field, field_validator
 ALLOWED_INTERESTS = {
     "python",
     "python_questions",
+    "asyncio",
+    "graphql",
+    "security",
+    "testing",
+    "system_design",
+    "typescript",
+    "data_engineering",
     "pandas",
     "langchain_langgraph",
     "machine_learning",

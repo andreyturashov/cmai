@@ -432,18 +432,24 @@ body {
 }
 
 .language-toggle {
-  display: flex;
+  flex: 1 1 100%;
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
   gap: 8px;
 }
 
 .language-toggle button {
+  width: 100%;
+  min-width: 0;
   padding: 6px 14px;
   font-size: 0.85rem;
+  line-height: 1.2;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: transparent;
   color: var(--ink);
   cursor: pointer;
+  text-align: center;
   transition:
     background 0.15s,
     color 0.15s,
@@ -1812,6 +1818,10 @@ button:disabled {
     align-items: stretch;
   }
 
+  .language-toggle {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
   .layout-grid {
     grid-template-columns: 1fr;
   }
@@ -1835,5 +1845,11 @@ button:disabled {
 
   .task-switcher {
     align-items: stretch;
+  }
+}
+
+@media (max-width: 640px) {
+  .language-toggle {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

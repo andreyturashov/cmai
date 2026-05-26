@@ -1,7 +1,9 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import Prism from 'prismjs';
+import 'prismjs/components/prism-graphql';
 import 'prismjs/components/prism-python';
 import 'prismjs/components/prism-javascript';
+import 'prismjs/components/prism-typescript';
 import 'prismjs/components/prism-sql';
 import CommentForm from './CommentForm';
 import MarkdownContent from './MarkdownContent';
