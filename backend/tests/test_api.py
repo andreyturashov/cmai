@@ -1,5 +1,6 @@
 import asyncio
 import json
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
@@ -14,6 +15,7 @@ from app.db import normalize_database_url as normalize_db_url
 from app.db_models import Base, TaskRecord, UserProgressRecord, UserRecord
 from app.main import REVIEWS, admin, app
 from app.models import (
+    ALLOWED_INTERESTS,
     AIAnalysisResult,
     AIIssueVerdict,
     Complexity,
@@ -24,6 +26,7 @@ from app.seed_data import TASKS
 from app.seed_tasks import add_missing_seed_tasks, replace_seed_tasks
 
 SEED_TASKS_BY_ID = {task.id: task for task in TASKS}
+TASK_COUNTS_BY_LANGUAGE = Counter(task.language for task in TASKS)
 
 
 @pytest.fixture()
@@ -769,7 +772,7 @@ def test_get_tasks_filter_javascript(client):
 def test_get_tasks_filter_python_questions(client):
     resp = client.get("/tasks", params={"language": "python_questions"})
     data = resp.json()
-    assert len(data) == 20
+    assert len(data) == TASK_COUNTS_BY_LANGUAGE["python_questions"]
     assert all(t["language"] == "python_questions" for t in data)
 
 
@@ -783,7 +786,7 @@ def test_get_tasks_filter_pandas(client):
 def test_get_tasks_filter_python_theory(client):
     resp = client.get("/tasks", params={"language": "python_theory"})
     data = resp.json()
-    assert len(data) == 40
+    assert len(data) == TASK_COUNTS_BY_LANGUAGE["python_theory"]
     assert all(t["language"] == "python_theory" for t in data)
     assert all(t["submission_mode"] == "answer" for t in data)
 
@@ -805,7 +808,7 @@ def test_get_tasks_filter_django(client):
 def test_get_tasks_filter_react(client):
     resp = client.get("/tasks", params={"language": "react"})
     data = resp.json()
-    assert len(data) == 20
+    assert len(data) == TASK_COUNTS_BY_LANGUAGE["react"]
     assert all(t["language"] == "react" for t in data)
 
 
@@ -817,27 +820,7 @@ def test_get_tasks_filter_unknown_language(client):
 
 def test_get_tasks_no_filter_returns_all(client):
     all_resp = client.get("/tasks")
-    py_resp = client.get("/tasks", params={"language": "python"})
-    py_questions_resp = client.get("/tasks", params={"language": "python_questions"})
-    pandas_resp = client.get("/tasks", params={"language": "pandas"})
-    py_theory_resp = client.get("/tasks", params={"language": "python_theory"})
-    fastapi_resp = client.get("/tasks", params={"language": "fastapi"})
-    django_resp = client.get("/tasks", params={"language": "django"})
-    react_resp = client.get("/tasks", params={"language": "react"})
-    js_resp = client.get("/tasks", params={"language": "javascript"})
-    sql_resp = client.get("/tasks", params={"language": "sql"})
-    total_filtered = (
-        len(py_resp.json())
-        + len(py_questions_resp.json())
-        + len(pandas_resp.json())
-        + len(py_theory_resp.json())
-        + len(fastapi_resp.json())
-        + len(django_resp.json())
-        + len(react_resp.json())
-        + len(js_resp.json())
-        + len(sql_resp.json())
-    )
-    assert len(all_resp.json()) == total_filtered
+    assert len(all_resp.json()) == len(TASKS)
 
 
 # ---------------------------------------------------------------------------
@@ -1032,21 +1015,10 @@ def test_all_tasks_have_reference_issues():
 
 
 def test_all_tasks_have_valid_language():
-    valid = {
-        "python",
-        "python_questions",
-        "pandas",
-        "langchain_langgraph",
-        "machine_learning",
-        "python_theory",
-        "fastapi",
-        "django",
-        "react",
-        "javascript",
-        "sql",
-    }
     for task in TASKS:
-        assert task.language in valid, f"Task {task.id} has invalid language: {task.language}"
+        assert task.language in ALLOWED_INTERESTS, (
+            f"Task {task.id} has invalid language: {task.language}"
+        )
 
 
 def test_theory_tasks_use_answer_submission_mode():
