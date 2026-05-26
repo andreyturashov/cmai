@@ -186,6 +186,7 @@ describe('App', () => {
     render(<App />);
     expect(screen.getByText('Python')).toBeInTheDocument();
     expect(screen.getByText('Python (questions)')).toBeInTheDocument();
+    expect(screen.getByText('Security')).toBeInTheDocument();
     expect(screen.getByText('Pandas')).toBeInTheDocument();
     expect(screen.getByText('LangChain/LangGraph')).toBeInTheDocument();
     expect(screen.getByText('Machine Learning')).toBeInTheDocument();
@@ -419,6 +420,29 @@ describe('App', () => {
 
     await userEvent.click(screen.getByText('GraphQL'));
     await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('graphql'));
+  });
+
+  it('switches to Security language', async () => {
+    render(<App />);
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python'));
+
+    api.getTasks.mockResolvedValue([
+      {
+        id: 'security-question-1',
+        title: 'Avoid path traversal in uploaded filenames',
+        language: 'security',
+      },
+    ]);
+    api.getTaskById.mockResolvedValue({
+      ...fullTask,
+      id: 'security-question-1',
+      title: 'Avoid path traversal in uploaded filenames',
+      language: 'security',
+      code: 'def save_upload(root, filename, data):\n    path = f"{root}/{filename}"\n    with open(path, "wb") as target:\n        target.write(data)\n',
+    });
+
+    await userEvent.click(screen.getByText('Security'));
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('security'));
   });
 
   it('switches to Python theory language', async () => {

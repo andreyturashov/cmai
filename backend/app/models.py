@@ -9,6 +9,7 @@ ALLOWED_INTERESTS = {
     "python_questions",
     "asyncio",
     "graphql",
+    "security",
     "pandas",
     "langchain_langgraph",
     "machine_learning",

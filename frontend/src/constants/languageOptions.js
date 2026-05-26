@@ -3,6 +3,7 @@ export const LANGUAGE_OPTIONS = [
   { value: 'python_questions', label: 'Python (questions)' },
   { value: 'asyncio', label: 'Asyncio' },
   { value: 'graphql', label: 'GraphQL' },
+  { value: 'security', label: 'Security' },
   { value: 'pandas', label: 'Pandas' },
   { value: 'langchain_langgraph', label: 'LangChain/LangGraph' },
   { value: 'machine_learning', label: 'Machine Learning' },
