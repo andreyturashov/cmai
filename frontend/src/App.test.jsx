@@ -187,6 +187,10 @@ describe('App', () => {
     expect(screen.getByText('Python')).toBeInTheDocument();
     expect(screen.getByText('Python (questions)')).toBeInTheDocument();
     expect(screen.getByText('Security')).toBeInTheDocument();
+    expect(screen.getByText('Testing')).toBeInTheDocument();
+    expect(screen.getByText('System Design')).toBeInTheDocument();
+    expect(screen.getByText('TypeScript')).toBeInTheDocument();
+    expect(screen.getByText('Data Engineering')).toBeInTheDocument();
     expect(screen.getByText('Pandas')).toBeInTheDocument();
     expect(screen.getByText('LangChain/LangGraph')).toBeInTheDocument();
     expect(screen.getByText('Machine Learning')).toBeInTheDocument();
@@ -443,6 +447,98 @@ describe('App', () => {
 
     await userEvent.click(screen.getByText('Security'));
     await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('security'));
+  });
+
+  it('switches to Testing language', async () => {
+    render(<App />);
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python'));
+
+    api.getTasks.mockResolvedValue([
+      {
+        id: 'testing-question-1',
+        title: 'Assert the whole response shape',
+        language: 'testing',
+      },
+    ]);
+    api.getTaskById.mockResolvedValue({
+      ...fullTask,
+      id: 'testing-question-1',
+      title: 'Assert the whole response shape',
+      language: 'testing',
+      code: 'def test_profile(client):\n    response = client.get("/profile")\n    assert response.status_code == 200\n',
+    });
+
+    await userEvent.click(screen.getByText('Testing'));
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('testing'));
+  });
+
+  it('switches to System Design language', async () => {
+    render(<App />);
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python'));
+
+    api.getTasks.mockResolvedValue([
+      {
+        id: 'system-design-question-1',
+        title: 'Do not perform synchronous billing in request path',
+        language: 'system_design',
+      },
+    ]);
+    api.getTaskById.mockResolvedValue({
+      ...fullTask,
+      id: 'system-design-question-1',
+      title: 'Do not perform synchronous billing in request path',
+      language: 'system_design',
+      code: 'def create_order(payload):\n    order = save_order(payload)\n    charge_card(order)\n    return order\n',
+    });
+
+    await userEvent.click(screen.getByText('System Design'));
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('system_design'));
+  });
+
+  it('switches to TypeScript language', async () => {
+    render(<App />);
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python'));
+
+    api.getTasks.mockResolvedValue([
+      {
+        id: 'typescript-question-1',
+        title: 'Do not cast API data to any',
+        language: 'typescript',
+      },
+    ]);
+    api.getTaskById.mockResolvedValue({
+      ...fullTask,
+      id: 'typescript-question-1',
+      title: 'Do not cast API data to any',
+      language: 'typescript',
+      code: 'type User = { id: string; email: string };\n\nasync function loadUser(): Promise<User> {\n  const data = (await fetch("/api/user").then((r) => r.json())) as any;\n  return data;\n}\n',
+    });
+
+    await userEvent.click(screen.getByText('TypeScript'));
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('typescript'));
+  });
+
+  it('switches to Data Engineering language', async () => {
+    render(<App />);
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python'));
+
+    api.getTasks.mockResolvedValue([
+      {
+        id: 'data-engineering-question-1',
+        title: 'Deduplicate events by id before load',
+        language: 'data_engineering',
+      },
+    ]);
+    api.getTaskById.mockResolvedValue({
+      ...fullTask,
+      id: 'data-engineering-question-1',
+      title: 'Deduplicate events by id before load',
+      language: 'data_engineering',
+      code: 'def load_events(rows, warehouse):\n    for row in rows:\n        warehouse.insert(row)\n',
+    });
+
+    await userEvent.click(screen.getByText('Data Engineering'));
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('data_engineering'));
   });
 
   it('switches to Python theory language', async () => {
