@@ -375,6 +375,52 @@ describe('App', () => {
     await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python_questions'));
   });
 
+  it('switches to Asyncio language', async () => {
+    render(<App />);
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python'));
+
+    api.getTasks.mockResolvedValue([
+      {
+        id: 'asyncio-question-1',
+        title: 'Avoid blocking sleep in a coroutine',
+        language: 'asyncio',
+      },
+    ]);
+    api.getTaskById.mockResolvedValue({
+      ...fullTask,
+      id: 'asyncio-question-1',
+      title: 'Avoid blocking sleep in a coroutine',
+      language: 'asyncio',
+      code: 'import time\n\nasync def poll_status():\n    time.sleep(1)\n    return "done"\n',
+    });
+
+    await userEvent.click(screen.getByText('Asyncio'));
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('asyncio'));
+  });
+
+  it('switches to GraphQL language', async () => {
+    render(<App />);
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python'));
+
+    api.getTasks.mockResolvedValue([
+      {
+        id: 'graphql-question-1',
+        title: 'Use variables in a user lookup query',
+        language: 'graphql',
+      },
+    ]);
+    api.getTaskById.mockResolvedValue({
+      ...fullTask,
+      id: 'graphql-question-1',
+      title: 'Use variables in a user lookup query',
+      language: 'graphql',
+      code: 'query GetUser {\n  user(id: "123") {\n    id\n    email\n  }\n}\n',
+    });
+
+    await userEvent.click(screen.getByText('GraphQL'));
+    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('graphql'));
+  });
+
   it('switches to Python theory language', async () => {
     render(<App />);
     await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('python'));
