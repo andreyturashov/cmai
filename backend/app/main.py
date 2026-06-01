@@ -86,6 +86,7 @@ def serialize_scheduled_tasks(tasks: list) -> TaskScheduleResponse:
         tasks=[
             ScheduledTaskEntry(
                 id=task.id,
+                is_completed=task.is_completed,
                 title=task.title,
                 description=task.description,
                 requirements=task.requirements,
@@ -123,6 +124,7 @@ async def generate_and_store_task_schedule(
 
     candidate_tasks = await task_repository.list_tasks_for_languages(
         interests,
+        user_id=current_user.id,
         exclude_task_ids=completed_task_ids,
     )
     random.shuffle(candidate_tasks)
@@ -277,7 +279,9 @@ async def get_task_schedule(
         raise HTTPException(status_code=401, detail="Authentication required")
 
     if current_user.scheduled_task_ids:
-        scheduled_tasks = await task_repository.list_tasks_by_ids(current_user.scheduled_task_ids)
+        scheduled_tasks = await task_repository.list_tasks_by_ids(
+            current_user.id, current_user.scheduled_task_ids
+        )
         return serialize_scheduled_tasks(scheduled_tasks)
 
     return await generate_and_store_task_schedule(
@@ -387,10 +391,12 @@ async def get_user_progress_daily(
 
 @app.get("/tasks")
 async def get_tasks(
+    current_user: CurrentUserDependency,
     task_repository: TaskRepositoryDependency,
     language: str | None = Query(None),
 ) -> list:
-    filtered = await task_repository.list_tasks(language)
+    user_id = current_user.id if current_user is not None else None
+    filtered = await task_repository.list_tasks(user_id=user_id, language=language)
     return [
         {
             "id": task.id,
@@ -412,6 +418,7 @@ async def get_task(
     task_repository: TaskRepositoryDependency,
 ) -> dict:
     task = await task_repository.get_task(task_id)
+
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 

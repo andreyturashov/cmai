@@ -1517,6 +1517,13 @@ button:disabled {
   padding: 4px 9px;
 }
 
+.task-completed-badge {
+  background: rgba(47, 125, 121, 0.12);
+  border-color: rgba(47, 125, 121, 0.24);
+  color: var(--accent-2);
+  font-weight: 700;
+}
+
 .profile-page {
   margin-top: 20px;
   display: grid;
