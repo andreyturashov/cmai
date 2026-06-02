@@ -1,12 +1,8 @@
 import React, { useState } from 'react';
 import RichAnswerEditor from './RichAnswerEditor';
-import { useDebounce } from '../hooks/useDebounce';
 
 export default function CommentForm({ line, endLine, onSave, onCancel, initial }) {
   const [comment, setComment] = useState(initial?.comment || '');
-
-  // Debounce the comment update to reduce unnecessary conversions (300ms delay)
-  const debouncedSetComment = useDebounce(setComment, 300);
 
   function submit(e) {
     e.preventDefault();
@@ -29,7 +25,7 @@ export default function CommentForm({ line, endLine, onSave, onCancel, initial }
         Comment
         <RichAnswerEditor
           value={comment}
-          onChange={debouncedSetComment}
+          onChange={setComment}
           ariaLabel="Comment"
           placeholder="Describe the issue and why it matters"
           hintText=""
