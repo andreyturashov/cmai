@@ -1497,6 +1497,23 @@ button:disabled {
   margin-bottom: 14px;
 }
 
+.task-scheduler-menu {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.task-progress-list {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
 .task-scheduler-item-progress {
   display: flex;
   flex-wrap: wrap;

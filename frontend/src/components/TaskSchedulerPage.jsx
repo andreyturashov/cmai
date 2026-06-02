@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api/client';
 import LeftPanel from './LeftPanel';
 import CodeReviewPanel from './CodeReviewPanel';
@@ -41,6 +41,7 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
   const [showReference, setShowReference] = useState(false);
   const [loading, setLoading] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const taskRefs = useRef({});
 
   const loadSchedule = useCallback(
     async ({ regenerate = false } = {}) => {
@@ -135,6 +136,15 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
   );
 
   const selectedAiAnalysis = selectedTaskId ? taskResults[selectedTaskId] || null : null;
+
+  useEffect(() => {
+    if (!selectedTaskId) return;
+
+    const node = taskRefs.current[selectedTaskId];
+    if (node?.scrollIntoView) {
+      node.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+    }
+  }, [selectedTaskId]);
 
   const goToNextTask = useCallback(() => {
     if (!incompleteTasks.length) return;
@@ -244,6 +254,9 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
             return (
               <button
                 key={entry.id}
+                ref={(node) => {
+                  taskRefs.current[entry.id] = node;
+                }}
                 type="button"
                 className={`task-progress-item${isActive ? ' task-progress-item-active' : ''}${entry.is_completed ? ' task-progress-item-completed' : ''}`}
                 onClick={() => {
