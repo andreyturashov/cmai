@@ -1490,6 +1490,13 @@ button:disabled {
   align-items: stretch;
 }
 
+.task-scheduler-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
 .task-scheduler-item-progress {
   display: flex;
   flex-wrap: wrap;
@@ -1651,6 +1658,15 @@ button:disabled {
 
 .task-progress-item:hover {
   background: rgba(255, 255, 255, 0.96);
+}
+
+.task-progress-item-completed {
+  background: rgba(220, 246, 230, 0.92);
+  border-color: rgba(34, 197, 94, 0.24);
+}
+
+.task-progress-item-completed:hover {
+  background: rgba(220, 246, 230, 1);
 }
 
 .task-progress-item-active {

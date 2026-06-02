@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useCallback } from 'react';
 import { $getRoot, $createParagraphNode } from 'lexical';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { ListItemNode, ListNode } from '@lexical/list';
@@ -98,6 +98,16 @@ export default function RichAnswerEditor({
   hintText = 'Supports markdown shortcuts for bold, lists, links, and inline or fenced code blocks.',
   compact = false,
 }) {
+  // Memoize the onChange callback to prevent unnecessary re-renders
+  const memoizedOnChange = useCallback(
+    (editorState) => {
+      editorState.read(() => {
+        onChange?.($convertToMarkdownString(TRANSFORMERS));
+      });
+    },
+    [onChange],
+  );
+
   const initialConfig = useMemo(
     () => ({
       namespace: `${ariaLabel.replace(/\s+/g, '')}Editor`,
@@ -149,13 +159,7 @@ export default function RichAnswerEditor({
         <LinkPlugin />
         <CodeHighlightingPlugin />
         <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
-        <OnChangePlugin
-          onChange={(editorState) => {
-            editorState.read(() => {
-              onChange?.($convertToMarkdownString(TRANSFORMERS));
-            });
-          }}
-        />
+        <OnChangePlugin onChange={memoizedOnChange} />
       </div>
       {hintText ? <p className="answer-editor-hint">{hintText}</p> : null}
     </LexicalComposer>
