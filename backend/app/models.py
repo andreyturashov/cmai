@@ -50,6 +50,7 @@ class Issue(BaseModel):
 
 class Task(BaseModel):
     id: str
+    is_completed: bool = False
     title: str
     description: str
     requirements: list[str]
@@ -112,6 +113,7 @@ class UserInterestsUpdate(BaseModel):
 
 class ScheduledTaskEntry(BaseModel):
     id: str
+    is_completed: bool
     title: str
     description: str
     requirements: list[str]

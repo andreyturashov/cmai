@@ -221,6 +221,12 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
                       {formatComplexity(entry.complexity)}
                     </span>
                   ) : null}
+
+                  {entry.is_completed ? (
+                    <span className="task-completed-badge task-scheduler-item-complexity">
+                      Completed
+                    </span>
+                  ) : null}
                 </span>
                 {taskResult ? (
                   <span className="task-scheduler-item-progress">
@@ -242,6 +248,7 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
       <div className="task-scheduler-detail layout-grid">
         <LeftPanel task={task} aiAnalysis={selectedAiAnalysis} aiLoading={aiLoading} />
         <CodeReviewPanel
+          isCompleted={task?.is_completed}
           code={task?.code || ''}
           language={task?.language || 'python'}
           instructions={task?.instructions || []}

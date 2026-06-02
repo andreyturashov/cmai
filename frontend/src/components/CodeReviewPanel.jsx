@@ -36,6 +36,7 @@ export default function CodeReviewPanel({
   referenceIssueCount = 0,
   showHeader = true,
   eyebrowLabel = '',
+  isCompleted = false,
 }) {
   const [selStart, setSelStart] = useState(null);
   const [selEnd, setSelEnd] = useState(null);
@@ -146,7 +147,7 @@ export default function CodeReviewPanel({
             </div>
           </div>
           <div className="review-header-actions">
-            {hasReferenceIssues ? (
+            {hasReferenceIssues && !isCompleted ? (
               <button
                 className={`ghost toggle-ref${showReference ? ' toggle-ref-active' : ''}`}
                 onClick={onToggleReference}
@@ -154,7 +155,7 @@ export default function CodeReviewPanel({
                 {showReference ? 'Hide Answer' : 'Show Answer'}
               </button>
             ) : null}
-            {!readOnly ? (
+            {!readOnly && !isCompleted ? (
               <button onClick={onSubmitReview} disabled={submitDisabled}>
                 Submit Review
               </button>
