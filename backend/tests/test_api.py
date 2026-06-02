@@ -12,9 +12,9 @@ from sqlalchemy import select
 from app.ai_analyzer import _build_prompt, analyze_review
 from app.db import create_session_factory, get_session
 from app.db import normalize_database_url as normalize_db_url
-from app.db_models import Base, UserProgressRecord, UserRecord
 from app.main import REVIEWS, admin, app
-from app.models import (
+from app.models import Base, UserProgressRecord, UserRecord
+from app.schemas import (
     ALLOWED_INTERESTS,
     AIAnalysisResult,
     AIIssueVerdict,

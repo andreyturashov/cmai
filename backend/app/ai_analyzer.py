@@ -6,7 +6,7 @@ import os
 
 import httpx
 
-from app.models import AIAnalysisResult, AIIssueVerdict, Severity, Task, UserReview
+from app.schemas import AIAnalysisResult, AIIssueVerdict, Severity, Task, UserReview
 
 logger = logging.getLogger(__name__)
 

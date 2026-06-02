@@ -22,9 +22,9 @@ from app.auth import (
     verify_google_credential,
 )
 from app.db import get_session
-from app.db_models import TaskRecord, UserProgressRecord, UserRecord
 from app.evaluator import evaluate_review
-from app.models import (
+from app.models import TaskRecord, UserProgressRecord, UserRecord
+from app.schemas import (
     AuthenticatedUser,
     AuthSession,
     EvaluationRequest,

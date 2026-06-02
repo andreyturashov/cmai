@@ -9,7 +9,7 @@ from starlette.responses import PlainTextResponse, Response
 
 from app.auth import SESSION_SECRET
 from app.db import AsyncSessionFactory, engine
-from app.db_models import TaskIssueRecord, TaskRecord, UserProgressRecord, UserRecord
+from app.models import TaskIssueRecord, TaskRecord, UserProgressRecord, UserRecord
 
 
 class SessionAdminAuth(AuthenticationBackend):

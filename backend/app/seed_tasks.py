@@ -8,8 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
 from app.db import AsyncSessionFactory
-from app.db_models import TaskIssueRecord, TaskRecord
-from app.models import Task
+from app.models import TaskIssueRecord, TaskRecord
+from app.schemas import Task
 from app.seed_data import TASKS
 
 

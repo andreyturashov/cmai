@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from app.models import EvaluationResult, Severity, Task, UserReview
+from app.schemas import EvaluationResult, Severity, Task, UserReview
 
 
 def _similar_comment(comment: str, issue_title: str, issue_description: str) -> bool:

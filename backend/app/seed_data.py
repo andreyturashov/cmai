@@ -7,7 +7,7 @@ from app.additional_task_prompts import (
     REACT_TASK_PROMPTS,
     SingleIssueReviewTaskPrompt,
 )
-from app.models import Complexity, Issue, Severity, Task
+from app.schemas import Complexity, Issue, Severity, Task
 
 
 class SimplePythonQuestionPrompt(TypedDict):
