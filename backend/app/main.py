@@ -13,7 +13,7 @@ from sqlalchemy.orm import selectinload
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.admin import setup_admin
-from app.ai_analyzer import analyze_review
+from app.agents import analyze_review
 from app.auth import (
     GOOGLE_CLIENT_ID,
     SESSION_SECRET,
@@ -22,9 +22,9 @@ from app.auth import (
     verify_google_credential,
 )
 from app.db import get_session
-from app.db_models import TaskRecord, UserProgressRecord, UserRecord
 from app.evaluator import evaluate_review
-from app.models import (
+from app.models import TaskRecord, UserProgressRecord, UserRecord
+from app.schemas import (
     AuthenticatedUser,
     AuthSession,
     EvaluationRequest,

@@ -6,12 +6,24 @@ import os
 
 import httpx
 
-from app.models import AIAnalysisResult, AIIssueVerdict, Severity, Task, UserReview
+from app.agents.prompts import (
+    CODE_REVIEW_EVALUATION_RULES,
+    CODE_REVIEW_SYSTEM_PROMPT,
+    DEFAULT_OLLAMA_BASE_URL,
+    DEFAULT_OLLAMA_MODEL,
+    DEFAULT_TEMPERATURE,
+    DEFAULT_TIMEOUT_SECONDS,
+    OUTPUT_SCHEMA_CODE_REVIEW,
+    OUTPUT_SCHEMA_THEORY_ANSWER,
+    THEORY_ANSWER_EVALUATION_RULES,
+    THEORY_ANSWER_SYSTEM_PROMPT,
+)
+from app.schemas import AIAnalysisResult, AIIssueVerdict, Severity, Task, UserReview
 
 logger = logging.getLogger(__name__)
 
-OLLAMA_BASE = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1")
+OLLAMA_BASE = os.getenv("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL)
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL)
 
 
 def _build_prompt(task: Task, review: UserReview) -> str:
@@ -20,7 +32,7 @@ def _build_prompt(task: Task, review: UserReview) -> str:
 
     issues_block = "\n".join(
         f"- [{issue.id}] Line {issue.line} ({issue.severity.value}): "
-        f"{issue.title} — {issue.description}"
+        f"{issue.title} -- {issue.description}"
         for issue in task.reference_issues
     )
 
@@ -37,9 +49,7 @@ def _build_prompt(task: Task, review: UserReview) -> str:
     issue_count = len(task.reference_issues)
 
     if task.submission_mode == "answer":
-        return f"""You are a strict Python theory mentor. Your job is to evaluate whether a student's free-text answer correctly covers the expected concepts for a theory question.
-
-IMPORTANT: Write all explanations addressing the user directly using \"you/your\" (second person). Never say \"the student\" or \"they\".
+        return f"""{THEORY_ANSWER_SYSTEM_PROMPT}
 
 ## Question shown to the student
 ```python
@@ -52,14 +62,7 @@ IMPORTANT: Write all explanations addressing the user directly using \"you/your\
 ## Student answer
 {answer_block}
 
-## Evaluation rules
-Evaluate the rubric holistically, but return verdicts only for the rubric entries listed above:
-1. Match on meaning, not exact wording.
-2. If the answer explains the same idea in different words, count that as covered.
-3. If one sentence implies a rubric point and a nearby example or follow-up sentence makes it clear, count the point as covered.
-4. Do not require the answer to repeat rubric keywords verbatim or in the same order.
-5. A vague answer does not count.
-6. If no answer was submitted, nothing is addressed and score = 0.
+{THEORY_ANSWER_EVALUATION_RULES}
 
 ## Output constraints
 - Return exactly {issue_count} item(s) in the issues array.
@@ -68,32 +71,10 @@ Evaluate the rubric holistically, but return verdicts only for the rubric entrie
 - Do not split one rubric entry into multiple sub-issues.
 - If an answer is partially correct, keep the single rubric entry and explain which parts you think are still missing.
 
-## Scoring guide
-- Score = (addressed concepts / total concepts) * 10, rounded to 1 decimal
-- If the answer is empty, score = 0
-
-Return ONLY valid JSON (no markdown fences, no extra text) with this exact schema:
-{{
-    \"all_fixed\": <bool — true only if EVERY expected concept is covered>,
-    \"score\": <number 0-10>,
-    \"issues\": [
-        {{
-            \"issue_id\": \"<id from rubric>\",
-            \"title\": \"<title from rubric>\",
-            \"severity\": \"<critical|medium|low>\",
-            \"addressed\": <bool>,
-            \"explanation\": \"<1-2 sentences using 'you/your': whether your answer covers this concept and why. Start with the concept title.>\"
-        }}
-    ],
-    \"summary\": \"<one sentence overall assessment>\"
-}}
+{OUTPUT_SCHEMA_THEORY_ANSWER}
 """
 
-    return f"""You are a strict code-review mentor. Your job is to evaluate whether a student's review comments correctly identify known issues in a code snippet.
-
-Be strict: a comment only "addresses" an issue if it clearly describes the SAME problem (not just nearby code). Vague or tangential comments do NOT count.
-
-IMPORTANT: Write all explanations addressing the user directly using "you/your" (second person). Never say "the student" or "they" — always say "you".
+    return f"""{CODE_REVIEW_SYSTEM_PROMPT}
 
 ## Code
 ```
@@ -106,49 +87,23 @@ IMPORTANT: Write all explanations addressing the user directly using "you/your" 
 ## Student's review comments
 {comments_block}
 
-## Evaluation rules
-For EACH known issue, decide whether any student comment addresses it:
-1. The comment must describe the SAME vulnerability, bug, or concern (semantic match — exact wording not required).
-2. The comment must target approximately the same code region (within ±3 lines).
-3. A comment about a DIFFERENT problem on the same line does NOT count.
-4. If no comments were submitted, nothing is addressed.
+{CODE_REVIEW_EVALUATION_RULES}
 
-## Scoring guide
-- critical issues are worth 3 points each
-- medium issues are worth 2 points each
-- low issues are worth 1 point each
-- Score = (addressed points / total points) * 10, rounded to 1 decimal
-- If no comments submitted, score = 0
-
-Return ONLY valid JSON (no markdown fences, no extra text) with this exact schema:
-{{
-  "all_fixed": <bool — true only if EVERY issue is addressed>,
-  "score": <number 0-10>,
-  "issues": [
-    {{
-      "issue_id": "<id from known issues>",
-      "title": "<title from known issues>",
-      "severity": "<critical|medium|low>",
-      "addressed": <bool>,
-      "explanation": "<1-2 sentences using 'you/your': which of your comments matches (or why none of your comments do). Start with the issue title.>"
-    }}
-  ],
-  "summary": "<one sentence overall assessment>"
-}}
+{OUTPUT_SCHEMA_CODE_REVIEW}
 """
 
 
 async def analyze_review(task: Task, review: UserReview) -> AIAnalysisResult:
     prompt = _build_prompt(task, review)
 
-    async with httpx.AsyncClient(timeout=300.0) as client:
+    async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT_SECONDS) as client:
         resp = await client.post(
             f"{OLLAMA_BASE}/api/generate",
             json={
                 "model": OLLAMA_MODEL,
                 "prompt": prompt,
                 "stream": False,
-                "options": {"temperature": 0.1},
+                "options": {"temperature": DEFAULT_TEMPERATURE},
             },
         )
         resp.raise_for_status()

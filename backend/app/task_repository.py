@@ -4,8 +4,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.db_models import TaskIssueRecord, TaskRecord, UserProgressRecord
-from app.models import Complexity, Issue, Severity, Task
+from app.models import TaskIssueRecord, TaskRecord, UserProgressRecord
+from app.schemas import Complexity, Issue, Severity, Task
 
 
 def _issue_from_record(issue: TaskIssueRecord) -> Issue:

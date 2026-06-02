@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api/client';
 import LeftPanel from './LeftPanel';
 import CodeReviewPanel from './CodeReviewPanel';
@@ -41,6 +41,7 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
   const [showReference, setShowReference] = useState(false);
   const [loading, setLoading] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const taskRefs = useRef({});
 
   const loadSchedule = useCallback(
     async ({ regenerate = false } = {}) => {
@@ -70,7 +71,10 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
             return previousId;
           }
 
-          return scheduleResponse.tasks?.[0]?.id ?? null;
+          const firstIncompleteTask = scheduleResponse.tasks?.find(
+            (entry) => !entry.is_completed,
+          )?.id;
+          return firstIncompleteTask ?? scheduleResponse.tasks?.[0]?.id ?? null;
         });
         setComments([]);
         setAnswer('');
@@ -120,7 +124,48 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
     () => scheduledTasks.find((entry) => entry.id === selectedTaskId) || null,
     [scheduledTasks, selectedTaskId],
   );
+
+  const selectedTaskIndex = useMemo(
+    () => scheduledTasks.findIndex((entry) => entry.id === selectedTaskId),
+    [scheduledTasks, selectedTaskId],
+  );
+
+  const incompleteTasks = useMemo(
+    () => scheduledTasks.filter((entry) => !entry.is_completed),
+    [scheduledTasks],
+  );
+
   const selectedAiAnalysis = selectedTaskId ? taskResults[selectedTaskId] || null : null;
+
+  useEffect(() => {
+    if (!selectedTaskId) return;
+
+    const node = taskRefs.current[selectedTaskId];
+    if (node?.scrollIntoView) {
+      node.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+    }
+  }, [selectedTaskId]);
+
+  const goToNextTask = useCallback(() => {
+    if (!incompleteTasks.length) return;
+
+    const currentIndexInIncomplete = incompleteTasks.findIndex(
+      (entry) => entry.id === selectedTaskId,
+    );
+
+    const nextIndex =
+      currentIndexInIncomplete < 0 || currentIndexInIncomplete === incompleteTasks.length - 1
+        ? 0
+        : currentIndexInIncomplete + 1;
+
+    const nextTask = incompleteTasks[nextIndex];
+    if (!nextTask) return;
+
+    setSelectedTaskId(nextTask.id);
+    setComments([]);
+    setAnswer('');
+    setShowReference(false);
+  }, [incompleteTasks, selectedTaskId]);
 
   async function submitReview() {
     if (!task) return;
@@ -188,6 +233,13 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
           >
             {regenerating ? 'Regenerating...' : 'Regenerate Tasks'}
           </button>
+          <button
+            type="button"
+            onClick={goToNextTask}
+            disabled={loading || incompleteTasks.length <= 1}
+          >
+            Next
+          </button>
         </div>
         {loading ? <p className="muted">Loading tasks...</p> : null}
         {!loading && !scheduledTasks.length ? (
@@ -202,8 +254,11 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
             return (
               <button
                 key={entry.id}
+                ref={(node) => {
+                  taskRefs.current[entry.id] = node;
+                }}
                 type="button"
-                className={`task-progress-item${isActive ? ' task-progress-item-active' : ''}`}
+                className={`task-progress-item${isActive ? ' task-progress-item-active' : ''}${entry.is_completed ? ' task-progress-item-completed' : ''}`}
                 onClick={() => {
                   setSelectedTaskId(entry.id);
                   setComments([]);
