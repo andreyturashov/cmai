@@ -13,7 +13,7 @@ from sqlalchemy.orm import selectinload
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.admin import setup_admin
-from app.ai_analyzer import analyze_review
+from app.agents import analyze_review
 from app.auth import (
     GOOGLE_CLIENT_ID,
     SESSION_SECRET,

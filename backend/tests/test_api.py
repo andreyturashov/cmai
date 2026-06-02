@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from app.ai_analyzer import _build_prompt, analyze_review
+from app.agents.ai_analyzer import _build_prompt, analyze_review
 from app.db import create_session_factory, get_session
 from app.db import normalize_database_url as normalize_db_url
 from app.main import REVIEWS, admin, app
@@ -1124,7 +1124,7 @@ async def test_analyze_review_all_addressed():
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
 
-    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+    with patch("app.agents.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
         result = await analyze_review(TASK_1, review)
 
     assert result.all_fixed is True
@@ -1144,7 +1144,7 @@ async def test_analyze_review_all_addressed_normalizes_contradictory_score():
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
 
-    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+    with patch("app.agents.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
         result = await analyze_review(TASK_1, review)
 
     assert result.all_fixed is True
@@ -1161,7 +1161,7 @@ async def test_analyze_review_none_addressed():
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
 
-    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+    with patch("app.agents.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
         result = await analyze_review(TASK_1, review)
 
     assert result.all_fixed is False
@@ -1180,7 +1180,7 @@ async def test_analyze_review_partial():
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
 
-    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+    with patch("app.agents.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
         result = await analyze_review(TASK_1, review)
 
     assert result.all_fixed is False
@@ -1205,7 +1205,7 @@ async def test_analyze_review_invalid_json_response():
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.post = AsyncMock(return_value=mock_resp)
 
-    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+    with patch("app.agents.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
         result = await analyze_review(TASK_1, review)
 
     assert result.all_fixed is False
@@ -1232,7 +1232,7 @@ async def test_analyze_review_markdown_fenced_response():
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.post = AsyncMock(return_value=mock_resp)
 
-    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+    with patch("app.agents.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
         result = await analyze_review(TASK_1, review)
 
     assert result.score == 2.0
@@ -1250,7 +1250,7 @@ async def test_analyze_review_no_score_computes_from_verdicts():
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
 
-    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+    with patch("app.agents.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
         result = await analyze_review(TASK_1, review)
 
     assert result.score == 0.0
@@ -1269,7 +1269,7 @@ async def test_analyze_review_no_score_with_addressed_issues():
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
 
-    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+    with patch("app.agents.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
         result = await analyze_review(TASK_1, review)
 
     assert result.score == 10.0
@@ -1286,7 +1286,7 @@ async def test_analyze_review_invalid_score_type():
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
 
-    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+    with patch("app.agents.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
         result = await analyze_review(TASK_1, review)
 
     assert result.score == 0.0
@@ -1311,7 +1311,7 @@ async def test_analyze_review_unknown_issue_id_in_response():
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.post = AsyncMock(return_value=_ollama_json_response(data))
 
-    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+    with patch("app.agents.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
         result = await analyze_review(TASK_1, review)
 
     # Unknown issues should be ignored and only known rubric items should be returned.
@@ -1371,7 +1371,7 @@ async def test_analyze_review_deduplicates_theory_issue_verdicts():
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.post = AsyncMock(return_value=mock_resp)
 
-    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+    with patch("app.agents.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
         result = await analyze_review(task, review)
 
     assert len(result.issues) == 1
@@ -1419,7 +1419,7 @@ async def test_analyze_review_theory_uses_normalized_score_over_ai_score():
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.post = AsyncMock(return_value=mock_resp)
 
-    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+    with patch("app.agents.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
         result = await analyze_review(task, review)
 
     assert result.score == 10.0
@@ -1449,7 +1449,7 @@ def test_ai_analyze_success(client):
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.post = AsyncMock(return_value=mock_resp)
 
-    with patch("app.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
+    with patch("app.agents.ai_analyzer.httpx.AsyncClient", return_value=mock_client):
         resp = client.post("/ai-analyze", json={"review_id": review["id"]})
 
     assert resp.status_code == 200
@@ -1468,7 +1468,7 @@ def test_ai_analyze_review_not_found(client):
 def test_ai_analyze_ollama_unavailable(client):
     review = client.post("/reviews", json={"task_id": "task-1", "comments": []}).json()
 
-    with patch("app.ai_analyzer.httpx.AsyncClient", side_effect=ConnectionError("refused")):
+    with patch("app.agents.ai_analyzer.httpx.AsyncClient", side_effect=ConnectionError("refused")):
         resp = client.post("/ai-analyze", json={"review_id": review["id"]})
 
     assert resp.status_code == 502

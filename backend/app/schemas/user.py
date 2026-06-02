@@ -8,6 +8,8 @@ from .enums import ALLOWED_INTERESTS, Complexity
 
 if TYPE_CHECKING:
     from .task import AIAnalysisResult, InlineComment, Issue
+else:
+    from .task import AIAnalysisResult, InlineComment, Issue
 
 
 class GoogleLoginRequest(BaseModel):
@@ -56,6 +58,10 @@ class UserProgressTaskSummary(BaseModel):
     submission_mode: str = "comments"
     code: str
     reference_issues: list[Issue] = Field(default_factory=list)
+
+
+# Rebuild models after forward references are resolved
+UserProgressTaskSummary.model_rebuild()
 
 
 class UserProgressEntry(BaseModel):
