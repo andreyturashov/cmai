@@ -62,16 +62,20 @@ function getCalendarWeekCount(year, weekStart) {
 }
 
 function formatMeta(entry) {
-  const updatedAt = entry?.updated_at ? new Date(entry.updated_at) : null;
-  const formattedDate =
-    updatedAt && !Number.isNaN(updatedAt.getTime())
-      ? new Intl.DateTimeFormat(undefined, {
-          month: 'short',
-          day: 'numeric',
-        }).format(updatedAt)
-      : 'No date';
+  return entry.task.language.replaceAll('_', ' ');
+}
 
-  return `${entry.task.language} · ${entry.score}/10 · ${formattedDate}`;
+function getOverallCompleteness(ai) {
+  if (!ai) return 0;
+
+  const totalIssues = ai.total_critical + ai.total_medium + ai.total_low;
+  const detectedIssues = ai.detected_critical + ai.detected_medium + ai.detected_low;
+
+  if (!totalIssues) {
+    return ai.all_fixed ? 100 : 0;
+  }
+
+  return Math.round((detectedIssues / totalIssues) * 100);
 }
 
 function formatComplexity(value = '') {
@@ -334,26 +338,33 @@ export default function TaskProgressPage({ currentUser, onError }) {
             <div className="task-progress-list">
               {filteredProgressEntries.map((entry) => {
                 const isActive = entry.id === selectedEntry?.id;
+                const taskCompleteness = getOverallCompleteness(entry.ai_analysis);
                 return (
                   <button
                     key={entry.id}
                     type="button"
-                    className={`task-progress-item${isActive ? ' task-progress-item-active' : ''}`}
+                    className={`task-progress-item${isActive ? ' task-progress-item-active' : ''} task-progress-item-completed`}
                     onClick={() => {
                       setSelectedId(entry.id);
                       setShowReference(false);
                     }}
                   >
                     <span className="task-progress-item-title">{entry.task.title}</span>
-                    <span className="task-progress-item-summary">
+                    <span className="task-scheduler-item-summary task-scheduler-item-summary-compact">
+                      <span className="task-scheduler-item-stats-inline">
+                        {entry.score}/10 · {taskCompleteness}%
+                      </span>
                       <span className="task-progress-item-meta">{formatMeta(entry)}</span>
                       {entry.task.complexity ? (
                         <span
-                          className={`task-complexity-badge task-progress-item-complexity task-complexity-${entry.task.complexity}`}
+                          className={`task-complexity-badge task-scheduler-item-complexity task-complexity-${entry.task.complexity}`}
                         >
                           {formatComplexity(entry.task.complexity)}
                         </span>
                       ) : null}
+                      <span className="task-completed-badge task-scheduler-item-complexity">
+                        Done
+                      </span>
                     </span>
                   </button>
                 );

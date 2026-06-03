@@ -280,6 +280,7 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
             const taskResult = taskResults[entry.id]?.analysis ?? savedProgress?.ai_analysis;
             const taskCompleteness = getOverallCompleteness(taskResult);
             const isAnalyzingCurrentTask = aiLoading && entry.id === selectedTaskId;
+            const showInlineCompletedStats = entry.is_completed && taskResult;
             return (
               <button
                 key={entry.id}
@@ -291,7 +292,14 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
                 onClick={() => selectScheduledTask(entry)}
               >
                 <span className="task-progress-item-title">{entry.title}</span>
-                <span className="task-scheduler-item-summary">
+                <span
+                  className={`task-scheduler-item-summary${entry.is_completed ? ' task-scheduler-item-summary-compact' : ''}`}
+                >
+                  {showInlineCompletedStats ? (
+                    <span className="task-scheduler-item-stats-inline">
+                      {taskResult.score}/10 · {taskCompleteness}%
+                    </span>
+                  ) : null}
                   <span className="task-progress-item-meta">{formatMeta(entry)}</span>
                   {entry.complexity ? (
                     <span
@@ -303,11 +311,11 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
 
                   {entry.is_completed ? (
                     <span className="task-completed-badge task-scheduler-item-complexity">
-                      Completed
+                      Done
                     </span>
                   ) : null}
                 </span>
-                {taskResult ? (
+                {!entry.is_completed && taskResult ? (
                   <span className="task-scheduler-item-progress">
                     <span>Score: {taskResult.score} / 10</span>
                     <span>Progress: {taskCompleteness}%</span>

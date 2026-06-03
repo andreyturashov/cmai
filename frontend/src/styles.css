@@ -1536,6 +1536,18 @@ button:disabled {
   margin-top: 4px;
 }
 
+.task-scheduler-item-summary-compact {
+  margin-top: 2px;
+  gap: 6px 8px;
+}
+
+.task-scheduler-item-stats-inline {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent-2);
+  white-space: nowrap;
+}
+
 .task-scheduler-item-complexity {
   font-size: 0.72rem;
   padding: 4px 9px;
@@ -1678,12 +1690,27 @@ button:disabled {
 }
 
 .task-progress-item-completed {
+  padding: 11px 14px;
+  gap: 2px;
+}
+
+.task-progress-item-completed:not(.task-progress-item-active) {
   background: rgba(220, 246, 230, 0.92);
   border-color: rgba(34, 197, 94, 0.24);
 }
 
 .task-progress-item-completed:hover {
   background: rgba(220, 246, 230, 1);
+}
+
+.task-progress-item-completed .task-scheduler-item-complexity,
+.task-progress-item-completed .task-completed-badge {
+  font-size: 0.68rem;
+  padding: 2px 7px;
+}
+
+.task-progress-item-completed .task-progress-item-meta {
+  font-size: 0.78rem;
 }
 
 .task-progress-item-active {

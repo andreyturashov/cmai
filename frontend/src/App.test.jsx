@@ -318,8 +318,9 @@ describe('App', () => {
 
     await userEvent.click(screen.getByText('Submit Review'));
 
-    await waitFor(() => expect(screen.getAllByText('Score: 6 / 10')).toHaveLength(2));
-    expect(screen.getByText('Progress: 50%')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('6/10 · 50%')).toBeInTheDocument());
+    expect(screen.getAllByText('Score: 6 / 10').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Progress: 50%')).not.toBeInTheDocument();
     expect(screen.queryByText('Latest Result')).toBeNull();
   });
 
@@ -410,6 +411,7 @@ describe('App', () => {
     await waitFor(() =>
       expect(screen.getByText('Lists are mutable while tuples are immutable.')).toBeInTheDocument(),
     );
+    expect(screen.getByText('9/10 · 100%')).toBeInTheDocument();
     expect(screen.getAllByText('Score: 9 / 10').length).toBeGreaterThan(0);
     expect(screen.queryByText('Submit Review')).not.toBeInTheDocument();
   });
