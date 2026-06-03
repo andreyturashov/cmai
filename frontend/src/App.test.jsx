@@ -318,9 +318,102 @@ describe('App', () => {
 
     await userEvent.click(screen.getByText('Submit Review'));
 
-    await waitFor(() => expect(screen.getAllByText('Score: 6 / 10')).toHaveLength(2));
-    expect(screen.getByText('Progress: 50%')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('6/10 · 50%')).toBeInTheDocument());
+    expect(screen.getAllByText('Score: 6 / 10').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Progress: 50%')).not.toBeInTheDocument();
     expect(screen.queryByText('Latest Result')).toBeNull();
+  });
+
+  it('shows saved answer for completed scheduler tasks like Task Progress', async () => {
+    api.getAuthSession.mockResolvedValue({
+      user: {
+        id: 1,
+        email: 'user@example.com',
+        name: 'Example User',
+        avatar_url: '',
+      },
+    });
+    api.getUserInterests.mockResolvedValue({ interests: ['python_theory'] });
+    api.getTaskSchedule.mockResolvedValue({
+      tasks: [
+        {
+          id: 'python-theory-7',
+          title: 'Python mutability',
+          description: 'Explain list vs tuple behavior',
+          requirements: ['Compare mutability'],
+          instructions: ['Write a concise answer'],
+          language: 'python_theory',
+          complexity: 'medium',
+          submission_mode: 'answer',
+          is_completed: true,
+        },
+      ],
+    });
+    api.getUserProgress.mockResolvedValue([
+      {
+        id: 201,
+        task_id: 'python-theory-7',
+        score: 9,
+        suggestion: 'Clear explanation.',
+        ai_analysis: {
+          all_fixed: true,
+          score: 9,
+          detected_critical: 0,
+          total_critical: 0,
+          detected_medium: 1,
+          total_medium: 1,
+          detected_low: 0,
+          total_low: 0,
+          missed_issues: [],
+          feedback: ['Well structured'],
+          issues: [],
+          summary: 'Strong answer.',
+        },
+        user_answer: 'Lists are mutable while tuples are immutable.',
+        user_comments: [],
+        submission_count: 1,
+        created_at: '2026-05-20T10:00:00Z',
+        updated_at: '2026-05-20T11:00:00Z',
+        task: {
+          id: 'python-theory-7',
+          title: 'Python mutability',
+          description: 'Explain list vs tuple behavior',
+          requirements: ['Compare mutability'],
+          instructions: ['Write a concise answer'],
+          language: 'python_theory',
+          complexity: 'medium',
+          submission_mode: 'answer',
+          code: '',
+          reference_issues: [],
+        },
+      },
+    ]);
+    api.getTaskById.mockResolvedValue({
+      id: 'python-theory-7',
+      title: 'Python mutability',
+      description: 'Explain list vs tuple behavior',
+      language: 'python_theory',
+      complexity: 'medium',
+      submission_mode: 'answer',
+      code: '',
+      requirements: ['Compare mutability'],
+      instructions: ['Write a concise answer'],
+      reference_issues: [],
+      is_completed: true,
+    });
+
+    window.history.replaceState({}, '', '/task-scheduler');
+
+    render(<App />);
+
+    await waitFor(() => expect(api.getTaskSchedule).toHaveBeenCalled());
+    await waitFor(() => expect(api.getUserProgress).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(screen.getByText('Lists are mutable while tuples are immutable.')).toBeInTheDocument(),
+    );
+    expect(screen.getByText('9/10 · 100%')).toBeInTheDocument();
+    expect(screen.getAllByText('Score: 9 / 10').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Submit Review')).not.toBeInTheDocument();
   });
 
   it('navigates to Profile and saves up to five interests', async () => {

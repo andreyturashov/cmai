@@ -8,12 +8,12 @@ FastAPI service for Code Mentor.
 cd backend
 uv sync
 uv run alembic upgrade head
-uv run python -m app.seed_tasks
+uv run python -m app.data.seed_tasks
 uv run uvicorn app.main:app --reload --port 8000
 ```
 
-The default seed command only adds missing tasks from `seed_data.py` and preserves existing task-linked user progress.
-Use `uv run python -m app.seed_tasks --replace` only when you intentionally want to rebuild the task catalog from scratch.
+The default seed command only adds missing tasks from `app/data/seed_data.py` and preserves existing task-linked user progress.
+Use `uv run python -m app.data.seed_tasks --replace` only when you intentionally want to rebuild the task catalog from scratch.
 
 ## Database
 
@@ -29,8 +29,8 @@ Useful commands:
 
 ```bash
 uv run alembic upgrade head
-uv run python -m app.seed_tasks
-uv run python -m app.seed_tasks --replace
+uv run python -m app.data.seed_tasks
+uv run python -m app.data.seed_tasks --replace
 ```
 
 ## Google Auth

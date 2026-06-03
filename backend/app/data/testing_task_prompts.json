@@ -1,0 +1,233 @@
+[
+  {
+    "title": "Assert the whole response shape",
+    "description": "Only checks the status code of a profile response.",
+    "code": "def test_profile(client):\n    response = client.get('/profile')\n    assert response.status_code == 200\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "Test misses the response body contract",
+    "issue_description": "A passing status code does not prove the endpoint returned the expected fields or values.",
+    "issue_suggestion": "Assert the JSON structure or key output fields in addition to the status code.",
+    "issue_code": "assert response.json() == {'id': 1, 'email': 'a@example.com'}"
+  },
+  {
+    "title": "Do not mock the function under test",
+    "description": "Patches the same helper the test is supposed to verify.",
+    "code": "def test_total(mocker):\n    mocker.patch('billing.calculate_total', return_value=10)\n    assert calculate_total([5, 5]) == 10\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "The implementation under test is mocked away",
+    "issue_description": "Mocking the function being validated makes the test tautological and unable to catch regressions.",
+    "issue_suggestion": "Mock dependencies around the function under test, not the function itself.",
+    "issue_code": "assert calculate_total([5, 5]) == 10"
+  },
+  {
+    "title": "Avoid brittle timestamp assertions",
+    "description": "Asserts an exact timestamp string produced during the test.",
+    "code": "def test_created_at(client):\n    response = client.post('/jobs')\n    assert response.json()['created_at'] == '2026-05-26T10:00:00Z'\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "Test depends on an exact runtime timestamp",
+    "issue_description": "Clock-based values vary by execution time and make the test flaky.",
+    "issue_suggestion": "Freeze time or assert a more stable invariant about the timestamp.",
+    "issue_code": "assert 'created_at' in response.json()"
+  },
+  {
+    "title": "Await async work in tests",
+    "description": "Calls an async function in a test without awaiting it.",
+    "code": "async def test_send_email():\n    result = send_email('a@example.com')\n    assert result['ok'] is True\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Coroutine result is never awaited",
+    "issue_description": "The test inspects a coroutine object instead of running the async code.",
+    "issue_suggestion": "Await the async function before asserting on its result.",
+    "issue_code": "result = await send_email('a@example.com')"
+  },
+  {
+    "title": "Reset shared mutable fixtures",
+    "description": "Appends into a module-level list reused across tests.",
+    "code": "EVENTS = []\n\ndef test_add_event():\n    EVENTS.append('signup')\n    assert len(EVENTS) == 1\n",
+    "issue_line": 4,
+    "issue_severity": "medium",
+    "issue_title": "Test shares mutable state across runs",
+    "issue_description": "Global mutable state can leak between tests and cause order-dependent failures.",
+    "issue_suggestion": "Create fresh state per test or clear the shared fixture before each run.",
+    "issue_code": "events = []\nevents.append('signup')"
+  },
+  {
+    "title": "Prefer semantic assertions over raw HTML substrings",
+    "description": "Checks page content using a fragile HTML substring.",
+    "code": "def test_dashboard(client):\n    response = client.get('/dashboard')\n    assert '<h1>Dashboard</h1>' in response.text\n",
+    "issue_line": 3,
+    "issue_severity": "low",
+    "issue_title": "Assertion is tightly coupled to markup formatting",
+    "issue_description": "Minor template formatting changes can break the test without changing user-visible behavior.",
+    "issue_suggestion": "Assert on parsed content or a semantically meaningful text node.",
+    "issue_code": "assert 'Dashboard' in response.text"
+  },
+  {
+    "title": "Exercise the negative path",
+    "description": "Only tests the successful login flow.",
+    "code": "def test_login_success(client):\n    response = client.post('/login', json={'email': 'a@example.com', 'password': 'secret'})\n    assert response.status_code == 200\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "Failure behavior is untested",
+    "issue_description": "Missing negative-path coverage leaves authentication error handling unverified.",
+    "issue_suggestion": "Add a test for invalid credentials or locked accounts.",
+    "issue_code": "response = client.post('/login', json={'email': 'a@example.com', 'password': 'wrong'})"
+  },
+  {
+    "title": "Use deterministic factory data",
+    "description": "Generates random email addresses inside the assertion.",
+    "code": "def test_signup(factory):\n    user = factory.build_user()\n    assert user.email.endswith('@example.com')\n",
+    "issue_line": 2,
+    "issue_severity": "low",
+    "issue_title": "Fixture data is uncontrolled",
+    "issue_description": "Randomized fixture values can hide intent and make failures harder to reproduce.",
+    "issue_suggestion": "Pass explicit values for fields that matter to the assertion.",
+    "issue_code": "user = factory.build_user(email='tester@example.com')"
+  },
+  {
+    "title": "Do not swallow assertion failures in helpers",
+    "description": "Catches every exception inside a custom test helper.",
+    "code": "def assert_job_done(job):\n    try:\n        assert job.status == 'done'\n    except Exception:\n        return False\n",
+    "issue_line": 4,
+    "issue_severity": "critical",
+    "issue_title": "Assertion failures are hidden",
+    "issue_description": "Swallowing failures turns broken expectations into false negatives instead of visible test failures.",
+    "issue_suggestion": "Let assertion errors propagate or raise a clearer failure message.",
+    "issue_code": "assert job.status == 'done'"
+  },
+  {
+    "title": "Wait for eventual consistency in integration tests",
+    "description": "Asserts immediately after enqueuing background work.",
+    "code": "def test_invoice_created(client):\n    client.post('/orders')\n    assert client.get('/invoices').json()['count'] == 1\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "Test ignores asynchronous processing delay",
+    "issue_description": "Background jobs may not have completed by the time the assertion runs.",
+    "issue_suggestion": "Poll or wait for the async side effect before asserting.",
+    "issue_code": "wait_until(lambda: client.get('/invoices').json()['count'] == 1)"
+  },
+  {
+    "title": "Assert side effects, not only return values",
+    "description": "Mocks email delivery but never checks it was called.",
+    "code": "def test_password_reset(client, mailer):\n    client.post('/password-reset', json={'email': 'a@example.com'})\n    assert True\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "The intended side effect is never asserted",
+    "issue_description": "The test passes even if the reset email was never sent.",
+    "issue_suggestion": "Assert the mailer interaction or emitted event explicitly.",
+    "issue_code": "mailer.send.assert_called_once()"
+  },
+  {
+    "title": "Use transaction rollback between database tests",
+    "description": "Creates rows in the real test database without cleanup.",
+    "code": "def test_create_order(db, client):\n    client.post('/orders', json={'sku': 'A1'})\n    assert db.orders.count() == 1\n",
+    "issue_line": 3,
+    "issue_severity": "critical",
+    "issue_title": "Database state persists across tests",
+    "issue_description": "Leaked rows can make later tests fail depending on execution order.",
+    "issue_suggestion": "Wrap each test in a rollback transaction or truncate tables between tests.",
+    "issue_code": "with db.transaction():\n    ...\n    raise Rollback()"
+  },
+  {
+    "title": "Validate exception messages carefully",
+    "description": "Only asserts that some exception is raised.",
+    "code": "def test_parse_amount():\n    with pytest.raises(ValueError):\n        parse_amount('abc')\n",
+    "issue_line": 2,
+    "issue_severity": "low",
+    "issue_title": "Test misses the specific validation contract",
+    "issue_description": "If the wrong ValueError path is raised, the test still passes.",
+    "issue_suggestion": "Assert the exception message or a more specific error type when it matters.",
+    "issue_code": "with pytest.raises(ValueError, match='amount must be numeric'):"
+  },
+  {
+    "title": "Avoid sleep-based retries in tests",
+    "description": "Uses a fixed sleep before checking a queue consumer.",
+    "code": "def test_job_processed(client):\n    client.post('/jobs')\n    time.sleep(2)\n    assert worker.processed_count() == 1\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "Fixed sleep makes the test slow and flaky",
+    "issue_description": "The job may finish sooner or later than the hard-coded delay.",
+    "issue_suggestion": "Wait on a condition or signal instead of sleeping blindly.",
+    "issue_code": "wait_until(lambda: worker.processed_count() == 1)"
+  },
+  {
+    "title": "Use parameterized tests for repeated cases",
+    "description": "Repeats nearly identical assertions across input pairs.",
+    "code": "def test_status_label_open():\n    assert status_label('open') == 'Open'\n\ndef test_status_label_closed():\n    assert status_label('closed') == 'Closed'\n",
+    "issue_line": 1,
+    "issue_severity": "low",
+    "issue_title": "The test cases are repetitive and harder to extend",
+    "issue_description": "Duplicated test bodies make it easier to miss cases and harder to maintain the suite.",
+    "issue_suggestion": "Use parameterization for the varying inputs and expectations.",
+    "issue_code": "@pytest.mark.parametrize(('value', 'expected'), [('open', 'Open'), ('closed', 'Closed')])"
+  },
+  {
+    "title": "Do not hit external APIs in unit tests",
+    "description": "Calls a production weather API directly from a test.",
+    "code": "def test_forecast():\n    result = forecast_for('Berlin')\n    assert result['city'] == 'Berlin'\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Unit test depends on an external network call",
+    "issue_description": "External services make tests slow, flaky, and sensitive to credentials or rate limits.",
+    "issue_suggestion": "Stub the HTTP client or record a fixture response instead of calling the live API.",
+    "issue_code": "http_client.get.return_value = {'city': 'Berlin'}"
+  },
+  {
+    "title": "Check observable behavior after refetch",
+    "description": "Only asserts that a refetch callback was invoked.",
+    "code": "it('reloads data', async () => {\n  render(<OrdersTable onReload={reload} />);\n  fireEvent.click(screen.getByText('Reload'));\n  expect(reload).toHaveBeenCalled();\n});\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "User-visible state is not verified",
+    "issue_description": "The test proves the callback ran but not that the UI updated with the reloaded data.",
+    "issue_suggestion": "Assert the rendered state after the refetch completes.",
+    "issue_code": "await screen.findByText('Order #42')"
+  },
+  {
+    "title": "Control timeouts in debounce tests",
+    "description": "Expects a debounced search call immediately after typing.",
+    "code": "it('searches after typing', async () => {\n  render(<SearchBox />);\n  await userEvent.type(screen.getByRole('textbox'), 'books');\n  expect(searchApi).toHaveBeenCalled();\n});\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "Debounced behavior is asserted too early",
+    "issue_description": "The test ignores the delay built into the debounced callback.",
+    "issue_suggestion": "Use fake timers or wait for the debounce window to elapse.",
+    "issue_code": "vi.useFakeTimers();\nvi.advanceTimersByTime(300)"
+  },
+  {
+    "title": "Avoid over-specified mock expectations",
+    "description": "Asserts every header on an outbound HTTP mock.",
+    "code": "def test_sync(client, httpx_mock):\n    sync_account()\n    httpx_mock.assert_called_once_with('POST', 'https://api.example.com', headers={'x-a': '1', 'x-b': '2', 'x-c': '3'})\n",
+    "issue_line": 3,
+    "issue_severity": "low",
+    "issue_title": "The test is fragile to irrelevant transport details",
+    "issue_description": "Minor non-functional header changes can break the test while behavior remains correct.",
+    "issue_suggestion": "Assert only the critical contract fields that matter to the scenario.",
+    "issue_code": "httpx_mock.assert_called_once()"
+  },
+  {
+    "title": "Verify ordering when it matters",
+    "description": "Only checks that two audit events were emitted.",
+    "code": "def test_audit(events):\n    perform_transfer()\n    assert len(events) == 2\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "Event ordering is not asserted",
+    "issue_description": "For audit or workflow logic, sequence can be part of the contract and regressions may go unnoticed.",
+    "issue_suggestion": "Assert the expected event order explicitly.",
+    "issue_code": "assert [event.name for event in events] == ['transfer_started', 'transfer_completed']"
+  },
+  {
+    "title": "Use isolated temp directories in filesystem tests",
+    "description": "Writes fixture output into a hard-coded local folder.",
+    "code": "def test_export():\n    export_report('/tmp/reports')\n    assert os.path.exists('/tmp/reports/report.csv')\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Filesystem path is shared across tests and machines",
+    "issue_description": "Hard-coded paths can collide across runs and leave stale files behind.",
+    "issue_suggestion": "Use a per-test temporary directory fixture.",
+    "issue_code": "def test_export(tmp_path):\n    export_report(tmp_path)"
+  }
+]

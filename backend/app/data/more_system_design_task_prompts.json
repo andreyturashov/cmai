@@ -1,0 +1,112 @@
+[
+  {
+    "title": "Do not query downstream services inside batch loops",
+    "description": "Enriches each order by calling the inventory service one record at a time.",
+    "code": "def enrich_orders(orders):\n    result = []\n    for order in orders:\n        stock = inventory_api.get(order.sku)\n        result.append((order, stock))\n    return result\n",
+    "issue_line": 4,
+    "issue_severity": "medium",
+    "issue_title": "The design creates an N-plus-1 network pattern",
+    "issue_description": "Per-record downstream calls add latency and amplify dependency load as the batch size grows.",
+    "issue_suggestion": "Batch the dependency call or preload the related data once for the whole set.",
+    "issue_code": "stock_by_sku = inventory_api.bulk_get([order.sku for order in orders])"
+  },
+  {
+    "title": "Separate command validation from execution side effects",
+    "description": "Creates a shipment and sends notifications in one function.",
+    "code": "def ship_order(order):\n    if order.status != 'paid':\n        raise ValueError('not payable')\n    notifier.send(order.user_id)\n    warehouse.dispatch(order.id)\n",
+    "issue_line": 4,
+    "issue_severity": "medium",
+    "issue_title": "Validation and side effects are tightly coupled",
+    "issue_description": "Blending policy checks with effects makes the workflow harder to reason about and retry safely.",
+    "issue_suggestion": "Isolate command validation, then execute side effects within a clearer workflow boundary.",
+    "issue_code": "validate_ship_order(order)\nworkflow.dispatch(order.id)"
+  },
+  {
+    "title": "Use durable scheduling for delayed work",
+    "description": "Stores reminder jobs in process memory until they are due.",
+    "code": "REMINDERS = []\n\ndef schedule_reminder(job):\n    REMINDERS.append(job)\n",
+    "issue_line": 3,
+    "issue_severity": "critical",
+    "issue_title": "Delayed work is lost on process restart",
+    "issue_description": "In-memory scheduling cannot survive deploys, crashes, or horizontal scaling.",
+    "issue_suggestion": "Use a durable job store or external scheduler for delayed tasks.",
+    "issue_code": "scheduler.enqueue_at(job.run_at, job.payload)"
+  },
+  {
+    "title": "Do not make analytics a write-path dependency",
+    "description": "Creates a subscription only after the analytics profile is synced.",
+    "code": "def create_subscription(payload):\n    analytics.sync_user(payload['user_id'])\n    return subscriptions.create(payload)\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "Non-critical analytics blocks the core transaction",
+    "issue_description": "A reporting dependency should not determine the availability of the main business operation.",
+    "issue_suggestion": "Move analytics emission off the critical path.",
+    "issue_code": "subscription = subscriptions.create(payload)\nanalytics_events.publish(subscription.id)"
+  },
+  {
+    "title": "Model quota checks with a consistent source of truth",
+    "description": "Reads quota from cache and usage from a different store in the same request.",
+    "code": "def can_create_project(user_id):\n    limit = cache.get(f'quota:{user_id}')\n    used = database.count_projects(user_id)\n    return used < limit\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "Quota decision spans inconsistent data sources",
+    "issue_description": "Reading the limit and usage from different consistency domains can make enforcement unreliable.",
+    "issue_suggestion": "Make the quota decision against one coherent source of truth or transaction boundary.",
+    "issue_code": "quota = quota_store.get_usage_and_limit(user_id)"
+  },
+  {
+    "title": "Prefer append-only event logs for replayable workflows",
+    "description": "Updates a single status field as an order moves through states.",
+    "code": "def mark_paid(order):\n    order.status = 'paid'\n    order.save()\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "State transitions are not replayable or auditable",
+    "issue_description": "Only the latest status remains, which makes debugging process history harder.",
+    "issue_suggestion": "Record immutable state transition events when replayability matters.",
+    "issue_code": "events.append({'type': 'order_paid', 'order_id': order.id})"
+  },
+  {
+    "title": "Keep synchronous APIs within a clear latency budget",
+    "description": "Builds a settings page by reading ten services one after another.",
+    "code": "def settings_page(user_id):\n    profile = profile_api.get(user_id)\n    billing = billing_api.get(user_id)\n    alerts = alerts_api.get(user_id)\n    teams = teams_api.get(user_id)\n    permissions = perms_api.get(user_id)\n    return {\n        'profile': profile,\n        'billing': billing,\n        'alerts': alerts,\n        'teams': teams,\n        'permissions': permissions,\n    }\n",
+    "issue_line": 6,
+    "issue_severity": "medium",
+    "issue_title": "Serial dependency fan-out exceeds a reasonable latency budget",
+    "issue_description": "Each additional blocking call makes the endpoint slower and more failure-prone.",
+    "issue_suggestion": "Parallelize independent calls or precompose the data elsewhere.",
+    "issue_code": "profile, billing, alerts = gather(...) "
+  },
+  {
+    "title": "Avoid coupling write success to cache fill success",
+    "description": "Creates a product and immediately writes it into Redis before returning.",
+    "code": "def create_product(payload):\n    product = db.insert_product(payload)\n    redis.set(f'product:{product.id}', serialize(product))\n    return product\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "Cache warm-up is treated as part of the write transaction",
+    "issue_description": "A cache outage should not block creation of the canonical record.",
+    "issue_suggestion": "Make cache fill best-effort or asynchronous after the primary write succeeds.",
+    "issue_code": "try:\n    redis.set(...)\nexcept Exception:\n    log.warning('cache warm failed')"
+  },
+  {
+    "title": "Prefer contract boundaries over direct table sharing between services",
+    "description": "A reporting service reads the billing service tables directly.",
+    "code": "def monthly_report(db):\n    return db.query('SELECT * FROM billing_invoices')\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Service boundaries are bypassed through shared tables",
+    "issue_description": "Direct cross-service table reads create hidden coupling and make schema changes risky.",
+    "issue_suggestion": "Expose the data through a contract or replicated read model instead.",
+    "issue_code": "return billing_reports_api.monthly_report()"
+  },
+  {
+    "title": "Use explicit ownership for cross-cutting data cleanup",
+    "description": "Deletes a user and relies on every service to notice later.",
+    "code": "def delete_user(user_id):\n    users.delete(user_id)\n    return {'ok': True}\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Cross-service cleanup responsibility is undefined",
+    "issue_description": "Dependent systems may keep stale personal data or broken references if ownership is not coordinated.",
+    "issue_suggestion": "Define an explicit deletion workflow with ownership for downstream cleanup.",
+    "issue_code": "deletion_workflow.start(user_id)"
+  }
+]

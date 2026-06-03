@@ -1,0 +1,222 @@
+[
+  {
+    "title": "Create article view",
+    "description": "Creates an article from POST data.",
+    "code": "from django.http import JsonResponse\n\nfrom .models import Article\n\n\ndef create_article(request):\n    article = Article.objects.create(\n        title=request.POST[\"title\"],\n        body=request.POST[\"body\"],\n    )\n    return JsonResponse({\"id\": article.id})\n",
+    "issue_line": 7,
+    "issue_severity": "critical",
+    "issue_title": "POST data is used without form validation",
+    "issue_description": "The view trusts raw request.POST values instead of validating required fields and types.",
+    "issue_suggestion": "Validate input with a Django form or serializer before saving.",
+    "issue_code": "form = ArticleForm(request.POST)\nif not form.is_valid():\n    return JsonResponse({\"errors\": form.errors}, status=400)"
+  },
+  {
+    "title": "Edit profile view",
+    "description": "Updates a user's own profile fields.",
+    "code": "from django.shortcuts import get_object_or_404, redirect\n\nfrom .models import Profile\n\n\ndef edit_profile(request, profile_id):\n    profile = get_object_or_404(Profile, pk=profile_id)\n    profile.bio = request.POST.get(\"bio\", \"\")\n    profile.save()\n    return redirect(\"profile-detail\", profile_id=profile.id)\n",
+    "issue_line": 6,
+    "issue_severity": "critical",
+    "issue_title": "Ownership is never checked",
+    "issue_description": "Any authenticated user can update any profile by guessing its id.",
+    "issue_suggestion": "Ensure the profile belongs to the current user before saving.",
+    "issue_code": "if profile.user_id != request.user.id:\n    return HttpResponseForbidden()"
+  },
+  {
+    "title": "Generate product slug",
+    "description": "Creates a slug from the product name before save.",
+    "code": "from django.db import models\nfrom django.utils.text import slugify\n\n\nclass Product(models.Model):\n    name = models.CharField(max_length=120)\n    slug = models.SlugField(unique=True)\n\n    def save(self, *args, **kwargs):\n        self.slug = slugify(self.name)\n        super().save(*args, **kwargs)\n",
+    "issue_line": 9,
+    "issue_severity": "medium",
+    "issue_title": "Slug changes on every update",
+    "issue_description": "Editing the product name later changes the slug and can break existing URLs.",
+    "issue_suggestion": "Only set the slug when it is empty.",
+    "issue_code": "if not self.slug:\n    self.slug = slugify(self.name)"
+  },
+  {
+    "title": "Delete comment route",
+    "description": "Removes a comment and redirects back.",
+    "code": "from django.shortcuts import get_object_or_404, redirect\n\nfrom .models import Comment\n\n\ndef delete_comment(request, comment_id):\n    comment = get_object_or_404(Comment, pk=comment_id)\n    comment.delete()\n    return redirect(\"comments-list\")\n",
+    "issue_line": 6,
+    "issue_severity": "critical",
+    "issue_title": "Destructive action accepts GET requests",
+    "issue_description": "The view deletes data regardless of HTTP method, which is unsafe and CSRF-prone.",
+    "issue_suggestion": "Require POST and add CSRF protection for deletion.",
+    "issue_code": "if request.method != \"POST\":\n    return HttpResponseNotAllowed([\"POST\"])"
+  },
+  {
+    "title": "Project dashboard",
+    "description": "Shows a dashboard of recent projects.",
+    "code": "from django.shortcuts import render\n\nfrom .models import Project\n\n\ndef dashboard(request):\n    projects = Project.objects.order_by(\"-created_at\")[:10]\n    return render(request, \"dashboard.html\", {\"projects\": projects})\n",
+    "issue_line": 6,
+    "issue_severity": "critical",
+    "issue_title": "Dashboard is public",
+    "issue_description": "Anyone can load internal project data because the view has no authentication requirement.",
+    "issue_suggestion": "Protect the view with login_required.",
+    "issue_code": "@login_required"
+  },
+  {
+    "title": "Invoice detail page",
+    "description": "Loads and renders a single invoice.",
+    "code": "from django.shortcuts import render\n\nfrom .models import Invoice\n\n\ndef invoice_detail(request, invoice_id):\n    invoice = Invoice.objects.get(pk=invoice_id)\n    return render(request, \"invoice_detail.html\", {\"invoice\": invoice})\n",
+    "issue_line": 6,
+    "issue_severity": "medium",
+    "issue_title": "Missing object lookup handling",
+    "issue_description": "A missing invoice raises DoesNotExist and becomes a 500 error.",
+    "issue_suggestion": "Use get_object_or_404 for detail views.",
+    "issue_code": "invoice = get_object_or_404(Invoice, pk=invoice_id)"
+  },
+  {
+    "title": "Search customers",
+    "description": "Runs a quick search over customer names.",
+    "code": "from django.db import connection\nfrom django.http import JsonResponse\n\n\ndef search_customers(request):\n    term = request.GET.get(\"q\", \"\")\n    with connection.cursor() as cursor:\n        cursor.execute(f\"SELECT id, name FROM customers WHERE name LIKE '%{term}%'\")\n        rows = cursor.fetchall()\n    return JsonResponse({\"rows\": rows})\n",
+    "issue_line": 8,
+    "issue_severity": "critical",
+    "issue_title": "Raw SQL is interpolated with user input",
+    "issue_description": "The query is vulnerable to SQL injection because the search term is inserted directly into the SQL string.",
+    "issue_suggestion": "Use parameterized queries or the ORM.",
+    "issue_code": "cursor.execute(\"SELECT id, name FROM customers WHERE name LIKE %s\", [f\"%{term}%\"])"
+  },
+  {
+    "title": "Upload avatar form",
+    "description": "Stores an uploaded avatar file for a profile.",
+    "code": "from django.core.files.storage import default_storage\nfrom django.http import JsonResponse\n\n\ndef upload_avatar(request):\n    file = request.FILES[\"avatar\"]\n    path = default_storage.save(file.name, file)\n    return JsonResponse({\"path\": path})\n",
+    "issue_line": 7,
+    "issue_severity": "medium",
+    "issue_title": "Original upload name is trusted",
+    "issue_description": "Saving under the raw client filename can cause collisions and unpleasant names in storage.",
+    "issue_suggestion": "Generate a server-side filename before saving.",
+    "issue_code": "path = default_storage.save(f\"avatars/{uuid4()}-{file.name}\", file)"
+  },
+  {
+    "title": "Add cart item",
+    "description": "Stores a cart quantity inside the session.",
+    "code": "from django.shortcuts import redirect\n\n\ndef add_to_cart(request, product_id):\n    cart = request.session.get(\"cart\", {})\n    cart[product_id] = request.POST.get(\"qty\", 1)\n    request.session[\"cart\"] = cart\n    return redirect(\"cart-detail\")\n",
+    "issue_line": 6,
+    "issue_severity": "medium",
+    "issue_title": "Quantity is stored as raw text",
+    "issue_description": "The session ends up with strings or invalid values instead of validated integers.",
+    "issue_suggestion": "Parse and validate qty before saving it.",
+    "issue_code": "qty = int(request.POST.get(\"qty\", 1))"
+  },
+  {
+    "title": "Publish post form",
+    "description": "Marks a post as published from a management action.",
+    "code": "from django.shortcuts import get_object_or_404, redirect\n\nfrom .models import Post\n\n\ndef publish_post(request, post_id):\n    post = get_object_or_404(Post, pk=post_id)\n    post.status = \"published\"\n    post.save()\n    return redirect(\"post-detail\", post_id=post.id)\n",
+    "issue_line": 6,
+    "issue_severity": "critical",
+    "issue_title": "View ignores request method",
+    "issue_description": "Publishing content should not happen on GET requests.",
+    "issue_suggestion": "Require POST before applying the state change.",
+    "issue_code": "if request.method != \"POST\":\n    return HttpResponseNotAllowed([\"POST\"])"
+  },
+  {
+    "title": "Task list for a board",
+    "description": "Renders tasks belonging to a board.",
+    "code": "from django.shortcuts import render\n\nfrom .models import Task\n\n\ndef board_tasks(request, board_id):\n    tasks = Task.objects.filter(board_id=board_id)\n    return render(request, \"board_tasks.html\", {\"tasks\": tasks})\n",
+    "issue_line": 6,
+    "issue_severity": "medium",
+    "issue_title": "Board ownership is not enforced",
+    "issue_description": "Users can inspect tasks from any board id if there is no membership check.",
+    "issue_suggestion": "Verify that the current user can access the board before querying tasks.",
+    "issue_code": "board = get_object_or_404(Board, pk=board_id, members=request.user)"
+  },
+  {
+    "title": "Update site settings",
+    "description": "Applies site settings changes from an admin screen.",
+    "code": "from django.shortcuts import redirect\n\nfrom .models import SiteSettings\n\n\ndef update_settings(request):\n    settings = SiteSettings.objects.first()\n    settings.support_email = request.POST.get(\"support_email\", \"\")\n    settings.save()\n    return redirect(\"settings\")\n",
+    "issue_line": 6,
+    "issue_severity": "critical",
+    "issue_title": "Admin-only action is unprotected",
+    "issue_description": "Any signed-in user can update global site settings if the route is exposed.",
+    "issue_suggestion": "Require a staff-only check before writing settings.",
+    "issue_code": "if not request.user.is_staff:\n    return HttpResponseForbidden()"
+  },
+  {
+    "title": "Register user",
+    "description": "Creates a new user account from form data.",
+    "code": "from django.contrib.auth.models import User\nfrom django.shortcuts import redirect\n\n\ndef register(request):\n    user = User.objects.create(\n        username=request.POST[\"username\"],\n        password=request.POST[\"password\"],\n    )\n    return redirect(\"login\")\n",
+    "issue_line": 6,
+    "issue_severity": "critical",
+    "issue_title": "Password is stored in plain text",
+    "issue_description": "User.objects.create bypasses password hashing and stores the raw password value.",
+    "issue_suggestion": "Use create_user so Django hashes the password correctly.",
+    "issue_code": "user = User.objects.create_user(username=request.POST[\"username\"], password=request.POST[\"password\"])"
+  },
+  {
+    "title": "Render order list",
+    "description": "Shows recent orders and each related customer.",
+    "code": "from django.shortcuts import render\n\nfrom .models import Order\n\n\ndef order_list(request):\n    orders = Order.objects.order_by(\"-created_at\")[:50]\n    return render(request, \"order_list.html\", {\"orders\": orders})\n",
+    "issue_line": 6,
+    "issue_severity": "low",
+    "issue_title": "Related customer data can trigger N+1 queries",
+    "issue_description": "Rendering customer info per order in the template can issue many extra queries.",
+    "issue_suggestion": "Use select_related for the customer relation.",
+    "issue_code": "orders = Order.objects.select_related(\"customer\").order_by(\"-created_at\")[:50]"
+  },
+  {
+    "title": "Newsletter subscribers export",
+    "description": "Returns a CSV of newsletter subscribers.",
+    "code": "from django.http import HttpResponse\n\nfrom .models import Subscriber\n\n\ndef export_subscribers(request):\n    emails = \"\n\".join(Subscriber.objects.values_list(\"email\", flat=True))\n    return HttpResponse(emails, content_type=\"text/csv\")\n",
+    "issue_line": 6,
+    "issue_severity": "critical",
+    "issue_title": "Export endpoint is not protected",
+    "issue_description": "Sensitive email addresses are downloadable without an access check.",
+    "issue_suggestion": "Require staff or admin authorization for exports.",
+    "issue_code": "@staff_member_required"
+  },
+  {
+    "title": "Invite team member",
+    "description": "Creates a new invitation record for a team.",
+    "code": "from django.shortcuts import redirect\n\nfrom .models import Invite\n\n\ndef invite_member(request, team_id):\n    Invite.objects.create(team_id=team_id, email=request.POST[\"email\"])\n    return redirect(\"team-detail\", team_id=team_id)\n",
+    "issue_line": 6,
+    "issue_severity": "medium",
+    "issue_title": "Email is not normalized",
+    "issue_description": "Different letter casing can create duplicate invites for the same address.",
+    "issue_suggestion": "Normalize the email before saving it.",
+    "issue_code": "email = request.POST[\"email\"].strip().lower()"
+  },
+  {
+    "title": "Comment moderation queue",
+    "description": "Shows comments awaiting moderation.",
+    "code": "from django.shortcuts import render\n\nfrom .models import Comment\n\n\ndef moderation_queue(request):\n    comments = Comment.objects.filter(status=\"pending\")\n    return render(request, \"moderation_queue.html\", {\"comments\": comments})\n",
+    "issue_line": 6,
+    "issue_severity": "critical",
+    "issue_title": "Moderation screen is not staff-only",
+    "issue_description": "Pending moderation data is exposed without checking staff permissions.",
+    "issue_suggestion": "Restrict the view to staff users.",
+    "issue_code": "@staff_member_required"
+  },
+  {
+    "title": "Mark notification read",
+    "description": "Sets a notification as read for the current user.",
+    "code": "from django.shortcuts import get_object_or_404, redirect\n\nfrom .models import Notification\n\n\ndef mark_notification_read(request, notification_id):\n    notification = get_object_or_404(Notification, pk=notification_id)\n    notification.read = True\n    notification.save()\n    return redirect(\"notifications\")\n",
+    "issue_line": 6,
+    "issue_severity": "critical",
+    "issue_title": "Notification ownership is ignored",
+    "issue_description": "A user can mark another user's notification as read by guessing its id.",
+    "issue_suggestion": "Load the notification through the current user relationship.",
+    "issue_code": "notification = get_object_or_404(Notification, pk=notification_id, user=request.user)"
+  },
+  {
+    "title": "Search blog posts",
+    "description": "Returns blog posts matching a search term.",
+    "code": "from django.shortcuts import render\n\nfrom .models import Post\n\n\ndef search_posts(request):\n    posts = Post.objects.filter(title__icontains=request.GET[\"q\"])\n    return render(request, \"search.html\", {\"posts\": posts})\n",
+    "issue_line": 6,
+    "issue_severity": "medium",
+    "issue_title": "Missing query param handling",
+    "issue_description": "Accessing request.GET['q'] raises KeyError when the user loads the page without a search term.",
+    "issue_suggestion": "Use get with a safe default.",
+    "issue_code": "query = request.GET.get(\"q\", \"\")"
+  },
+  {
+    "title": "Approve reimbursement",
+    "description": "Marks a reimbursement request as approved.",
+    "code": "from django.shortcuts import get_object_or_404, redirect\n\nfrom .models import Reimbursement\n\n\ndef approve_reimbursement(request, reimbursement_id):\n    reimbursement = get_object_or_404(Reimbursement, pk=reimbursement_id)\n    reimbursement.status = \"approved\"\n    reimbursement.save()\n    return redirect(\"reimbursements\")\n",
+    "issue_line": 6,
+    "issue_severity": "critical",
+    "issue_title": "Approval action is not permission-gated",
+    "issue_description": "Anyone who can hit the route can approve reimbursements.",
+    "issue_suggestion": "Require the proper manager permission before updating the status.",
+    "issue_code": "if not request.user.has_perm(\"billing.can_approve_reimbursement\"):\n    return HttpResponseForbidden()"
+  }
+]

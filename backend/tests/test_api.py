@@ -10,6 +10,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.agents.ai_analyzer import _build_prompt, analyze_review
+from app.data.seed_data import TASKS
+from app.data.seed_tasks import replace_seed_tasks
 from app.db import create_session_factory, get_session
 from app.db import normalize_database_url as normalize_db_url
 from app.main import REVIEWS, admin, app
@@ -22,8 +24,6 @@ from app.schemas import (
     InlineComment,
     UserReview,
 )
-from app.seed_data import TASKS
-from app.seed_tasks import replace_seed_tasks
 
 SEED_TASKS_BY_ID = {task.id: task for task in TASKS}
 TASK_COUNTS_BY_LANGUAGE = Counter(task.language for task in TASKS)

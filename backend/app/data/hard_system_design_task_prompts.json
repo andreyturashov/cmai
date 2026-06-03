@@ -1,0 +1,112 @@
+[
+  {
+    "title": "Protect deduplication state with a durable store",
+    "description": "Deduplicates payment webhooks using an in-memory set on one API instance.",
+    "code": "SEEN = set()\n\ndef handle_webhook(event):\n    if event['id'] in SEEN:\n        return {'ok': True}\n    SEEN.add(event['id'])\n    apply_payment(event)\n    return {'ok': True}\n",
+    "issue_line": 4,
+    "issue_severity": "critical",
+    "issue_title": "Deduplication state is local and non-durable",
+    "issue_description": "Duplicate delivery protection fails across restarts or horizontally scaled instances.",
+    "issue_suggestion": "Move deduplication state to a shared durable store with an expiry policy.",
+    "issue_code": "if redis.setnx(f'webhook:{event['id']}', '1'):"
+  },
+  {
+    "title": "Use an outbox for cache invalidation events",
+    "description": "Updates product data and publishes an invalidation event in the same request path.",
+    "code": "def update_product(product):\n    db.save(product)\n    event_bus.publish('product_updated', product.id)\n    return product\n",
+    "issue_line": 3,
+    "issue_severity": "critical",
+    "issue_title": "Event delivery is not tied to the database commit",
+    "issue_description": "If the publish fails or races the commit, caches may remain stale or consumers may see inconsistent state.",
+    "issue_suggestion": "Persist the invalidation event in an outbox and publish it after commit.",
+    "issue_code": "outbox.append({'type': 'product_updated', 'id': product.id})"
+  },
+  {
+    "title": "Avoid synchronous permissions recomputation on writes",
+    "description": "Recomputes every team membership projection when one role changes.",
+    "code": "def change_role(user_id, team_id, role):\n    memberships.update(user_id, team_id, role)\n    permissions.rebuild_all_for_team(team_id)\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "A local change triggers an unbounded synchronous recomputation",
+    "issue_description": "Large teams or organizations can make a single write path catastrophically slow.",
+    "issue_suggestion": "Scope the recomputation incrementally or offload projection rebuild to background processing.",
+    "issue_code": "permissions.enqueue_recompute(user_id, team_id)"
+  },
+  {
+    "title": "Bound retries in saga orchestration",
+    "description": "Retries a shipping reservation step until it eventually succeeds.",
+    "code": "def reserve_inventory(order):\n    while True:\n        try:\n            shipping.reserve(order.id)\n            return True\n        except Exception:\n            continue\n",
+    "issue_line": 3,
+    "issue_severity": "critical",
+    "issue_title": "Retry policy is unbounded",
+    "issue_description": "Infinite retries can pin workers indefinitely and hide stuck workflows.",
+    "issue_suggestion": "Use bounded retries with backoff and a compensating terminal state.",
+    "issue_code": "for attempt in range(5):"
+  },
+  {
+    "title": "Partition event streams by tenant boundary",
+    "description": "Publishes all customer events to one shared stream without tenant metadata.",
+    "code": "def publish_event(event):\n    broker.publish('customer-events', event)\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Tenant isolation is not represented in the stream design",
+    "issue_description": "Multi-tenant event processing becomes harder to isolate, replay, or secure without tenant scoping.",
+    "issue_suggestion": "Carry tenant identity explicitly or partition streams by tenant boundary where needed.",
+    "issue_code": "broker.publish(f\"tenant-{event['tenant_id']}-events\", event)"
+  },
+  {
+    "title": "Decouple export generation from the download request",
+    "description": "Builds a large CSV report synchronously inside the download endpoint.",
+    "code": "def export_report(filters):\n    rows = query_all_rows(filters)\n    csv_data = render_csv(rows)\n    return csv_data\n",
+    "issue_line": 3,
+    "issue_severity": "critical",
+    "issue_title": "Long-running report generation sits on the request path",
+    "issue_description": "Large exports can exhaust request timeouts and tie up app workers.",
+    "issue_suggestion": "Convert export generation into an async job with later download retrieval.",
+    "issue_code": "job_id = exports.enqueue(filters)"
+  },
+  {
+    "title": "Keep read-replica lag out of correctness checks",
+    "description": "Creates an order in the primary DB and checks for it immediately in a replica-backed read.",
+    "code": "def create_order(payload):\n    order = primary.insert(payload)\n    if not replica.exists(order.id):\n        raise RuntimeError('order missing')\n    return order\n",
+    "issue_line": 4,
+    "issue_severity": "critical",
+    "issue_title": "Replica lag is treated as a correctness failure",
+    "issue_description": "Eventually consistent read replicas should not be used for immediate write-after-read invariants.",
+    "issue_suggestion": "Use the primary for correctness checks or design around eventual consistency explicitly.",
+    "issue_code": "if not primary.exists(order.id):"
+  },
+  {
+    "title": "Replace full scans in cron with cursor-based progression",
+    "description": "Nightly cron reads every user to find expiring subscriptions.",
+    "code": "def send_renewal_reminders():\n    for user in users.all():\n        if user.renews_soon():\n            notify(user.id)\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "The batch job performs a full-table scan each run",
+    "issue_description": "As data grows, blanket scans become expensive and harder to schedule safely.",
+    "issue_suggestion": "Use indexed cursors or precomputed eligibility windows instead of rescanning the whole table.",
+    "issue_code": "for user in users.expiring_between(start, end):"
+  },
+  {
+    "title": "Manage distributed locks with renewable leases",
+    "description": "Uses a lock row with no expiry while processing an import job.",
+    "code": "def run_import(job_id):\n    if not locks.acquire(job_id):\n        return False\n    process_import(job_id)\n    locks.release(job_id)\n",
+    "issue_line": 4,
+    "issue_severity": "critical",
+    "issue_title": "The lock can become orphaned on worker failure",
+    "issue_description": "Without lease expiry and renewal, crashed workers may block the workflow indefinitely.",
+    "issue_suggestion": "Use expiring leases with heartbeats or a lock service that handles renewal safely.",
+    "issue_code": "lock = locks.acquire(job_id, ttl=30)"
+  },
+  {
+    "title": "Separate hot-path storage from archival retention",
+    "description": "Stores ten years of audit payloads in the same hot table used for current dashboards.",
+    "code": "CREATE TABLE audit_log (id, created_at, actor_id, payload_json);",
+    "issue_line": 1,
+    "issue_severity": "medium",
+    "issue_title": "Hot operational queries and long-term retention share one storage layout",
+    "issue_description": "Large cold history can hurt performance and operating cost for current reads.",
+    "issue_suggestion": "Split hot operational access from archival storage with a retention lifecycle.",
+    "issue_code": "archive_old_rows('audit_log', older_than_days=90)"
+  }
+]

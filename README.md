@@ -20,7 +20,7 @@ This project contains both backend and frontend for a PR review training platfor
 cd backend
 uv sync
 uv run alembic upgrade head
-uv run python -m app.seed_tasks
+uv run python -m app.data.seed_tasks
 uv run uvicorn app.main:app --reload --port 8000
 ```
 

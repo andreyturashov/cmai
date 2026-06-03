@@ -17,13 +17,13 @@ migrate:
 	cd backend && uv run alembic upgrade head
 
 backend-seed:
-	cd backend && uv run python -m app.seed_tasks
+	cd backend && uv run python -m app.data.seed_tasks
 
 add-data:
-	cd backend && uv run python -m app.seed_tasks
+	cd backend && uv run python -m app.data.seed_tasks
 
 replace-data:
-	cd backend && uv run python -m app.seed_tasks --replace
+	cd backend && uv run python -m app.data.seed_tasks --replace
 
 test-frontend:
 	cd frontend && npm test

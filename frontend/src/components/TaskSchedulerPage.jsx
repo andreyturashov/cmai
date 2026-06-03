@@ -32,6 +32,7 @@ function getOverallCompleteness(ai) {
 export default function TaskSchedulerPage({ currentUser, onError }) {
   const [interests, setInterests] = useState([]);
   const [scheduledTasks, setScheduledTasks] = useState([]);
+  const [progressEntries, setProgressEntries] = useState([]);
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [task, setTask] = useState(null);
   const [comments, setComments] = useState([]);
@@ -43,11 +44,17 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
   const [regenerating, setRegenerating] = useState(false);
   const taskRefs = useRef({});
 
+  const progressByTaskId = useMemo(
+    () => new Map(progressEntries.map((entry) => [entry.task_id, entry])),
+    [progressEntries],
+  );
+
   const loadSchedule = useCallback(
     async ({ regenerate = false } = {}) => {
       if (!currentUser) {
         setInterests([]);
         setScheduledTasks([]);
+        setProgressEntries([]);
         setSelectedTaskId(null);
         return;
       }
@@ -59,13 +66,15 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
           setLoading(true);
         }
         onError('');
-        const [interestsResponse, scheduleResponse] = await Promise.all([
+        const [interestsResponse, scheduleResponse, progressResponse] = await Promise.all([
           api.getUserInterests(),
           regenerate ? api.regenerateTaskSchedule() : api.getTaskSchedule(),
+          api.getUserProgress(),
         ]);
 
         setInterests(interestsResponse.interests || []);
         setScheduledTasks(scheduleResponse.tasks || []);
+        setProgressEntries(progressResponse || []);
         setSelectedTaskId((previousId) => {
           if (previousId && scheduleResponse.tasks?.some((entry) => entry.id === previousId)) {
             return previousId;
@@ -125,17 +134,32 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
     [scheduledTasks, selectedTaskId],
   );
 
-  const selectedTaskIndex = useMemo(
-    () => scheduledTasks.findIndex((entry) => entry.id === selectedTaskId),
-    [scheduledTasks, selectedTaskId],
-  );
-
   const incompleteTasks = useMemo(
     () => scheduledTasks.filter((entry) => !entry.is_completed),
     [scheduledTasks],
   );
 
-  const selectedAiAnalysis = selectedTaskId ? taskResults[selectedTaskId] || null : null;
+  const selectedProgress = selectedTaskId ? progressByTaskId.get(selectedTaskId) : null;
+  const isCompletedTask = Boolean(selectedSummary?.is_completed || task?.is_completed);
+  const viewingCompletedSubmission = isCompletedTask && selectedProgress;
+
+  const selectedAiAnalysis = useMemo(() => {
+    if (viewingCompletedSubmission && selectedProgress?.ai_analysis) {
+      return { analysis: selectedProgress.ai_analysis };
+    }
+
+    return selectedTaskId ? taskResults[selectedTaskId] || null : null;
+  }, [selectedProgress, selectedTaskId, taskResults, viewingCompletedSubmission]);
+
+  const selectScheduledTask = useCallback((entry) => {
+    setSelectedTaskId(entry.id);
+    setShowReference(false);
+
+    if (!entry.is_completed) {
+      setComments([]);
+      setAnswer('');
+    }
+  }, []);
 
   useEffect(() => {
     if (!selectedTaskId) return;
@@ -161,11 +185,8 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
     const nextTask = incompleteTasks[nextIndex];
     if (!nextTask) return;
 
-    setSelectedTaskId(nextTask.id);
-    setComments([]);
-    setAnswer('');
-    setShowReference(false);
-  }, [incompleteTasks, selectedTaskId]);
+    selectScheduledTask(nextTask);
+  }, [incompleteTasks, selectScheduledTask, selectedTaskId]);
 
   async function submitReview() {
     if (!task) return;
@@ -183,6 +204,13 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
         ...previous,
         [task.id]: result,
       }));
+
+      const progressResponse = await api.getUserProgress();
+      setProgressEntries(progressResponse || []);
+      setScheduledTasks((previous) =>
+        previous.map((entry) => (entry.id === task.id ? { ...entry, is_completed: true } : entry)),
+      );
+      setTask((previous) => (previous ? { ...previous, is_completed: true } : previous));
     } catch (error) {
       setTaskResults((previous) => ({
         ...previous,
@@ -248,9 +276,11 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
         <div className="task-progress-list">
           {scheduledTasks.map((entry) => {
             const isActive = entry.id === selectedSummary?.id;
-            const taskResult = taskResults[entry.id]?.analysis;
+            const savedProgress = progressByTaskId.get(entry.id);
+            const taskResult = taskResults[entry.id]?.analysis ?? savedProgress?.ai_analysis;
             const taskCompleteness = getOverallCompleteness(taskResult);
             const isAnalyzingCurrentTask = aiLoading && entry.id === selectedTaskId;
+            const showInlineCompletedStats = entry.is_completed && taskResult;
             return (
               <button
                 key={entry.id}
@@ -259,15 +289,17 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
                 }}
                 type="button"
                 className={`task-progress-item${isActive ? ' task-progress-item-active' : ''}${entry.is_completed ? ' task-progress-item-completed' : ''}`}
-                onClick={() => {
-                  setSelectedTaskId(entry.id);
-                  setComments([]);
-                  setAnswer('');
-                  setShowReference(false);
-                }}
+                onClick={() => selectScheduledTask(entry)}
               >
                 <span className="task-progress-item-title">{entry.title}</span>
-                <span className="task-scheduler-item-summary">
+                <span
+                  className={`task-scheduler-item-summary${entry.is_completed ? ' task-scheduler-item-summary-compact' : ''}`}
+                >
+                  {showInlineCompletedStats ? (
+                    <span className="task-scheduler-item-stats-inline">
+                      {taskResult.score}/10 · {taskCompleteness}%
+                    </span>
+                  ) : null}
                   <span className="task-progress-item-meta">{formatMeta(entry)}</span>
                   {entry.complexity ? (
                     <span
@@ -279,11 +311,11 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
 
                   {entry.is_completed ? (
                     <span className="task-completed-badge task-scheduler-item-complexity">
-                      Completed
+                      Done
                     </span>
                   ) : null}
                 </span>
-                {taskResult ? (
+                {!entry.is_completed && taskResult ? (
                   <span className="task-scheduler-item-progress">
                     <span>Score: {taskResult.score} / 10</span>
                     <span>Progress: {taskCompleteness}%</span>
@@ -301,19 +333,30 @@ export default function TaskSchedulerPage({ currentUser, onError }) {
       </aside>
 
       <div className="task-scheduler-detail layout-grid">
-        <LeftPanel task={task} aiAnalysis={selectedAiAnalysis} aiLoading={aiLoading} />
+        <LeftPanel
+          task={task}
+          progressEntry={viewingCompletedSubmission ? selectedProgress : null}
+          aiAnalysis={selectedAiAnalysis}
+          aiLoading={aiLoading}
+        />
         <CodeReviewPanel
-          isCompleted={task?.is_completed}
+          isCompleted={isCompletedTask}
+          readOnly={viewingCompletedSubmission}
           code={task?.code || ''}
           language={task?.language || 'python'}
           instructions={task?.instructions || []}
           responseMode={task?.submission_mode || 'comments'}
-          comments={comments}
-          answer={answer}
+          comments={viewingCompletedSubmission ? selectedProgress.user_comments || [] : comments}
+          answer={viewingCompletedSubmission ? selectedProgress.user_answer || '' : answer}
+          savedAnswer={viewingCompletedSubmission ? selectedProgress.user_answer || '' : ''}
           answerEditorKey={task?.id || 'scheduled-task-answer'}
-          referenceIssues={showReference ? task?.reference_issues || [] : []}
-          referenceIssueCount={task?.reference_issues?.length || 0}
+          referenceIssues={
+            showReference && !viewingCompletedSubmission ? task?.reference_issues || [] : []
+          }
+          referenceIssueCount={viewingCompletedSubmission ? 0 : task?.reference_issues?.length || 0}
           showReference={showReference}
+          showHeader={!viewingCompletedSubmission}
+          eyebrowLabel={viewingCompletedSubmission ? 'Code' : ''}
           onToggleReference={() => setShowReference((value) => !value)}
           onAddComment={(comment) => setComments((previous) => [...previous, comment])}
           onEditComment={(index, updated) =>

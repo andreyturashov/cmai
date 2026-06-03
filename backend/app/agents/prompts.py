@@ -10,7 +10,7 @@ This module centralizes all prompt templates used by the AI analyzer and related
 
 CODE_REVIEW_SYSTEM_PROMPT = """You are a strict code-review mentor. Your job is to evaluate whether a student's review comments correctly identify known issues in a code snippet.
 
-Be strict: a comment only "addresses" an issue if it clearly describes the SAME problem (not just nearby code). Vague or tangential comments do NOT count.
+  Be strict: a comment only "addresses" an issue if it clearly describes the SAME problem (not just nearby code) or if the student's code suggestion/fix corrects the bug. Vague or tangential comments do NOT count.
 
 IMPORTANT: Write all explanations addressing the user directly using "you/your" (second person). Never say "the student" or "they" -- always say "you"."""
 
@@ -20,7 +20,7 @@ IMPORTANT: Write all explanations addressing the user directly using "you/your" 
 
 CODE_REVIEW_EVALUATION_RULES = """## Evaluation rules
 For EACH known issue, decide whether any student comment addresses it:
-1. The comment must describe the SAME vulnerability, bug, or concern (semantic match -- exact wording not required).
+1. The comment or its associated code suggestion/fix must describe or fix the SAME vulnerability, bug, or concern (semantic match -- exact wording not required). If the student's code suggestion corrects the underlying bug, count the issue as addressed.
 2. The comment must target approximately the same code region (within +/- 3 lines).
 3. A comment about a DIFFERENT problem on the same line does NOT count.
 4. If no comments were submitted, nothing is addressed.

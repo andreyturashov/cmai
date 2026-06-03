@@ -1,0 +1,233 @@
+[
+  {
+    "title": "Deduplicate events by id before load",
+    "description": "Appends every event row directly into the warehouse table.",
+    "code": "def load_events(rows, warehouse):\n    for row in rows:\n        warehouse.insert(row)\n",
+    "issue_line": 3,
+    "issue_severity": "critical",
+    "issue_title": "Pipeline does not handle duplicate events",
+    "issue_description": "Repeated source deliveries can produce duplicate warehouse rows and inflated metrics.",
+    "issue_suggestion": "Track a stable event id or use an upsert strategy during load.",
+    "issue_code": "warehouse.upsert(row, key='event_id')"
+  },
+  {
+    "title": "Preserve event time separately from processing time",
+    "description": "Overwrites the event timestamp with the ingestion clock.",
+    "code": "def normalize(row):\n    row['event_time'] = now()\n    return row\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Original event time is lost",
+    "issue_description": "Replacing event_time with processing time breaks late-arrival analysis and time-based reporting.",
+    "issue_suggestion": "Keep source event time and store processing time in a separate field.",
+    "issue_code": "row['processed_at'] = now()"
+  },
+  {
+    "title": "Partition fact tables by the query dimension",
+    "description": "Writes all daily events into one unpartitioned table.",
+    "code": "CREATE TABLE page_views (event_id STRING, viewed_at TIMESTAMP, user_id STRING);",
+    "issue_line": 1,
+    "issue_severity": "medium",
+    "issue_title": "Large event table has no partition strategy",
+    "issue_description": "Analytical queries will scan more data than needed as volume grows.",
+    "issue_suggestion": "Partition the table by a commonly filtered timestamp or date column.",
+    "issue_code": "CREATE TABLE page_views (...) PARTITION BY DATE(viewed_at);"
+  },
+  {
+    "title": "Validate schema evolution before append",
+    "description": "Appends incoming JSON rows without checking for required columns.",
+    "code": "def append_batch(rows, table):\n    table.append(rows)\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Schema drift is unchecked",
+    "issue_description": "Unexpected missing or renamed columns can silently corrupt downstream datasets.",
+    "issue_suggestion": "Validate rows against the expected schema before appending.",
+    "issue_code": "validate_schema(rows, expected_columns)"
+  },
+  {
+    "title": "Keep raw bronze data immutable",
+    "description": "Mutates raw source rows in place during cleanup.",
+    "code": "def clean_raw(rows):\n    for row in rows:\n        row['email'] = row['email'].strip().lower()\n    return rows\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "Raw data lineage is destroyed",
+    "issue_description": "Mutating the raw layer makes it harder to replay transformations or audit source truth later.",
+    "issue_suggestion": "Write cleaned data into a derived layer and preserve raw input unchanged.",
+    "issue_code": "cleaned_rows = [{**row, 'email': row['email'].strip().lower()} for row in rows]"
+  },
+  {
+    "title": "Model null handling explicitly in aggregations",
+    "description": "Sums a nullable revenue field directly.",
+    "code": "def total_revenue(rows):\n    return sum(row['revenue'] for row in rows)\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Null revenue values break or skew the aggregation",
+    "issue_description": "Missing values need an explicit business rule instead of relying on implicit behavior.",
+    "issue_suggestion": "Normalize or coalesce nullable measures before aggregation.",
+    "issue_code": "return sum((row['revenue'] or 0) for row in rows)"
+  },
+  {
+    "title": "Use idempotent upserts for daily snapshots",
+    "description": "Inserts one snapshot row per account every run.",
+    "code": "def write_snapshot(rows, table):\n    for row in rows:\n        table.insert(row)\n",
+    "issue_line": 3,
+    "issue_severity": "critical",
+    "issue_title": "Repeated runs create duplicate snapshot rows",
+    "issue_description": "Backfills or reruns will multiply the same logical snapshot unless writes are idempotent.",
+    "issue_suggestion": "Upsert on the business key plus snapshot date.",
+    "issue_code": "table.upsert(row, key=['account_id', 'snapshot_date'])"
+  },
+  {
+    "title": "Do not join facts on free-form text keys",
+    "description": "Joins orders to campaigns using campaign_name.",
+    "code": "SELECT * FROM orders o JOIN campaigns c ON o.campaign_name = c.name;",
+    "issue_line": 1,
+    "issue_severity": "critical",
+    "issue_title": "Join key is unstable text",
+    "issue_description": "Names change over time and can collide, causing broken attribution joins.",
+    "issue_suggestion": "Join on stable surrogate or natural ids instead of labels.",
+    "issue_code": "... ON o.campaign_id = c.id"
+  },
+  {
+    "title": "Track watermark for incremental loads",
+    "description": "Reads the full source table on every run.",
+    "code": "def extract_all(source):\n    return source.query('SELECT * FROM orders')\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Pipeline does full reloads without incremental state",
+    "issue_description": "Repeated full extracts waste compute and increase latency as the source grows.",
+    "issue_suggestion": "Track a watermark such as updated_at and load incrementally.",
+    "issue_code": "SELECT * FROM orders WHERE updated_at > :watermark"
+  },
+  {
+    "title": "Normalize nested arrays before warehouse load",
+    "description": "Writes raw arrays directly into a flat analytics table.",
+    "code": "def write_items(order):\n    warehouse.insert({'order_id': order['id'], 'items': order['items']})\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Nested array is not modeled for relational analytics",
+    "issue_description": "Flat warehouse tables become harder to query when arrays are packed into one column without a child table strategy.",
+    "issue_suggestion": "Explode line items into a separate fact table or use a supported nested schema intentionally.",
+    "issue_code": "for item in order['items']:\n    warehouse.insert({'order_id': order['id'], 'sku': item['sku']})"
+  },
+  {
+    "title": "Handle late-arriving dimension changes",
+    "description": "Looks up the current plan tier during fact load.",
+    "code": "def enrich(order, customer_store):\n    order['plan'] = customer_store.current_plan(order['customer_id'])\n    return order\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Historical fact is enriched with current dimension state",
+    "issue_description": "Using the latest plan value can rewrite history for older events.",
+    "issue_suggestion": "Join to a slowly changing dimension or effective-dated snapshot matching the event time.",
+    "issue_code": "order['plan'] = customer_store.plan_at(order['customer_id'], order['created_at'])"
+  },
+  {
+    "title": "Do not cast decimal currency to float",
+    "description": "Parses invoice totals as float before warehouse load.",
+    "code": "def normalize_amount(row):\n    row['amount'] = float(row['amount'])\n    return row\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Currency precision is downgraded",
+    "issue_description": "Floating-point conversion can introduce rounding drift in financial metrics.",
+    "issue_suggestion": "Use a decimal or fixed-precision numeric type for currency fields.",
+    "issue_code": "row['amount'] = Decimal(row['amount'])"
+  },
+  {
+    "title": "Monitor dropped rows explicitly",
+    "description": "Skips bad rows with a bare except during ingestion.",
+    "code": "def ingest(rows, sink):\n    for row in rows:\n        try:\n            sink.write(transform(row))\n        except Exception:\n            pass\n",
+    "issue_line": 5,
+    "issue_severity": "critical",
+    "issue_title": "Bad rows disappear silently",
+    "issue_description": "The pipeline loses data without any record of how many rows were rejected or why.",
+    "issue_suggestion": "Send invalid rows to a quarantine sink and emit metrics for failures.",
+    "issue_code": "dead_letter.write({'row': row, 'error': str(exc)})"
+  },
+  {
+    "title": "Avoid repartitioning every batch by a high-cardinality key",
+    "description": "Repartitions the dataset by user_id before each write.",
+    "code": "df = df.repartition('user_id')\ndf.write.parquet(output)\n",
+    "issue_line": 1,
+    "issue_severity": "medium",
+    "issue_title": "High-cardinality repartitioning is expensive",
+    "issue_description": "Repartitioning by a very high-cardinality field can create excessive shuffle cost and many tiny partitions.",
+    "issue_suggestion": "Partition by a lower-cardinality access dimension or keep the existing distribution when possible.",
+    "issue_code": "df.write.partitionBy('event_date').parquet(output)"
+  },
+  {
+    "title": "Do not use local timezone for warehouse dates",
+    "description": "Derives a reporting date using the worker's local timezone.",
+    "code": "def report_date(ts):\n    return ts.astimezone().date()\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Date derivation depends on machine locale",
+    "issue_description": "Different worker environments can classify the same event into different dates.",
+    "issue_suggestion": "Normalize reporting timestamps in an explicit timezone such as UTC.",
+    "issue_code": "return ts.astimezone(timezone.utc).date()"
+  },
+  {
+    "title": "Preserve source deletes in CDC pipelines",
+    "description": "Upserts rows from change events but ignores delete operations.",
+    "code": "def apply_change(event, table):\n    if event['op'] in {'insert', 'update'}:\n        table.upsert(event['row'])\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Delete events are ignored",
+    "issue_description": "Warehouse state diverges from the source when deleted records remain forever.",
+    "issue_suggestion": "Handle delete operations explicitly in the target model.",
+    "issue_code": "elif event['op'] == 'delete':\n    table.delete(event['id'])"
+  },
+  {
+    "title": "Use stable surrogate keys in dimensions",
+    "description": "Builds customer dimension keys from email addresses.",
+    "code": "def customer_key(row):\n    return row['email'].lower()\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Business key can change over time",
+    "issue_description": "If a customer changes email, dimensional joins and history can fragment.",
+    "issue_suggestion": "Use a stable surrogate key or immutable source identifier.",
+    "issue_code": "return row['customer_id']"
+  },
+  {
+    "title": "Backfill with bounded batches",
+    "description": "Reads a five-year history into memory before writing.",
+    "code": "def backfill(source):\n    rows = source.query('SELECT * FROM events')\n    write(rows)\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Backfill is unbounded in memory",
+    "issue_description": "Large historical loads can exhaust worker memory and fail mid-run.",
+    "issue_suggestion": "Process historical data in bounded chunks or windows.",
+    "issue_code": "for window in date_windows(start, end):\n    write(source.query(window.sql))"
+  },
+  {
+    "title": "Audit PII minimization in derived tables",
+    "description": "Copies full user profiles into a marketing mart.",
+    "code": "def build_marketing_row(user):\n    return {'email': user['email'], 'phone': user['phone'], 'ssn': user['ssn']}\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Derived table contains unnecessary sensitive fields",
+    "issue_description": "Analytics and marketing marts should not inherit highly sensitive data by default.",
+    "issue_suggestion": "Include only the fields required for the downstream use case.",
+    "issue_code": "return {'email': user['email']}"
+  },
+  {
+    "title": "Check row counts across pipeline stages",
+    "description": "Loads transformed records without reconciling counts.",
+    "code": "def run(rows):\n    cleaned = transform(rows)\n    warehouse.write(cleaned)\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Pipeline has no reconciliation checkpoint",
+    "issue_description": "Unexpected row loss or duplication can go unnoticed without stage-level validation.",
+    "issue_suggestion": "Compare source, transformed, and loaded record counts and alert on mismatches.",
+    "issue_code": "assert len(rows) == len(cleaned)"
+  },
+  {
+    "title": "Represent many-to-many facts explicitly",
+    "description": "Stores comma-separated tag ids in one column.",
+    "code": "def write_article(article):\n    warehouse.insert({'article_id': article['id'], 'tag_ids': ','.join(article['tags'])})\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Many-to-many relationship is flattened into one string",
+    "issue_description": "Comma-separated ids are hard to query, validate, and join accurately.",
+    "issue_suggestion": "Write a bridge table with one row per article-tag pair.",
+    "issue_code": "for tag_id in article['tags']:\n    warehouse.insert({'article_id': article['id'], 'tag_id': tag_id})"
+  }
+]
