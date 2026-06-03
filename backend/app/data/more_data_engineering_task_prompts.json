@@ -1,0 +1,112 @@
+[
+  {
+    "title": "Capture source system lineage on ingest",
+    "description": "Loads customer rows without recording where they came from.",
+    "code": "def normalize_customer(row):\n    return {'customer_id': row['id'], 'email': row['email']}\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Lineage metadata is discarded",
+    "issue_description": "Downstream debugging becomes harder when analysts cannot trace a row back to its source system or file.",
+    "issue_suggestion": "Preserve source metadata such as system, file, or batch id alongside the normalized row.",
+    "issue_code": "return {'customer_id': row['id'], 'email': row['email'], 'source_batch_id': row['batch_id']}"
+  },
+  {
+    "title": "Use explicit schemas when reading CSV inputs",
+    "description": "Lets the CSV reader infer all column types automatically.",
+    "code": "df = spark.read.csv(path, header=True, inferSchema=True)\n",
+    "issue_line": 1,
+    "issue_severity": "medium",
+    "issue_title": "Schema inference can drift across files",
+    "issue_description": "Type inference may vary between batches and create unstable downstream types.",
+    "issue_suggestion": "Provide an explicit schema for production ingestion jobs.",
+    "issue_code": "df = spark.read.schema(order_schema).csv(path, header=True)"
+  },
+  {
+    "title": "Do not overwrite partition history unintentionally",
+    "description": "Writes one daily partition using overwrite mode on the whole table path.",
+    "code": "df.write.mode('overwrite').parquet('s3://warehouse/orders')\n",
+    "issue_line": 1,
+    "issue_severity": "critical",
+    "issue_title": "Overwrite semantics can delete unrelated partitions",
+    "issue_description": "A partition load can erase more history than intended if overwrite scope is too broad.",
+    "issue_suggestion": "Overwrite only the target partition or use dynamic partition overwrite safely.",
+    "issue_code": "df.write.mode('overwrite').partitionBy('event_date').option('replaceWhere', \"event_date = '2026-05-27'\")"
+  },
+  {
+    "title": "Normalize identifiers before cross-system joins",
+    "description": "Joins CRM ids and billing ids without consistent casing.",
+    "code": "SELECT * FROM crm c JOIN billing b ON c.customer_id = b.customer_id;\n",
+    "issue_line": 1,
+    "issue_severity": "medium",
+    "issue_title": "Join keys may not be normalized consistently",
+    "issue_description": "Case or formatting mismatches across systems can silently drop otherwise matching rows.",
+    "issue_suggestion": "Normalize shared identifiers before joining datasets from multiple systems.",
+    "issue_code": "ON LOWER(c.customer_id) = LOWER(b.customer_id)"
+  },
+  {
+    "title": "Detect unexpected schema additions early",
+    "description": "Reads partner payloads and ignores extra columns silently.",
+    "code": "def transform(row):\n    return {'id': row['id'], 'status': row['status']}\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "New source fields arrive without detection",
+    "issue_description": "Silent schema growth can signal upstream changes that deserve review or explicit handling.",
+    "issue_suggestion": "Alert when unexpected columns appear instead of ignoring them silently.",
+    "issue_code": "unexpected = set(row) - {'id', 'status'}"
+  },
+  {
+    "title": "Preserve ordering keys for reproducible incremental merges",
+    "description": "Merges CDC rows without using sequence numbers.",
+    "code": "def apply(events):\n    for event in events:\n        table.upsert(event)\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Update ordering is undefined",
+    "issue_description": "Out-of-order CDC events can produce the wrong final row if sequence or version keys are ignored.",
+    "issue_suggestion": "Use a source sequence number or version to order conflicting changes deterministically.",
+    "issue_code": "latest = max(events, key=lambda event: event['lsn'])"
+  },
+  {
+    "title": "Do not aggregate before handling late corrections",
+    "description": "Rolls up daily revenue directly from raw append-only events.",
+    "code": "def daily_revenue(events):\n    return sum(event['amount'] for event in events if event['date'] == today())\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Correction and reversal events are not modeled",
+    "issue_description": "Simple rollups can overstate metrics when the source emits later cancels or corrections.",
+    "issue_suggestion": "Model reversals and adjustments before publishing aggregates.",
+    "issue_code": "valid_events = apply_corrections(events)"
+  },
+  {
+    "title": "Use stable batch ids for replay safety",
+    "description": "Names output files with the current timestamp only.",
+    "code": "def output_path():\n    return f\"s3://warehouse/stage/{int(time.time())}.parquet\"\n",
+    "issue_line": 2,
+    "issue_severity": "low",
+    "issue_title": "Replayability and traceability are weak",
+    "issue_description": "Timestamp-only naming makes it harder to connect outputs to a specific source batch or replay attempt.",
+    "issue_suggestion": "Include a stable source or orchestration batch id in the output naming scheme.",
+    "issue_code": "return f\"s3://warehouse/stage/{batch_id}.parquet\""
+  },
+  {
+    "title": "Partition by query pattern, not writer convenience",
+    "description": "Writes event data partitioned by ingestion worker id.",
+    "code": "df.write.partitionBy('worker_id').parquet(output)\n",
+    "issue_line": 1,
+    "issue_severity": "medium",
+    "issue_title": "Partitioning does not match analytical access patterns",
+    "issue_description": "Data layout should optimize common read filters, not whichever field is convenient at write time.",
+    "issue_suggestion": "Partition by date or another common query dimension instead.",
+    "issue_code": "df.write.partitionBy('event_date').parquet(output)"
+  },
+  {
+    "title": "Quarantine malformed records with context",
+    "description": "Drops bad JSON rows without keeping the original payload.",
+    "code": "def parse_line(line):\n    try:\n        return json.loads(line)\n    except Exception:\n        return None\n",
+    "issue_line": 4,
+    "issue_severity": "critical",
+    "issue_title": "Malformed records lose recovery context",
+    "issue_description": "Without the original payload and error details, bad rows are hard to inspect or replay later.",
+    "issue_suggestion": "Store malformed input and failure details in a quarantine sink.",
+    "issue_code": "dead_letter.write({'payload': line, 'error': str(exc)})"
+  }
+]

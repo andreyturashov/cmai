@@ -1,0 +1,222 @@
+[
+  {
+    "title": "Do not perform synchronous billing in request path",
+    "description": "Charges a card inline while creating an order.",
+    "code": "def create_order(payload):\n    order = save_order(payload)\n    charge_card(order)\n    return order\n",
+    "issue_line": 3,
+    "issue_severity": "critical",
+    "issue_title": "Critical external work is coupled directly to the request path",
+    "issue_description": "A slow or failing billing provider directly degrades order creation latency and availability.",
+    "issue_suggestion": "Persist the order first and hand billing to a reliable async workflow or outbox-driven worker.",
+    "issue_code": "enqueue_billing_job(order.id)"
+  },
+  {
+    "title": "Separate read and write models for dashboard traffic",
+    "description": "Builds a dashboard by joining live transactional tables on every request.",
+    "code": "def dashboard(db):\n    return db.query('SELECT * FROM orders JOIN line_items JOIN users JOIN shipments')\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "High-read dashboard depends on heavy transactional joins",
+    "issue_description": "Expensive synchronous joins on the hot path do not scale well for dashboard-style reads.",
+    "issue_suggestion": "Use a read model or precomputed aggregate optimized for the dashboard access pattern.",
+    "issue_code": "return dashboard_store.fetch_summary()"
+  },
+  {
+    "title": "Avoid shared mutable in-process state for distributed coordination",
+    "description": "Uses a module-level dict to track rate limits.",
+    "code": "LIMITS = {}\n\ndef allow(user_id):\n    count = LIMITS.get(user_id, 0) + 1\n    LIMITS[user_id] = count\n    return count < 10\n",
+    "issue_line": 4,
+    "issue_severity": "critical",
+    "issue_title": "Rate limiting state is local to one process",
+    "issue_description": "In-memory counters break once traffic is spread across multiple instances.",
+    "issue_suggestion": "Move coordination state to a shared store such as Redis.",
+    "issue_code": "count = redis.incr(f'rate:{user_id}')"
+  },
+  {
+    "title": "Design idempotent payment retries",
+    "description": "Retries payment creation by calling the provider again with the same request.",
+    "code": "def retry_payment(order):\n    return payment_api.create_charge(order.id, order.total)\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Retries can create duplicate charges",
+    "issue_description": "Without an idempotency key, provider retries may execute the same payment more than once.",
+    "issue_suggestion": "Attach an idempotency key derived from the business operation.",
+    "issue_code": "payment_api.create_charge(order.id, order.total, idempotency_key=f'order:{order.id}')"
+  },
+  {
+    "title": "Publish domain events after durable commit",
+    "description": "Emits an event before the database transaction is committed.",
+    "code": "def register_user(user):\n    event_bus.publish('user_created', user.id)\n    db.save(user)\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Event can escape before state is durable",
+    "issue_description": "Consumers may observe a user_created event for a record that was never committed.",
+    "issue_suggestion": "Write the data first and publish from an outbox or after commit.",
+    "issue_code": "db.save(user)\noutbox.append({'type': 'user_created', 'id': user.id})"
+  },
+  {
+    "title": "Do not mix internal and external models",
+    "description": "Returns the ORM entity directly from the public API layer.",
+    "code": "def get_account(account_id):\n    account = Account.query.get(account_id)\n    return account\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "Persistence model is exposed as the API contract",
+    "issue_description": "Leaking internal models couples storage details to clients and makes schema evolution harder.",
+    "issue_suggestion": "Map internal entities to a dedicated API response model.",
+    "issue_code": "return AccountResponse.from_model(account)"
+  },
+  {
+    "title": "Design for partial failure in fan-out reads",
+    "description": "Loads a homepage by querying four downstream services serially.",
+    "code": "def homepage(user_id):\n    profile = profile_api.get(user_id)\n    orders = orders_api.get(user_id)\n    offers = offers_api.get(user_id)\n    alerts = alerts_api.get(user_id)\n    return {\"profile\": profile, \"orders\": orders, \"offers\": offers, \"alerts\": alerts}\n",
+    "issue_line": 4,
+    "issue_severity": "medium",
+    "issue_title": "One slow dependency stalls the whole composite page",
+    "issue_description": "Serial fan-out with no degradation path hurts latency and availability.",
+    "issue_suggestion": "Use parallel calls, timeouts, and graceful degradation for optional sections.",
+    "issue_code": "offers = safe_get(lambda: offers_api.get(user_id), default=[])"
+  },
+  {
+    "title": "Do not use primary database for full-text search",
+    "description": "Searches products with a LIKE query over the main table.",
+    "code": "def search_products(term):\n    return db.query(f\"SELECT * FROM products WHERE description LIKE '%{term}%'\")\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Search workload is pushed onto the transactional database",
+    "issue_description": "Full-text search patterns often need dedicated indexing and query behavior beyond the OLTP store.",
+    "issue_suggestion": "Use a search index or search-optimized read path for text queries.",
+    "issue_code": "return search_index.query(term)"
+  },
+  {
+    "title": "Prefer append-only audit design",
+    "description": "Updates the same audit row for each account change.",
+    "code": "def record_change(account_id, action):\n    db.execute('UPDATE audit SET action = ? WHERE account_id = ?', action, account_id)\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Audit history is overwritten instead of preserved",
+    "issue_description": "Updating a single row destroys the sequence of events needed for traceability.",
+    "issue_suggestion": "Insert immutable audit events rather than mutating a single record.",
+    "issue_code": "db.execute('INSERT INTO audit_events(account_id, action) VALUES (?, ?)', account_id, action)"
+  },
+  {
+    "title": "Model background jobs with explicit retries and dead-lettering",
+    "description": "Dequeues jobs and drops them on the first failure.",
+    "code": "def worker(job):\n    process(job)\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Background failure handling is underspecified",
+    "issue_description": "Transient downstream failures need retry policy and poison messages need isolation.",
+    "issue_suggestion": "Track retry counts and send permanently failing jobs to a dead-letter queue.",
+    "issue_code": "if job.retry_count > 5:\n    dead_letter(job)"
+  },
+  {
+    "title": "Avoid chatty synchronous write orchestration",
+    "description": "Creates a workspace by calling six downstream services inline.",
+    "code": "def create_workspace(payload):\n    workspace = workspace_db.insert(payload)\n    billing.create_customer(workspace.id)\n    search.create_index(workspace.id)\n    notifications.subscribe(workspace.id)\n    analytics.create_profile(workspace.id)\n    permissions.bootstrap(workspace.id)\n    return workspace\n",
+    "issue_line": 4,
+    "issue_severity": "critical",
+    "issue_title": "Too many cross-service writes happen synchronously",
+    "issue_description": "This request path becomes fragile and tightly coupled to many dependencies.",
+    "issue_suggestion": "Persist the core write and orchestrate follow-up provisioning asynchronously.",
+    "issue_code": "provisioning.enqueue(workspace.id)"
+  },
+  {
+    "title": "Separate tenancy concerns at the data boundary",
+    "description": "Loads a project by id without a tenant scope.",
+    "code": "def get_project(project_id):\n    return db.projects.find_one({'id': project_id})\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Tenant boundary is missing from the data access pattern",
+    "issue_description": "In multi-tenant systems, identifiers alone may be insufficient to enforce isolation.",
+    "issue_suggestion": "Include tenant scope in all data access paths.",
+    "issue_code": "return db.projects.find_one({'id': project_id, 'tenant_id': tenant_id})"
+  },
+  {
+    "title": "Do not cache without invalidation ownership",
+    "description": "Caches product details forever in process memory.",
+    "code": "CACHE = {}\n\ndef product(product_id):\n    if product_id not in CACHE:\n        CACHE[product_id] = db.load_product(product_id)\n    return CACHE[product_id]\n",
+    "issue_line": 4,
+    "issue_severity": "medium",
+    "issue_title": "Cache lifecycle and invalidation are undefined",
+    "issue_description": "The data can become stale indefinitely and different instances will disagree.",
+    "issue_suggestion": "Define TTL or event-driven invalidation and centralize ownership of cache policy.",
+    "issue_code": "redis.setex(f'product:{product_id}', 300, payload)"
+  },
+  {
+    "title": "Choose pagination that scales with large tables",
+    "description": "Reads one page using OFFSET over a very large event table.",
+    "code": "def events(page):\n    return db.query(f'SELECT * FROM events ORDER BY created_at DESC LIMIT 50 OFFSET {page * 50}')\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Offset pagination will degrade on deep pages",
+    "issue_description": "Large offsets force the database to skip more and more rows as the page number grows.",
+    "issue_suggestion": "Use keyset or cursor pagination for large ordered datasets.",
+    "issue_code": "SELECT * FROM events WHERE created_at < ? ORDER BY created_at DESC LIMIT 50"
+  },
+  {
+    "title": "Expose versioned contracts for long-lived clients",
+    "description": "Reuses one response schema and removes a field in place.",
+    "code": "def account_response(account):\n    return {'id': account.id, 'name': account.name}\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "API evolution strategy is missing",
+    "issue_description": "Removing fields in place can break older clients that still depend on them.",
+    "issue_suggestion": "Use explicit versioning or additive change policy for public contracts.",
+    "issue_code": "return {'id': account.id, 'display_name': account.name, 'name': account.name}"
+  },
+  {
+    "title": "Avoid single giant table for unrelated workflows",
+    "description": "Stores orders, refunds, disputes, and payouts in one generic table.",
+    "code": "CREATE TABLE ledger_items (id, type, payload_json, status, owner_id);",
+    "issue_line": 1,
+    "issue_severity": "medium",
+    "issue_title": "One table mixes unrelated lifecycle models",
+    "issue_description": "Different domains with different invariants become harder to validate, index, and evolve.",
+    "issue_suggestion": "Split distinct workflows into bounded models with their own constraints.",
+    "issue_code": "CREATE TABLE payouts (...);"
+  },
+  {
+    "title": "Do not replicate secrets into worker payloads",
+    "description": "Places raw provider credentials into every background job body.",
+    "code": "def enqueue_sync(user):\n    queue.publish({'user_id': user.id, 'api_key': user.api_key})\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Sensitive secrets are copied into transport payloads",
+    "issue_description": "Broader replication of secrets increases exposure and rotation complexity.",
+    "issue_suggestion": "Pass a reference and load the secret at execution time from a secure store.",
+    "issue_code": "queue.publish({'user_id': user.id})"
+  },
+  {
+    "title": "Model backpressure in ingestion pipelines",
+    "description": "Accepts every webhook and appends it to an unbounded in-memory queue.",
+    "code": "QUEUE = []\n\ndef ingest(event):\n    QUEUE.append(event)\n    return {'ok': True}\n",
+    "issue_line": 3,
+    "issue_severity": "critical",
+    "issue_title": "Ingress path has no backpressure or bounded buffering",
+    "issue_description": "Traffic spikes can exhaust memory and destabilize the whole service.",
+    "issue_suggestion": "Use durable queues with size controls or shed load gracefully.",
+    "issue_code": "broker.publish(event)"
+  },
+  {
+    "title": "Design unique identifiers that avoid hot partitions",
+    "description": "Uses an incrementing integer key as the shard key for writes.",
+    "code": "def shard_for(order_id):\n    return order_id % 4\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Sharding key can create skewed write patterns",
+    "issue_description": "Monotonic keys often produce hotspots depending on partitioning strategy.",
+    "issue_suggestion": "Choose a distribution-friendly partition key or add randomness where appropriate.",
+    "issue_code": "return hash(customer_id) % 4"
+  },
+  {
+    "title": "Avoid cross-region synchronous coupling",
+    "description": "Writes a user locally and waits for a remote region replica ack before responding.",
+    "code": "def create_user(user):\n    local_db.save(user)\n    remote_replica.save(user)\n    return user\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "Cross-region write latency is on the critical path",
+    "issue_description": "Tight synchronous coupling across regions increases user latency and expands failure blast radius.",
+    "issue_suggestion": "Use async replication or a clearly defined consistency boundary.",
+    "issue_code": "replication_outbox.publish(user.id)"
+  }
+]

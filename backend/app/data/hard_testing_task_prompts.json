@@ -1,0 +1,112 @@
+[
+  {
+    "title": "Freeze time across a multi-step billing flow",
+    "description": "Tests a monthly billing close job that depends on several time boundaries.",
+    "code": "def test_billing_close(service):\n    service.create_invoice('acct-1')\n    service.run_close_job()\n    summary = service.monthly_summary('acct-1')\n    assert summary['period'] == '2026-05'\n    assert summary['closed_at'] == '2026-05-31T23:59:59Z'\n",
+    "issue_line": 5,
+    "issue_severity": "critical",
+    "issue_title": "Test relies on uncontrolled wall-clock behavior",
+    "issue_description": "Without freezing time, period boundaries and close timestamps become flaky and difficult to reproduce.",
+    "issue_suggestion": "Use a frozen clock for the entire workflow and assert against the controlled instant.",
+    "issue_code": "with freeze_time('2026-05-31T23:59:59Z'):\n    ..."
+  },
+  {
+    "title": "Assert retry exhaustion and dead-letter behavior",
+    "description": "Covers a worker that retries failed jobs and then dead-letters them.",
+    "code": "def test_worker_failure(worker, queue):\n    queue.push({'id': 'job-1'})\n    worker.run_once()\n    assert queue.size() == 0\n",
+    "issue_line": 4,
+    "issue_severity": "critical",
+    "issue_title": "Test ignores the terminal retry path",
+    "issue_description": "A worker can appear to process the queue while still mishandling retry counts or dead-letter routing.",
+    "issue_suggestion": "Drive the job through all retry attempts and assert the final dead-letter outcome explicitly.",
+    "issue_code": "assert dead_letter.contains('job-1')"
+  },
+  {
+    "title": "Verify ordering guarantees in concurrent consumers",
+    "description": "Exercises a queue consumer that should preserve per-account ordering.",
+    "code": "def test_account_events(consumer, queue):\n    queue.push({'account_id': 'a1', 'seq': 1})\n    queue.push({'account_id': 'a1', 'seq': 2})\n    consumer.drain()\n    assert consumer.processed_count() == 2\n",
+    "issue_line": 5,
+    "issue_severity": "critical",
+    "issue_title": "The test misses the ordering contract",
+    "issue_description": "Counting processed events does not prove they were applied in the required sequence for the same account.",
+    "issue_suggestion": "Assert the observed order for the account-specific event stream.",
+    "issue_code": "assert consumer.processed_sequences('a1') == [1, 2]"
+  },
+  {
+    "title": "Prove idempotency under duplicate submissions",
+    "description": "Tests an order-create endpoint that may receive the same idempotency key twice.",
+    "code": "def test_create_order(client):\n    payload = {'sku': 'A1', 'qty': 1}\n    client.post('/orders', json=payload)\n    client.post('/orders', json=payload)\n    assert client.get('/orders').json()['count'] == 2\n",
+    "issue_line": 5,
+    "issue_severity": "critical",
+    "issue_title": "The test codifies duplicate creation instead of idempotency",
+    "issue_description": "Systems with idempotency keys should prove the duplicate request does not create a second side effect.",
+    "issue_suggestion": "Send the same request with one idempotency key and assert only one order exists.",
+    "issue_code": "assert client.get('/orders').json()['count'] == 1"
+  },
+  {
+    "title": "Cover rollback behavior after partial persistence",
+    "description": "Tests a service that writes a DB row before publishing an event.",
+    "code": "def test_signup(service, db, bus):\n    bus.fail_next_publish()\n    with pytest.raises(RuntimeError):\n        service.signup('a@example.com')\n    assert db.users.count() == 1\n",
+    "issue_line": 5,
+    "issue_severity": "critical",
+    "issue_title": "Test expects partial success after failure",
+    "issue_description": "If the workflow should be atomic, keeping the user row after publish failure is the bug, not the contract.",
+    "issue_suggestion": "Assert that the transaction rolled back or compensation cleaned up the partial write.",
+    "issue_code": "assert db.users.count() == 0"
+  },
+  {
+    "title": "Validate redaction in structured error logs",
+    "description": "Exercises a failure path that logs the outbound request body.",
+    "code": "def test_payment_error(logger, service):\n    with pytest.raises(RuntimeError):\n        service.charge({'card_number': '4111111111111111', 'cvv': '123'})\n    assert logger.error.called\n",
+    "issue_line": 4,
+    "issue_severity": "critical",
+    "issue_title": "Sensitive values in logs are not checked",
+    "issue_description": "The test passes even if raw PAN or CVV data is emitted into structured logs.",
+    "issue_suggestion": "Assert that the logged payload is redacted before it reaches the logger sink.",
+    "issue_code": "assert '4111111111111111' not in logger.last_message"
+  },
+  {
+    "title": "Assert cache invalidation after a write",
+    "description": "Tests a profile update flow that also invalidates a cached summary.",
+    "code": "def test_update_profile(service, cache):\n    service.update_profile('u1', {'name': 'New Name'})\n    assert service.get_profile('u1')['name'] == 'New Name'\n",
+    "issue_line": 4,
+    "issue_severity": "medium",
+    "issue_title": "The stale-cache path is untested",
+    "issue_description": "The test proves the canonical record updated but not that dependent caches were invalidated.",
+    "issue_suggestion": "Assert the invalidation or refreshed cache state after the mutation.",
+    "issue_code": "cache.delete.assert_called_with('profile:u1')"
+  },
+  {
+    "title": "Exercise optimistic lock conflicts",
+    "description": "Covers an update endpoint backed by a version column.",
+    "code": "def test_update_document(client):\n    response = client.put('/documents/doc-1', json={'title': 'Next', 'version': 3})\n    assert response.status_code == 200\n",
+    "issue_line": 4,
+    "issue_severity": "critical",
+    "issue_title": "Conflict handling is untested",
+    "issue_description": "Versioned writes need a test for stale updates, not just the happy path.",
+    "issue_suggestion": "Add a stale-version request and assert a conflict response or retry behavior.",
+    "issue_code": "assert client.put(..., json={'version': 2}).status_code == 409"
+  },
+  {
+    "title": "Verify webhook signature failures do not process side effects",
+    "description": "Tests a webhook handler that should reject bad signatures before enqueuing work.",
+    "code": "def test_webhook(client, queue):\n    response = client.post('/webhooks/payments', json={'id': 'evt-1'}, headers={'X-Signature': 'bad'})\n    assert response.status_code == 401\n",
+    "issue_line": 4,
+    "issue_severity": "critical",
+    "issue_title": "The side-effect boundary is untested",
+    "issue_description": "A bad-signature response is not sufficient if the handler still enqueued internal work before failing.",
+    "issue_suggestion": "Assert the queue or persistence layer remains untouched when verification fails.",
+    "issue_code": "assert queue.size() == 0"
+  },
+  {
+    "title": "Prove scheduler behavior across daylight-saving boundaries",
+    "description": "Tests a reminder scheduler keyed to local user time.",
+    "code": "def test_morning_reminder(scheduler):\n    scheduler.schedule('u1', hour=9, timezone='America/New_York')\n    assert scheduler.next_run('u1').hour == 9\n",
+    "issue_line": 4,
+    "issue_severity": "critical",
+    "issue_title": "Time-zone edge cases are under-specified",
+    "issue_description": "Local-time schedulers often break around DST transitions even when the nominal hour assertion passes.",
+    "issue_suggestion": "Add a DST boundary case and assert the next_run semantics across the transition.",
+    "issue_code": "assert scheduler.next_run_on('2026-11-01').hour == 9"
+  }
+]

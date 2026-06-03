@@ -1,0 +1,222 @@
+[
+  {
+    "title": "Customers without orders",
+    "description": "Find every customer who has never placed an order.",
+    "code": "SELECT c.id, c.name\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id\nWHERE o.id = NULL;\n",
+    "issue_line": 4,
+    "issue_severity": "medium",
+    "issue_title": "NULL comparison is wrong",
+    "issue_description": "Using `= NULL` never matches, so customers without orders are not returned.",
+    "issue_suggestion": "Use `IS NULL` when checking for NULL values.",
+    "issue_code": "WHERE o.id IS NULL;"
+  },
+  {
+    "title": "Recent orders pagination",
+    "description": "Return the 20 most recent orders for the dashboard.",
+    "code": "SELECT id, customer_id, created_at\nFROM orders\nLIMIT 20;\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "LIMIT without ordering is unstable",
+    "issue_description": "Without `ORDER BY`, the query can return arbitrary rows instead of the most recent ones.",
+    "issue_suggestion": "Sort by the timestamp before applying the limit.",
+    "issue_code": "ORDER BY created_at DESC\nLIMIT 20;"
+  },
+  {
+    "title": "Average order amount by customer",
+    "description": "Show each customer with their average order amount.",
+    "code": "SELECT customer_id, customer_name, AVG(total_amount) AS avg_total\nFROM orders\nGROUP BY customer_id;\n",
+    "issue_line": 1,
+    "issue_severity": "medium",
+    "issue_title": "Non-aggregated column is missing from GROUP BY",
+    "issue_description": "`customer_name` is selected but not grouped, which is invalid or nondeterministic depending on the database.",
+    "issue_suggestion": "Add `customer_name` to the grouping columns.",
+    "issue_code": "GROUP BY customer_id, customer_name;"
+  },
+  {
+    "title": "Products with a given prefix",
+    "description": "Search product names that start with the supplied prefix.",
+    "code": "SELECT id, name\nFROM products\nWHERE name LIKE '%' || :prefix || '%';\n",
+    "issue_line": 3,
+    "issue_severity": "low",
+    "issue_title": "Pattern matches anywhere, not just the prefix",
+    "issue_description": "Wrapping the parameter on both sides finds substring matches instead of prefix matches.",
+    "issue_suggestion": "Append the wildcard only on the right side.",
+    "issue_code": "WHERE name LIKE :prefix || '%';"
+  },
+  {
+    "title": "Duplicate user emails",
+    "description": "List email addresses that appear more than once.",
+    "code": "SELECT id, email, COUNT(*) AS duplicates\nFROM users\nGROUP BY id, email\nHAVING COUNT(*) > 1;\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "Grouping by primary key hides duplicates",
+    "issue_description": "Including `id` makes every row unique, so duplicate emails are never grouped together.",
+    "issue_suggestion": "Group only by the email column.",
+    "issue_code": "SELECT email, COUNT(*) AS duplicates\nFROM users\nGROUP BY email\nHAVING COUNT(*) > 1;"
+  },
+  {
+    "title": "Order totals by product",
+    "description": "Calculate total revenue contributed by each product.",
+    "code": "SELECT product_id, SUM(quantity + unit_price) AS revenue\nFROM order_items\nGROUP BY product_id;\n",
+    "issue_line": 1,
+    "issue_severity": "medium",
+    "issue_title": "Revenue formula is incorrect",
+    "issue_description": "Revenue should multiply quantity by price, not add them together.",
+    "issue_suggestion": "Multiply `quantity * unit_price` inside the aggregation.",
+    "issue_code": "SELECT product_id, SUM(quantity * unit_price) AS revenue"
+  },
+  {
+    "title": "Open tickets excluding resolved ones",
+    "description": "Return all tickets that are still active.",
+    "code": "SELECT id, title, status\nFROM tickets\nWHERE status != 'resolved';\n",
+    "issue_line": 3,
+    "issue_severity": "low",
+    "issue_title": "NULL statuses are silently dropped",
+    "issue_description": "Rows with a NULL status do not satisfy `!= 'resolved'`, even though they are effectively unresolved.",
+    "issue_suggestion": "Handle NULL explicitly if those rows should stay visible.",
+    "issue_code": "WHERE status != 'resolved' OR status IS NULL;"
+  },
+  {
+    "title": "Latest login per user",
+    "description": "Show each user with their latest login timestamp.",
+    "code": "SELECT user_id, email, MAX(logged_in_at) AS last_login\nFROM logins\nGROUP BY user_id;\n",
+    "issue_line": 1,
+    "issue_severity": "medium",
+    "issue_title": "Selected column is not grouped",
+    "issue_description": "`email` is selected without grouping or aggregation, which breaks the query shape.",
+    "issue_suggestion": "Add `email` to the grouping columns if it is stable per user.",
+    "issue_code": "GROUP BY user_id, email;"
+  },
+  {
+    "title": "Customers and paid order counts",
+    "description": "Show all customers with the number of paid orders they have.",
+    "code": "SELECT c.id, c.name, COUNT(o.id) AS paid_orders\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id\nWHERE o.status = 'paid'\nGROUP BY c.id, c.name;\n",
+    "issue_line": 4,
+    "issue_severity": "medium",
+    "issue_title": "WHERE clause turns the LEFT JOIN into an INNER JOIN",
+    "issue_description": "Customers without paid orders disappear completely because the status filter runs after the join.",
+    "issue_suggestion": "Move the paid-status filter into the JOIN condition.",
+    "issue_code": "LEFT JOIN orders o ON o.customer_id = c.id AND o.status = 'paid'"
+  },
+  {
+    "title": "Top spending customers",
+    "description": "Return the five customers with the highest lifetime spend.",
+    "code": "SELECT customer_id, SUM(total_amount) AS spend\nFROM orders\nGROUP BY customer_id\nORDER BY spend ASC\nLIMIT 5;\n",
+    "issue_line": 4,
+    "issue_severity": "low",
+    "issue_title": "Sort direction is reversed",
+    "issue_description": "Ascending order returns the lowest spenders instead of the highest ones.",
+    "issue_suggestion": "Sort the aggregated total in descending order.",
+    "issue_code": "ORDER BY spend DESC"
+  },
+  {
+    "title": "Sessions older than 30 days",
+    "description": "Delete session rows that expired more than 30 days ago.",
+    "code": "DELETE FROM sessions\nWHERE created_at < NOW() - 30;\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Interval arithmetic is invalid",
+    "issue_description": "Subtracting a bare integer from a timestamp is not portable and often invalid SQL.",
+    "issue_suggestion": "Use an explicit interval expression.",
+    "issue_code": "WHERE created_at < NOW() - INTERVAL '30 days';"
+  },
+  {
+    "title": "Employees without managers",
+    "description": "Find employees who do not report to anyone.",
+    "code": "SELECT id, name\nFROM employees\nWHERE manager_id = NULL;\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "NULL comparison is invalid",
+    "issue_description": "`= NULL` never returns true, so root employees are missed.",
+    "issue_suggestion": "Use `IS NULL` to test for absent manager IDs.",
+    "issue_code": "WHERE manager_id IS NULL;"
+  },
+  {
+    "title": "Items low in stock",
+    "description": "Return inventory items that need a reorder soon.",
+    "code": "SELECT id, sku, quantity\nFROM inventory\nWHERE quantity < reorder_level OR reorder_level IS NULL;\n",
+    "issue_line": 3,
+    "issue_severity": "low",
+    "issue_title": "Rows with unknown thresholds are included incorrectly",
+    "issue_description": "If `reorder_level` is NULL, the row is returned even though there is no threshold to compare against.",
+    "issue_suggestion": "Require a real threshold before comparing quantity.",
+    "issue_code": "WHERE reorder_level IS NOT NULL AND quantity < reorder_level;"
+  },
+  {
+    "title": "Order count by day",
+    "description": "Group orders into daily buckets for the chart.",
+    "code": "SELECT created_at, COUNT(*) AS orders_count\nFROM orders\nGROUP BY created_at\nORDER BY created_at DESC;\n",
+    "issue_line": 1,
+    "issue_severity": "medium",
+    "issue_title": "Grouping by timestamp is too granular",
+    "issue_description": "Grouping on the raw timestamp creates one bucket per distinct moment instead of per day.",
+    "issue_suggestion": "Truncate the timestamp to a day before grouping.",
+    "issue_code": "SELECT DATE(created_at) AS order_day, COUNT(*) AS orders_count\nFROM orders\nGROUP BY DATE(created_at)\nORDER BY order_day DESC;"
+  },
+  {
+    "title": "Users missing profiles",
+    "description": "Find user accounts that do not have a related profile row.",
+    "code": "SELECT u.id, u.email\nFROM users u\nJOIN profiles p ON p.user_id = u.id\nWHERE p.id IS NULL;\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "Inner join makes NULL check impossible",
+    "issue_description": "An inner join removes unmatched users before the NULL filter runs.",
+    "issue_suggestion": "Use a LEFT JOIN when searching for missing related records.",
+    "issue_code": "LEFT JOIN profiles p ON p.user_id = u.id"
+  },
+  {
+    "title": "Inactive subscriptions",
+    "description": "List subscriptions that ended before today.",
+    "code": "SELECT id, user_id, ends_at\nFROM subscriptions\nWHERE ends_at < CURRENT_DATE AND status = 'active';\n",
+    "issue_line": 3,
+    "issue_severity": "low",
+    "issue_title": "Status filter contradicts the report",
+    "issue_description": "Expired subscriptions should not be filtered as `active` if the goal is to find inactive ones.",
+    "issue_suggestion": "Use the inactive status or remove the contradictory filter.",
+    "issue_code": "WHERE ends_at < CURRENT_DATE AND status = 'inactive';"
+  },
+  {
+    "title": "Top categories by product count",
+    "description": "Return categories with the most products.",
+    "code": "SELECT category_id, COUNT(*) AS products_count\nFROM products\nORDER BY products_count DESC\nLIMIT 10;\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "Aggregation is missing a GROUP BY",
+    "issue_description": "The query counts all rows together because it never groups by category.",
+    "issue_suggestion": "Group by `category_id` before ordering the counts.",
+    "issue_code": "GROUP BY category_id\nORDER BY products_count DESC"
+  },
+  {
+    "title": "First order per customer",
+    "description": "Show the first order date for each customer.",
+    "code": "SELECT customer_id, MAX(created_at) AS first_order_at\nFROM orders\nGROUP BY customer_id;\n",
+    "issue_line": 1,
+    "issue_severity": "medium",
+    "issue_title": "Using MAX returns the latest order, not the first",
+    "issue_description": "The aggregation direction is reversed for a first-order report.",
+    "issue_suggestion": "Use `MIN(created_at)` for the earliest order.",
+    "issue_code": "SELECT customer_id, MIN(created_at) AS first_order_at"
+  },
+  {
+    "title": "Distinct customer countries",
+    "description": "Return each country represented in the customer table once.",
+    "code": "SELECT country\nFROM customers\nGROUP BY country, id;\n",
+    "issue_line": 3,
+    "issue_severity": "low",
+    "issue_title": "Grouping by id defeats deduplication",
+    "issue_description": "Including the primary key creates one group per row instead of one per country.",
+    "issue_suggestion": "Group only by `country` or use `SELECT DISTINCT country`.",
+    "issue_code": "SELECT DISTINCT country\nFROM customers;"
+  },
+  {
+    "title": "Order totals with discounts",
+    "description": "Calculate the final payable amount after discounts.",
+    "code": "SELECT id, subtotal - discount_percent AS final_total\nFROM orders;\n",
+    "issue_line": 1,
+    "issue_severity": "medium",
+    "issue_title": "Discount percent is subtracted as a raw number",
+    "issue_description": "A percent value must be applied to the subtotal, not subtracted directly.",
+    "issue_suggestion": "Convert the percentage into a fraction of the subtotal.",
+    "issue_code": "SELECT id, subtotal * (1 - discount_percent / 100.0) AS final_total\nFROM orders;"
+  }
+]

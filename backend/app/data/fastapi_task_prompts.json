@@ -1,0 +1,222 @@
+[
+  {
+    "title": "Create account endpoint",
+    "description": "Registers a new account from request input.",
+    "code": "from fastapi import APIRouter\n\nrouter = APIRouter()\n\n\n@router.post(\"/accounts\")\ndef create_account(payload: dict):\n    return {\"email\": payload[\"email\"], \"role\": payload.get(\"role\", \"user\")}\n",
+    "issue_line": 7,
+    "issue_severity": "critical",
+    "issue_title": "Raw dict input skips validation",
+    "issue_description": "The route accepts arbitrary payload keys and shapes instead of validating the body with a request model.",
+    "issue_suggestion": "Use a Pydantic model for the request body.",
+    "issue_code": "class AccountCreate(BaseModel):\n    email: EmailStr\n    role: str = \"user\""
+  },
+  {
+    "title": "Admin metrics endpoint",
+    "description": "Returns a few internal admin counters.",
+    "code": "from fastapi import APIRouter\n\nrouter = APIRouter()\n\n\n@router.get(\"/admin/metrics\")\ndef admin_metrics():\n    return {\"users\": 182, \"revenue\": 9200}\n",
+    "issue_line": 6,
+    "issue_severity": "critical",
+    "issue_title": "Route is missing auth protection",
+    "issue_description": "Sensitive metrics are exposed to any caller because the endpoint has no authorization dependency.",
+    "issue_suggestion": "Require an authenticated admin dependency before returning the data.",
+    "issue_code": "def admin_metrics(current_user: User = Depends(require_admin)):"
+  },
+  {
+    "title": "Get product details",
+    "description": "Looks up a product and returns it to the client.",
+    "code": "from fastapi import APIRouter\n\nrouter = APIRouter()\nPRODUCTS = {\"1\": {\"id\": \"1\", \"name\": \"Keyboard\"}}\n\n\n@router.get(\"/products/{product_id}\")\ndef get_product(product_id: str):\n    return PRODUCTS.get(product_id)\n",
+    "issue_line": 8,
+    "issue_severity": "medium",
+    "issue_title": "Missing products return 200 with null",
+    "issue_description": "Clients receive a successful response instead of a 404 when the product does not exist.",
+    "issue_suggestion": "Raise HTTPException(status_code=404) when the record is missing.",
+    "issue_code": "product = PRODUCTS.get(product_id)\nif product is None:\n    raise HTTPException(status_code=404, detail=\"Product not found\")"
+  },
+  {
+    "title": "Generate report asynchronously",
+    "description": "Builds a short report in an async route.",
+    "code": "import time\n\nfrom fastapi import APIRouter\n\nrouter = APIRouter()\n\n\n@router.get(\"/reports/daily\")\nasync def daily_report():\n    time.sleep(2)\n    return {\"ok\": True}\n",
+    "issue_line": 9,
+    "issue_severity": "medium",
+    "issue_title": "Blocking sleep inside async route",
+    "issue_description": "time.sleep blocks the event loop and stalls other requests.",
+    "issue_suggestion": "Use asyncio.sleep in async handlers.",
+    "issue_code": "await asyncio.sleep(2)"
+  },
+  {
+    "title": "Upload avatar",
+    "description": "Stores an uploaded avatar on disk.",
+    "code": "from fastapi import APIRouter, UploadFile\n\nrouter = APIRouter()\n\n\n@router.post(\"/avatars\")\nasync def upload_avatar(file: UploadFile):\n    content = await file.read()\n    with open(f\"/tmp/{file.filename}\", \"wb\") as handle:\n        handle.write(content)\n    return {\"ok\": True}\n",
+    "issue_line": 8,
+    "issue_severity": "critical",
+    "issue_title": "Filename is used directly on disk",
+    "issue_description": "A crafted filename can escape the intended directory or overwrite unexpected files.",
+    "issue_suggestion": "Sanitize the filename before building the path.",
+    "issue_code": "safe_name = Path(file.filename or \"avatar.bin\").name"
+  },
+  {
+    "title": "Read current user",
+    "description": "Returns data for the signed-in user.",
+    "code": "from fastapi import APIRouter\n\nrouter = APIRouter()\n\n\n@router.get(\"/me\")\nasync def me(user_id: str):\n    return {\"id\": user_id}\n",
+    "issue_line": 7,
+    "issue_severity": "critical",
+    "issue_title": "User identity comes from a plain query param",
+    "issue_description": "Any caller can impersonate another user by changing the user_id query value.",
+    "issue_suggestion": "Resolve the current user from an auth dependency instead of trusting query input.",
+    "issue_code": "async def me(current_user: User = Depends(get_current_user)):"
+  },
+  {
+    "title": "Verify webhook",
+    "description": "Receives webhook events from an external service.",
+    "code": "from fastapi import APIRouter, Request\n\nrouter = APIRouter()\n\n\n@router.post(\"/webhooks/payments\")\nasync def payment_webhook(request: Request):\n    payload = await request.json()\n    return {\"received\": payload.get(\"event\")}\n",
+    "issue_line": 8,
+    "issue_severity": "critical",
+    "issue_title": "Webhook signature is not verified",
+    "issue_description": "Anyone can post arbitrary events because the route never checks the provider signature header.",
+    "issue_suggestion": "Verify the webhook signature before trusting the payload.",
+    "issue_code": "signature = request.headers.get(\"x-signature\")\nverify_signature(signature, await request.body())"
+  },
+  {
+    "title": "Create invoice asynchronously",
+    "description": "Calls a repository layer and returns the created invoice.",
+    "code": "from fastapi import APIRouter\n\nrouter = APIRouter()\n\n\n@router.post(\"/invoices\")\nasync def create_invoice(payload: dict):\n    invoice = save_invoice(payload)\n    return invoice\n",
+    "issue_line": 8,
+    "issue_severity": "medium",
+    "issue_title": "Async repository call is never awaited",
+    "issue_description": "If save_invoice is async, this returns a coroutine object instead of the saved invoice.",
+    "issue_suggestion": "Await the repository call in the async route.",
+    "issue_code": "invoice = await save_invoice(payload)"
+  },
+  {
+    "title": "Get database session",
+    "description": "Reads invoice data with a database session.",
+    "code": "from fastapi import APIRouter\n\nrouter = APIRouter()\n\n\n@router.get(\"/invoices/{invoice_id}\")\ndef get_invoice(invoice_id: str, db=get_db()):\n    return db.fetch_invoice(invoice_id)\n",
+    "issue_line": 7,
+    "issue_severity": "critical",
+    "issue_title": "Dependency is called at import time",
+    "issue_description": "The database session is created once when the module loads instead of per request.",
+    "issue_suggestion": "Use Depends so FastAPI manages the dependency lifecycle.",
+    "issue_code": "def get_invoice(invoice_id: str, db = Depends(get_db)):"
+  },
+  {
+    "title": "Limit search results",
+    "description": "Returns matching products with a limit query param.",
+    "code": "from fastapi import APIRouter\n\nrouter = APIRouter()\n\n\n@router.get(\"/search\")\ndef search(limit: int = 10000):\n    return {\"limit\": limit}\n",
+    "issue_line": 7,
+    "issue_severity": "medium",
+    "issue_title": "Limit is unbounded",
+    "issue_description": "Clients can request very large limits and create unnecessary load.",
+    "issue_suggestion": "Constrain the query parameter with validation.",
+    "issue_code": "def search(limit: int = Query(50, ge=1, le=100)):"
+  },
+  {
+    "title": "Export a named report",
+    "description": "Loads a saved report by filename.",
+    "code": "from fastapi import APIRouter\n\nrouter = APIRouter()\n\n\n@router.get(\"/reports/{filename}\")\ndef export_report(filename: str):\n    with open(f\"/tmp/reports/{filename}\") as handle:\n        return {\"content\": handle.read()}\n",
+    "issue_line": 8,
+    "issue_severity": "critical",
+    "issue_title": "Route parameter is used in a filesystem path",
+    "issue_description": "Path traversal is possible because the filename is never sanitized.",
+    "issue_suggestion": "Use Path(filename).name or reject unsafe path segments.",
+    "issue_code": "safe_name = Path(filename).name"
+  },
+  {
+    "title": "Create team membership",
+    "description": "Adds a user to a team and returns the saved record.",
+    "code": "from fastapi import APIRouter\n\nrouter = APIRouter()\n\n\n@router.post(\"/teams/{team_id}/members\", status_code=200)\ndef add_member(team_id: str, payload: dict):\n    return {\"team_id\": team_id, \"user_id\": payload[\"user_id\"]}\n",
+    "issue_line": 6,
+    "issue_severity": "low",
+    "issue_title": "Create route returns 200 instead of 201",
+    "issue_description": "A resource-creation endpoint should report creation semantics with a 201 response.",
+    "issue_suggestion": "Return HTTP 201 for successful creation.",
+    "issue_code": "@router.post(\"/teams/{team_id}/members\", status_code=201)"
+  },
+  {
+    "title": "Send email in background",
+    "description": "Schedules an email after a purchase is created.",
+    "code": "from fastapi import APIRouter, BackgroundTasks\n\nrouter = APIRouter()\n\n\n@router.post(\"/purchases\")\ndef create_purchase(background_tasks: BackgroundTasks, payload: dict):\n    send_receipt_email(payload[\"email\"])\n    return {\"ok\": True}\n",
+    "issue_line": 8,
+    "issue_severity": "medium",
+    "issue_title": "BackgroundTasks is not used",
+    "issue_description": "The email is sent inline, which slows the request instead of deferring the work.",
+    "issue_suggestion": "Schedule the side effect through BackgroundTasks.",
+    "issue_code": "background_tasks.add_task(send_receipt_email, payload[\"email\"])"
+  },
+  {
+    "title": "Handle duplicate email",
+    "description": "Creates a customer record in the database.",
+    "code": "from fastapi import APIRouter\n\nrouter = APIRouter()\n\n\n@router.post(\"/customers\")\ndef create_customer(payload: dict):\n    customer = repo.create(payload)\n    return customer\n",
+    "issue_line": 8,
+    "issue_severity": "medium",
+    "issue_title": "Repository errors are not translated",
+    "issue_description": "A duplicate email from the repository can bubble up as a 500 instead of a useful client error.",
+    "issue_suggestion": "Catch uniqueness errors and return a 409 or 400 response.",
+    "issue_code": "except DuplicateEmailError:\n    raise HTTPException(status_code=409, detail=\"Email already exists\")"
+  },
+  {
+    "title": "Return a public user response",
+    "description": "Reads a user and returns it to the client.",
+    "code": "from fastapi import APIRouter\n\nrouter = APIRouter()\n\n\n@router.get(\"/users/{user_id}\")\ndef get_user(user_id: str):\n    return repo.get_user(user_id)\n",
+    "issue_line": 7,
+    "issue_severity": "medium",
+    "issue_title": "Response shape is unconstrained",
+    "issue_description": "Returning the raw repository object can expose internal fields that should not leave the API.",
+    "issue_suggestion": "Declare a response_model for the public schema.",
+    "issue_code": "@router.get(\"/users/{user_id}\", response_model=UserRead)"
+  },
+  {
+    "title": "Reuse an HTTP client",
+    "description": "Calls an internal API from a route handler.",
+    "code": "import httpx\nfrom fastapi import APIRouter\n\nrouter = APIRouter()\n\n\n@router.get(\"/sync\")\nasync def sync_data():\n    client = httpx.AsyncClient()\n    response = await client.get(\"https://example.com/data\")\n    return response.json()\n",
+    "issue_line": 8,
+    "issue_severity": "medium",
+    "issue_title": "Async client is never closed",
+    "issue_description": "The route creates a new client every call and leaks the connection pool lifecycle.",
+    "issue_suggestion": "Use 'async with' or a shared managed client.",
+    "issue_code": "async with httpx.AsyncClient() as client:\n    response = await client.get(\"https://example.com/data\")"
+  },
+  {
+    "title": "Filter archived projects",
+    "description": "Returns a project list with an optional archived flag.",
+    "code": "from fastapi import APIRouter\n\nrouter = APIRouter()\n\n\n@router.get(\"/projects\")\ndef list_projects(include_archived: str = \"false\"):\n    return {\"include_archived\": bool(include_archived)}\n",
+    "issue_line": 7,
+    "issue_severity": "medium",
+    "issue_title": "String-to-bool conversion is wrong",
+    "issue_description": "bool('false') evaluates to True, so archived projects are always included when the param is present.",
+    "issue_suggestion": "Type the query param as bool so FastAPI parses it correctly.",
+    "issue_code": "def list_projects(include_archived: bool = False):"
+  },
+  {
+    "title": "Read raw JSON body",
+    "description": "Processes a free-form event payload.",
+    "code": "from fastapi import APIRouter, Request\n\nrouter = APIRouter()\n\n\n@router.post(\"/events\")\nasync def create_event(request: Request):\n    payload = await request.json()\n    return {\"event\": payload[\"event\"]}\n",
+    "issue_line": 8,
+    "issue_severity": "medium",
+    "issue_title": "Malformed JSON becomes a 500",
+    "issue_description": "Invalid request bodies raise parsing errors that are not translated into a useful client response.",
+    "issue_suggestion": "Validate the body with a schema or catch decode errors explicitly.",
+    "issue_code": "class EventCreate(BaseModel):\n    event: str"
+  },
+  {
+    "title": "Bulk update task status",
+    "description": "Updates many task ids to a new status.",
+    "code": "from fastapi import APIRouter\n\nrouter = APIRouter()\n\n\n@router.post(\"/tasks/bulk-status\")\ndef bulk_status(payload: dict):\n    for task_id in payload.get(\"ids\", []):\n        repo.set_status(task_id, payload[\"status\"])\n    return {\"ok\": True}\n",
+    "issue_line": 7,
+    "issue_severity": "medium",
+    "issue_title": "Empty id lists are silently accepted",
+    "issue_description": "The endpoint reports success even when no ids are provided, which hides client mistakes.",
+    "issue_suggestion": "Validate that at least one id is present.",
+    "issue_code": "if not payload.get(\"ids\"):\n    raise HTTPException(status_code=400, detail=\"ids are required\")"
+  },
+  {
+    "title": "Refresh access token",
+    "description": "Exchanges a refresh token for a new access token.",
+    "code": "from fastapi import APIRouter\n\nrouter = APIRouter()\n\n\n@router.post(\"/auth/refresh\")\ndef refresh_token(payload: dict):\n    token = repo.refresh(payload[\"refresh_token\"])\n    return {\"access_token\": token}\n",
+    "issue_line": 8,
+    "issue_severity": "medium",
+    "issue_title": "Expired token errors are not mapped",
+    "issue_description": "An expired refresh token can bubble up as a generic server error instead of a clear auth failure.",
+    "issue_suggestion": "Translate token errors into a 401 response.",
+    "issue_code": "except TokenExpiredError:\n    raise HTTPException(status_code=401, detail=\"Refresh token expired\")"
+  }
+]

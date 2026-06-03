@@ -1,0 +1,222 @@
+[
+  {
+    "title": "Do not cast API data to any",
+    "description": "Loads a user object from JSON and casts it to any.",
+    "code": "type User = { id: string; email: string };\n\nasync function loadUser(): Promise<User> {\n  const data = (await fetch('/api/user').then((r) => r.json())) as any;\n  return data;\n}\n",
+    "issue_line": 4,
+    "issue_severity": "critical",
+    "issue_title": "Unchecked any cast defeats type safety",
+    "issue_description": "Casting unknown API data to any removes useful compiler checks and hides contract drift.",
+    "issue_suggestion": "Parse into unknown and validate or narrow before returning it as User.",
+    "issue_code": "const data: unknown = await fetch('/api/user').then((r) => r.json());"
+  },
+  {
+    "title": "Avoid non-null assertions on optional DOM nodes",
+    "description": "Clicks an element returned from querySelector.",
+    "code": "function focusSearch() {\n  const input = document.querySelector('#search')!;\n  input.focus();\n}\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Non-null assertion can hide a runtime null case",
+    "issue_description": "If the element is missing, the code still crashes at runtime even though the compiler is silenced.",
+    "issue_suggestion": "Check for null explicitly before using the element.",
+    "issue_code": "const input = document.querySelector<HTMLInputElement>('#search');\nif (!input) return;"
+  },
+  {
+    "title": "Use discriminated unions for state variants",
+    "description": "Represents request state with unrelated optional fields.",
+    "code": "type RequestState = { loading?: boolean; data?: string; error?: string };\n",
+    "issue_line": 1,
+    "issue_severity": "medium",
+    "issue_title": "State shape allows impossible combinations",
+    "issue_description": "The type permits loading, data, and error to coexist in invalid combinations.",
+    "issue_suggestion": "Use a discriminated union to model each valid state explicitly.",
+    "issue_code": "type RequestState = { status: 'loading' } | { status: 'success'; data: string } | { status: 'error'; error: string };"
+  },
+  {
+    "title": "Do not ignore promise rejection types",
+    "description": "Starts an async save without handling rejection.",
+    "code": "function onSubmit() {\n  saveProfile();\n}\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Promise result is dropped without error handling",
+    "issue_description": "Unhandled rejections become harder to observe and recover from.",
+    "issue_suggestion": "Await the promise or attach explicit error handling.",
+    "issue_code": "void saveProfile().catch(handleError);"
+  },
+  {
+    "title": "Prefer readonly for immutable props",
+    "description": "Accepts a config object that should not be mutated.",
+    "code": "type Props = { config: { baseUrl: string } };\n",
+    "issue_line": 1,
+    "issue_severity": "low",
+    "issue_title": "Type does not protect immutable input",
+    "issue_description": "A mutable config type makes accidental prop mutation easier.",
+    "issue_suggestion": "Mark immutable object shapes as readonly where appropriate.",
+    "issue_code": "type Props = { readonly config: { readonly baseUrl: string } };"
+  },
+  {
+    "title": "Use exact union values instead of string",
+    "description": "Models theme mode as any string.",
+    "code": "type ThemeMode = string;\n",
+    "issue_line": 1,
+    "issue_severity": "low",
+    "issue_title": "Type is too broad for a fixed domain",
+    "issue_description": "The compiler cannot catch invalid values like 'bluish' when the real domain is finite.",
+    "issue_suggestion": "Use a string union for the supported modes.",
+    "issue_code": "type ThemeMode = 'light' | 'dark';"
+  },
+  {
+    "title": "Do not widen empty arrays accidentally",
+    "description": "Initializes a list without a generic type.",
+    "code": "const selected = [];\nselected.push('a');\nselected.push(1);\n",
+    "issue_line": 1,
+    "issue_severity": "medium",
+    "issue_title": "Array becomes an unsafe mixed collection",
+    "issue_description": "Without a declared type, the array can accept unrelated element shapes.",
+    "issue_suggestion": "Annotate the array with the intended element type.",
+    "issue_code": "const selected: string[] = [];"
+  },
+  {
+    "title": "Narrow unknown errors before reading message",
+    "description": "Reads message from a caught error in strict mode.",
+    "code": "try {\n  await save();\n} catch (error) {\n  console.error(error.message);\n}\n",
+    "issue_line": 4,
+    "issue_severity": "medium",
+    "issue_title": "Caught error is not safely narrowed",
+    "issue_description": "In TypeScript, catch values are often unknown and must be narrowed before property access.",
+    "issue_suggestion": "Check the error type before reading message.",
+    "issue_code": "if (error instanceof Error) console.error(error.message);"
+  },
+  {
+    "title": "Prefer interface-compatible callback signatures",
+    "description": "Accepts a callback with a loosely typed event.",
+    "code": "type Props = { onChange: (event: any) => void };\n",
+    "issue_line": 1,
+    "issue_severity": "medium",
+    "issue_title": "Callback parameter is typed as any",
+    "issue_description": "Using any throws away information about the event shape and breaks type checking downstream.",
+    "issue_suggestion": "Use the specific event type expected by the component.",
+    "issue_code": "type Props = { onChange: (event: React.ChangeEvent<HTMLInputElement>) => void };"
+  },
+  {
+    "title": "Avoid enum when a literal union is enough",
+    "description": "Uses an enum for two filter values in a frontend component.",
+    "code": "enum Filter { Active = 'active', Archived = 'archived' }\n",
+    "issue_line": 1,
+    "issue_severity": "low",
+    "issue_title": "Enum adds extra runtime output without strong need",
+    "issue_description": "For simple frontend literals, string unions are often lighter and easier to interoperate with APIs.",
+    "issue_suggestion": "Use a string union when a runtime enum object is unnecessary.",
+    "issue_code": "type Filter = 'active' | 'archived';"
+  },
+  {
+    "title": "Model optional API fields explicitly",
+    "description": "Returns a user object that may not have an avatar.",
+    "code": "type User = { id: string; avatarUrl: string };\n",
+    "issue_line": 1,
+    "issue_severity": "medium",
+    "issue_title": "Type requires a field that the API may omit",
+    "issue_description": "If the backend omits avatarUrl, callers will trust a value that is not actually present.",
+    "issue_suggestion": "Mark the field optional or nullable to match the API contract.",
+    "issue_code": "type User = { id: string; avatarUrl?: string };"
+  },
+  {
+    "title": "Preserve generic types through helpers",
+    "description": "Wraps a fetch helper but returns Promise<any>.",
+    "code": "async function request(url: string): Promise<any> {\n  return fetch(url).then((r) => r.json());\n}\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Helper erases the response type",
+    "issue_description": "Returning Promise<any> forces every caller to lose compile-time knowledge about the payload.",
+    "issue_suggestion": "Make the helper generic over the expected response type.",
+    "issue_code": "async function request<T>(url: string): Promise<T> {"
+  },
+  {
+    "title": "Do not use type assertions for unsafe narrowing",
+    "description": "Forces a union into one branch using as.",
+    "code": "type Result = { ok: true; data: string } | { ok: false; error: string };\n\nfunction read(result: Result) {\n  return (result as { ok: true; data: string }).data;\n}\n",
+    "issue_line": 4,
+    "issue_severity": "critical",
+    "issue_title": "Type assertion bypasses the real union guard",
+    "issue_description": "The code can read data from an error result and fail at runtime.",
+    "issue_suggestion": "Use the discriminant to narrow the union safely.",
+    "issue_code": "if (!result.ok) return '';\nreturn result.data;"
+  },
+  {
+    "title": "Prefer Record for keyed maps with known value type",
+    "description": "Stores feature flags in an object typed as any.",
+    "code": "const flags: any = { newNavbar: true };\n",
+    "issue_line": 1,
+    "issue_severity": "low",
+    "issue_title": "Map is untyped",
+    "issue_description": "Any-typed dictionaries allow inconsistent values and unchecked key usage.",
+    "issue_suggestion": "Use Record with the intended value type for keyed configuration objects.",
+    "issue_code": "const flags: Record<string, boolean> = { newNavbar: true };"
+  },
+  {
+    "title": "Avoid implicit any in function parameters",
+    "description": "Leaves a helper parameter untyped.",
+    "code": "function normalizeUser(user) {\n  return user.email.trim().toLowerCase();\n}\n",
+    "issue_line": 1,
+    "issue_severity": "medium",
+    "issue_title": "Parameter type is implicit or any",
+    "issue_description": "Untyped parameters lose editor help and allow invalid call sites.",
+    "issue_suggestion": "Add a parameter type matching the expected shape.",
+    "issue_code": "function normalizeUser(user: { email: string }) {"
+  },
+  {
+    "title": "Keep API response nullability in the type",
+    "description": "Assumes findUser always returns a user.",
+    "code": "async function ownerEmail(userId: string) {\n  const user: User = await findUser(userId);\n  return user.email;\n}\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Potential null case is erased",
+    "issue_description": "If the lookup can return null, the type should force callers to handle that branch.",
+    "issue_suggestion": "Represent the nullable result and check it before access.",
+    "issue_code": "const user: User | null = await findUser(userId);"
+  },
+  {
+    "title": "Use satisfies to keep literal precision",
+    "description": "Defines route config with a broad annotation.",
+    "code": "const routes: Record<string, { method: string }> = { profile: { method: 'GET' } };\n",
+    "issue_line": 1,
+    "issue_severity": "low",
+    "issue_title": "Literal information is widened away",
+    "issue_description": "Broad annotation loses useful literal types that can help downstream code.",
+    "issue_suggestion": "Use satisfies to validate shape while preserving literal precision.",
+    "issue_code": "const routes = { profile: { method: 'GET' } } satisfies Record<string, { method: string }>;"
+  },
+  {
+    "title": "Do not hide unsafe index access",
+    "description": "Reads from an object map and asserts the entry exists.",
+    "code": "const titles: Record<string, string> = {};\nconst title = titles[id]!;\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Non-null assertion hides missing-key behavior",
+    "issue_description": "The map may not contain the requested id even though the compiler warning is suppressed.",
+    "issue_suggestion": "Handle the missing entry or provide a fallback explicitly.",
+    "issue_code": "const title = titles[id] ?? 'Untitled';"
+  },
+  {
+    "title": "Constrain object keys with keyof",
+    "description": "Accepts an arbitrary string key to read a user field.",
+    "code": "function readField(user: User, key: string) {\n  return user[key];\n}\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Key parameter is too broad",
+    "issue_description": "Any string is allowed even if it is not a real key on User.",
+    "issue_suggestion": "Constrain the key parameter with keyof User.",
+    "issue_code": "function readField(user: User, key: keyof User) {"
+  },
+  {
+    "title": "Type async reducers carefully",
+    "description": "Uses reduce with an async callback but the accumulator type is wrong.",
+    "code": "async function sum(ids: string[]) {\n  return ids.reduce(async (total, id) => total + (await fetchValue(id)), 0);\n}\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Async reducer mixes promise and number types",
+    "issue_description": "The accumulator becomes a promise after the first iteration and the arithmetic is no longer type-safe.",
+    "issue_suggestion": "Use an explicit loop or await the accumulator correctly.",
+    "issue_code": "let total = 0;\nfor (const id of ids) total += await fetchValue(id);"
+  }
+]

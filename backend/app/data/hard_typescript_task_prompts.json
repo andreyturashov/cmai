@@ -1,0 +1,112 @@
+[
+  {
+    "title": "Keep discriminated unions intact through helper transforms",
+    "description": "Maps a union response through a helper that strips the discriminant.",
+    "code": "type Result = { kind: 'ok'; data: { id: string } } | { kind: 'error'; message: string };\n\nfunction normalize(result: Result) {\n  if (result.kind === 'ok') {\n    return { payload: result.data };\n  }\n  return { payload: result.message };\n}\n",
+    "issue_line": 4,
+    "issue_severity": "critical",
+    "issue_title": "Helper erases the discriminant needed downstream",
+    "issue_description": "Once the branch marker is removed, callers can no longer narrow the result safely.",
+    "issue_suggestion": "Preserve or reintroduce a discriminant in the transformed return type.",
+    "issue_code": "return { kind: 'ok', payload: result.data };"
+  },
+  {
+    "title": "Type recursive config merges without losing optional branches",
+    "description": "Deep-merges user config into defaults and asserts the result as the final type.",
+    "code": "type Config = { features: { search: { enabled: boolean; limit: number } } };\n\nfunction mergeConfig(defaults: Config, incoming: Partial<Config>): Config {\n  return { ...defaults, ...incoming } as Config;\n}\n",
+    "issue_line": 4,
+    "issue_severity": "critical",
+    "issue_title": "Shallow merge plus assertion hides broken nested config",
+    "issue_description": "The cast claims nested branches are complete even though the spread is only shallow.",
+    "issue_suggestion": "Use a real deep merge or validate the merged result before returning Config.",
+    "issue_code": "return configSchema.parse(deepMerge(defaults, incoming));"
+  },
+  {
+    "title": "Do not index generic rows with unbounded strings",
+    "description": "Renders a table cell by looking up a field on a generic row.",
+    "code": "function renderCell<T>(row: T, column: string) {\n  return row[column];\n}\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Generic key is not constrained to the row shape",
+    "issue_description": "Any string is accepted even if the property does not exist on the generic row.",
+    "issue_suggestion": "Constrain the key to keyof T and type the return accordingly.",
+    "issue_code": "function renderCell<T, K extends keyof T>(row: T, column: K) {"
+  },
+  {
+    "title": "Preserve async iterator item types in stream wrappers",
+    "description": "Wraps an async generator and returns it as AsyncIterable<any>.",
+    "code": "async function* streamUsers() {\n  yield { id: 'u1', email: 'a@example.com' };\n}\n\nfunction trackedStream() : AsyncIterable<any> {\n  return streamUsers();\n}\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Wrapper erases the stream item type",
+    "issue_description": "Downstream consumers lose the payload contract and can no longer rely on typed items.",
+    "issue_suggestion": "Return the concrete async iterable type instead of any.",
+    "issue_code": "function trackedStream(): AsyncIterable<User> {"
+  },
+  {
+    "title": "Avoid unsound narrowing after array filters",
+    "description": "Filters nullable users and assumes the result is User[] without a type guard.",
+    "code": "type User = { id: string };\nconst users: Array<User | null> = [null, { id: 'u1' }];\nconst activeUsers = users.filter(Boolean);\nactiveUsers[0].id;\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "Boolean filter does not communicate a precise type guard",
+    "issue_description": "The runtime filter works, but the type can still remain too broad or rely on loose inference.",
+    "issue_suggestion": "Use an explicit predicate that narrows the array element type.",
+    "issue_code": "const activeUsers = users.filter((user): user is User => user !== null);"
+  },
+  {
+    "title": "Type route builders with template-literal params",
+    "description": "Builds URLs by string replacement on untyped route templates.",
+    "code": "function buildRoute(path: string, params: Record<string, string>) {\n  return path.replace(':id', params.id);\n}\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Route params are not tied to the route shape",
+    "issue_description": "Callers can omit required params or provide unrelated keys without compile-time feedback.",
+    "issue_suggestion": "Use template-literal route types or a typed route map to bind params to each path.",
+    "issue_code": "type Route = '/users/:id' | '/teams/:teamId';"
+  },
+  {
+    "title": "Do not mix browser and Node timeout handle types blindly",
+    "description": "Stores a timeout handle as a number in shared code.",
+    "code": "let timer: number | null = null;\ntimer = setTimeout(() => {}, 1000);\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Timeout handle type is environment-dependent",
+    "issue_description": "Node and browser runtimes expose different timeout handle types, and hard-coding number is not portable.",
+    "issue_suggestion": "Use ReturnType<typeof setTimeout> for cross-environment timeout handles.",
+    "issue_code": "let timer: ReturnType<typeof setTimeout> | null = null;"
+  },
+  {
+    "title": "Model API error codes as a finite union",
+    "description": "Represents server error codes as generic strings throughout the UI.",
+    "code": "type ApiError = { code: string; message: string };\n",
+    "issue_line": 1,
+    "issue_severity": "low",
+    "issue_title": "Error code domain is too broad",
+    "issue_description": "The compiler cannot help ensure all known error cases are handled when the code field is just string.",
+    "issue_suggestion": "Model the known error codes as a literal union.",
+    "issue_code": "type ApiErrorCode = 'rate_limited' | 'forbidden' | 'not_found';"
+  },
+  {
+    "title": "Avoid mutating generic defaults through shared references",
+    "description": "Uses a generic helper with a mutable default object.",
+    "code": "function withMeta<T>(value: T, meta = {}) {\n  meta['seen'] = true;\n  return { value, meta };\n}\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Default object is mutated across calls",
+    "issue_description": "The helper creates shared mutable state and hides the type of the meta object.",
+    "issue_suggestion": "Create a fresh typed object per call instead of mutating a shared default.",
+    "issue_code": "function withMeta<T>(value: T, meta: Record<string, boolean> = {}) {"
+  },
+  {
+    "title": "Keep exhaustiveness checks after refactoring helper maps",
+    "description": "Maps status values to labels with an object indexed by string.",
+    "code": "type Status = 'draft' | 'published' | 'archived';\nconst labels: Record<string, string> = { draft: 'Draft', published: 'Published' };\n\nfunction labelFor(status: Status) {\n  return labels[status];\n}\n",
+    "issue_line": 3,
+    "issue_severity": "critical",
+    "issue_title": "Mapping object does not guarantee full coverage of the status union",
+    "issue_description": "A missing case returns undefined at runtime even though the domain is finite and known.",
+    "issue_suggestion": "Type the map against the exact status union so missing cases fail at compile time.",
+    "issue_code": "const labels: Record<Status, string> = { draft: 'Draft', published: 'Published', archived: 'Archived' };"
+  }
+]

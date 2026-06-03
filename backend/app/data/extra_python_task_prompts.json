@@ -1,0 +1,211 @@
+[
+  {
+    "title": "Load JSON config",
+    "description": "Reads a JSON config file and returns the parsed object.",
+    "code": "import json\n\n\ndef load_config(path):\n    with open(path) as handle:\n        return json.loads(handle)\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "String concatenation with int",
+    "issue_description": "If score is numeric, the function raises TypeError while building the message.",
+    "issue_suggestion": "Convert the numeric value to a string or use an f-string.",
+    "issue_code": "return f\"{name}: {score}\""
+  },
+  {
+    "title": "Group users by role",
+    "description": "Collects user names under their role.",
+    "code": "def group_by_role(users):\n    grouped = {}\n    for user in users:\n        grouped[user[\"role\"]].append(user[\"name\"])\n    return grouped\n",
+    "issue_line": 4,
+    "issue_severity": "medium",
+    "issue_title": "Missing bucket initialization",
+    "issue_description": "The first user for each role triggers a KeyError because the list is never created.",
+    "issue_suggestion": "Initialize the role bucket before appending to it.",
+    "issue_code": "grouped.setdefault(user[\"role\"], []).append(user[\"name\"])"
+  },
+  {
+    "title": "Build search query",
+    "description": "Generates a query string for a search page.",
+    "code": "def build_query(term, page):\n    return f\"?q={term}&page={page}\"\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Values are not URL-encoded",
+    "issue_description": "Spaces and special characters in the search term can break the generated query string.",
+    "issue_suggestion": "Encode the parameters before building the URL.",
+    "issue_code": "from urllib.parse import urlencode\nreturn \"?\" + urlencode({\"q\": term, \"page\": page})"
+  },
+  {
+    "title": "Read environment flag",
+    "description": "Reads a feature flag from an environment variable.",
+    "code": "import os\n\n\ndef feature_enabled():\n    return bool(os.getenv(\"FEATURE_ENABLED\", \"false\"))\n",
+    "issue_line": 5,
+    "issue_severity": "medium",
+    "issue_title": "bool on strings is misleading",
+    "issue_description": "The string 'false' is truthy, so the feature turns on when the variable is set to 'false'.",
+    "issue_suggestion": "Compare the normalized string value against allowed true values.",
+    "issue_code": "return os.getenv(\"FEATURE_ENABLED\", \"false\").lower() in {\"1\", \"true\", \"yes\"}"
+  },
+  {
+    "title": "Choose a file extension",
+    "description": "Returns the extension of a filename.",
+    "code": "def get_extension(filename):\n    return filename.split(\".\")[1]\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Missing guard for filenames without dots",
+    "issue_description": "Names like 'README' raise IndexError because no extension exists.",
+    "issue_suggestion": "Use rsplit with validation or pathlib for safer parsing.",
+    "issue_code": "parts = filename.rsplit(\".\", 1)\nif len(parts) != 2:\n    return \"\"\nreturn parts[1]"
+  },
+  {
+    "title": "Find a user by id",
+    "description": "Returns the first matching user record.",
+    "code": "def find_user(users, user_id):\n    return next(user for user in users if user[\"id\"] == user_id)\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Lookup crashes when user is missing",
+    "issue_description": "next without a default raises StopIteration when no record matches.",
+    "issue_suggestion": "Provide a default or raise a clearer error.",
+    "issue_code": "return next((user for user in users if user[\"id\"] == user_id), None)"
+  },
+  {
+    "title": "Save identifiers to disk",
+    "description": "Writes a list of ids into a file.",
+    "code": "def save_ids(path, ids):\n    with open(path, \"w\") as handle:\n        handle.write(ids)\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "write expects a string",
+    "issue_description": "Passing a list directly to write raises TypeError.",
+    "issue_suggestion": "Serialize the values before writing them.",
+    "issue_code": "handle.write(\"\n\".join(ids))"
+  },
+  {
+    "title": "Average response time",
+    "description": "Returns the average latency in milliseconds.",
+    "code": "def average_time(values):\n    return sum(values) / len(values)\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Empty input is not handled",
+    "issue_description": "An empty list still raises ZeroDivisionError.",
+    "issue_suggestion": "Return a fallback or raise a clearer validation error for empty input.",
+    "issue_code": "if not values:\n    return 0\nreturn sum(values) / len(values)"
+  },
+  {
+    "title": "Keep insertion order while deduping",
+    "description": "Returns a deduplicated list of names.",
+    "code": "def dedupe_names(names):\n    return list(set(names))\n",
+    "issue_line": 2,
+    "issue_severity": "low",
+    "issue_title": "Order is lost",
+    "issue_description": "Converting through set changes the original order of names.",
+    "issue_suggestion": "Use dict.fromkeys when order should stay stable.",
+    "issue_code": "return list(dict.fromkeys(names))"
+  },
+  {
+    "title": "Normalize page number",
+    "description": "Converts query input into a usable page number.",
+    "code": "def parse_page(value):\n    return int(value or 1)\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Negative pages are allowed",
+    "issue_description": "Inputs like '-2' produce invalid pagination values instead of being rejected.",
+    "issue_suggestion": "Validate that the parsed page is positive.",
+    "issue_code": "page = int(value or 1)\nif page < 1:\n    raise ValueError(\"page must be positive\")\nreturn page"
+  },
+  {
+    "title": "Build request headers",
+    "description": "Creates request headers and adds an auth token.",
+    "code": "def build_headers(token, headers={}):\n    headers[\"Authorization\"] = f\"Bearer {token}\"\n    return headers\n",
+    "issue_line": 1,
+    "issue_severity": "medium",
+    "issue_title": "Mutable default leaks state",
+    "issue_description": "Headers from one call are reused in later calls because the same dict instance is shared.",
+    "issue_suggestion": "Use None as the default and create a dict inside the function.",
+    "issue_code": "def build_headers(token, headers=None):\n    headers = {} if headers is None else dict(headers)"
+  },
+  {
+    "title": "Convert ratio to percent",
+    "description": "Formats a ratio as a percent string.",
+    "code": "def to_percent(value):\n    return value * 100 + \"%\"\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Number is concatenated with string",
+    "issue_description": "The code raises TypeError because it adds a number directly to a string.",
+    "issue_suggestion": "Format the percent as a string.",
+    "issue_code": "return f\"{value * 100}%\""
+  },
+  {
+    "title": "Filter non-negative numbers",
+    "description": "Removes negative values from a list.",
+    "code": "def non_negative(values):\n    return [value for value in values if value]\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Zero is filtered out too",
+    "issue_description": "The truthy check drops 0 even though zero should stay in the result.",
+    "issue_suggestion": "Compare against 0 explicitly.",
+    "issue_code": "return [value for value in values if value >= 0]"
+  },
+  {
+    "title": "Pick a color",
+    "description": "Returns a color from a palette by index.",
+    "code": "def pick_color(palette, index):\n    return palette[index % len(palette)]\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Empty palette crashes",
+    "issue_description": "Modulo by zero and indexing both fail when the palette is empty.",
+    "issue_suggestion": "Validate palette before using it.",
+    "issue_code": "if not palette:\n    raise ValueError(\"palette must not be empty\")\nreturn palette[index % len(palette)]"
+  },
+  {
+    "title": "Trim markdown headings",
+    "description": "Removes the leading # marker from a heading line.",
+    "code": "def strip_heading(text):\n    return text.lstrip(\"#\")\n",
+    "issue_line": 2,
+    "issue_severity": "low",
+    "issue_title": "Leading whitespace is preserved",
+    "issue_description": "A heading like '# Title' becomes ' Title' with an unwanted leading space.",
+    "issue_suggestion": "Strip leftover whitespace after removing the marker.",
+    "issue_code": "return text.lstrip(\"#\").strip()"
+  },
+  {
+    "title": "Merge tags",
+    "description": "Combines two tag lists into one.",
+    "code": "def merge_tags(left, right):\n    return left + right\n",
+    "issue_line": 2,
+    "issue_severity": "low",
+    "issue_title": "Duplicate tags are preserved",
+    "issue_description": "The merged result can contain the same tag multiple times.",
+    "issue_suggestion": "Deduplicate while preserving insertion order.",
+    "issue_code": "return list(dict.fromkeys([*left, *right]))"
+  },
+  {
+    "title": "Read the latest event",
+    "description": "Returns the most recent event from a list.",
+    "code": "def latest_event(events):\n    return sorted(events, key=lambda event: event[\"created_at\"])[0]\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Returns the oldest event",
+    "issue_description": "Sorting ascending and taking index 0 picks the earliest event instead of the latest one.",
+    "issue_suggestion": "Reverse the sort or take the last element.",
+    "issue_code": "return sorted(events, key=lambda event: event[\"created_at\"], reverse=True)[0]"
+  },
+  {
+    "title": "Read API timeout",
+    "description": "Returns the timeout value from settings.",
+    "code": "def get_timeout(settings):\n    return settings.get(\"timeout\") or 30\n",
+    "issue_line": 2,
+    "issue_severity": "low",
+    "issue_title": "Explicit zero is overridden",
+    "issue_description": "A configured timeout of 0 is treated as missing because 0 is falsy.",
+    "issue_suggestion": "Only fall back when the key is absent or None.",
+    "issue_code": "timeout = settings.get(\"timeout\")\nreturn 30 if timeout is None else timeout"
+  },
+  {
+    "title": "Check service status",
+    "description": "Maps a status code to a user-facing label.",
+    "code": "STATUS_LABELS = {200: \"ok\", 503: \"down\"}\n\n\ndef status_label(code):\n    return STATUS_LABELS[code]\n",
+    "issue_line": 5,
+    "issue_severity": "medium",
+    "issue_title": "Unknown codes raise KeyError",
+    "issue_description": "The helper crashes instead of returning a safe fallback for unexpected values.",
+    "issue_suggestion": "Use get with a default label.",
+    "issue_code": "return STATUS_LABELS.get(code, \"unknown\")"
+  }
+]

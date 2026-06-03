@@ -1,0 +1,112 @@
+[
+  {
+    "title": "Avoid `as const` on mutable request payloads",
+    "description": "Builds a request body and later mutates it.",
+    "code": "const payload = { status: 'draft' } as const;\npayload.status = 'published';\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Literal assertion freezes a value that is later mutated",
+    "issue_description": "The type now claims the field is immutable and one exact literal, which conflicts with later updates.",
+    "issue_suggestion": "Use a normal typed object when the value is meant to change.",
+    "issue_code": "const payload: { status: 'draft' | 'published' } = { status: 'draft' };"
+  },
+  {
+    "title": "Prefer typed response parsing over double assertion",
+    "description": "Casts a parsed API payload through unknown and into a final type.",
+    "code": "const user = (await response.json()) as unknown as User;\n",
+    "issue_line": 1,
+    "issue_severity": "critical",
+    "issue_title": "Double assertion sidesteps structural validation",
+    "issue_description": "Casting through unknown suppresses the compiler without proving the payload matches the expected shape.",
+    "issue_suggestion": "Validate the payload or narrow it with a parser before use.",
+    "issue_code": "const user = userSchema.parse(await response.json());"
+  },
+  {
+    "title": "Model dictionary lookups as possibly undefined",
+    "description": "Reads from a record and uses the result as if it always exists.",
+    "code": "const names: Record<string, string> = {};\nreturn names[userId].toUpperCase();\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Record access can still return undefined at runtime",
+    "issue_description": "The object may not contain the requested key even though the value type is string.",
+    "issue_suggestion": "Handle the missing case explicitly before dereferencing the value.",
+    "issue_code": "const name = names[userId];\nif (!name) return 'UNKNOWN';"
+  },
+  {
+    "title": "Do not erase event target type with `Event`",
+    "description": "Types an input change handler with the base DOM Event type.",
+    "code": "function onChange(event: Event) {\n  console.log(event.target.value);\n}\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Base Event type is too weak for the handler usage",
+    "issue_description": "The generic Event target does not guarantee a value property.",
+    "issue_suggestion": "Use the specific React or DOM event type for the control.",
+    "issue_code": "function onChange(event: React.ChangeEvent<HTMLInputElement>) {"
+  },
+  {
+    "title": "Keep branded identifiers distinct",
+    "description": "Uses plain strings for both user ids and order ids.",
+    "code": "type UserId = string;\ntype OrderId = string;\n",
+    "issue_line": 1,
+    "issue_severity": "low",
+    "issue_title": "Different identifier domains are interchangeable",
+    "issue_description": "Plain aliases do not stop accidental mixing of unrelated ids.",
+    "issue_suggestion": "Use branded types when distinct ids should not be assignable to each other.",
+    "issue_code": "type UserId = string & { readonly __brand: 'UserId' };"
+  },
+  {
+    "title": "Do not return `Promise<void>` from data loaders that produce data",
+    "description": "Types a fetch helper as void while returning JSON.",
+    "code": "async function loadReport(): Promise<void> {\n  return fetch('/report').then((r) => r.json());\n}\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Return type contradicts the implementation",
+    "issue_description": "Callers cannot use the result safely because the declared contract says there is no value.",
+    "issue_suggestion": "Declare the actual resolved type of the async function.",
+    "issue_code": "async function loadReport(): Promise<Report> {"
+  },
+  {
+    "title": "Prefer exhaustive switches on discriminated unions",
+    "description": "Handles only some variants of a result union.",
+    "code": "type Result = { kind: 'ok'; data: string } | { kind: 'error'; message: string } | { kind: 'loading' };\n\nfunction render(result: Result) {\n  switch (result.kind) {\n    case 'ok':\n      return result.data;\n    case 'error':\n      return result.message;\n  }\n}\n",
+    "issue_line": 4,
+    "issue_severity": "medium",
+    "issue_title": "One union branch is silently unhandled",
+    "issue_description": "Adding or forgetting a variant can leave the function returning undefined unexpectedly.",
+    "issue_suggestion": "Make the switch exhaustive and force the compiler to check every branch.",
+    "issue_code": "default:\n  const _never: never = result;\n  return _never;"
+  },
+  {
+    "title": "Avoid optional chaining when absence should be impossible",
+    "description": "Silently returns undefined for a required configuration value.",
+    "code": "const baseUrl = config?.api?.baseUrl;\n",
+    "issue_line": 1,
+    "issue_severity": "low",
+    "issue_title": "A required invariant is treated as optional",
+    "issue_description": "Optional chaining can hide configuration problems that should fail fast.",
+    "issue_suggestion": "Validate required configuration explicitly and keep the type non-optional.",
+    "issue_code": "if (!config.api.baseUrl) throw new Error('missing baseUrl');"
+  },
+  {
+    "title": "Keep mapped types aligned with runtime shape",
+    "description": "Builds a partial update object but types it as the full entity.",
+    "code": "type User = { id: string; email: string; name: string };\nconst patch: User = { email: 'a@example.com' };\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Type claims required fields that are not present",
+    "issue_description": "A partial update payload should not be typed as the full resource shape.",
+    "issue_suggestion": "Use Partial or a dedicated patch type for partial updates.",
+    "issue_code": "const patch: Partial<User> = { email: 'a@example.com' };"
+  },
+  {
+    "title": "Type tuple return values explicitly when positions matter",
+    "description": "Returns a two-value array from a hook without a tuple annotation.",
+    "code": "function useToggle() {\n  return [false, () => {}];\n}\n",
+    "issue_line": 1,
+    "issue_severity": "low",
+    "issue_title": "Array return loses positional meaning",
+    "issue_description": "Without a tuple type, callers get a broad array type instead of a fixed pair contract.",
+    "issue_suggestion": "Annotate the return value as a tuple.",
+    "issue_code": "function useToggle(): [boolean, () => void] {"
+  }
+]

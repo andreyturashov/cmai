@@ -1,0 +1,112 @@
+[
+  {
+    "title": "Assert API pagination metadata",
+    "description": "Checks only the number of returned items on a paginated endpoint.",
+    "code": "def test_orders_page(client):\n    response = client.get('/orders?page=2')\n    assert len(response.json()['items']) == 20\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "Pagination metadata is never verified",
+    "issue_description": "The endpoint could return the right number of items while exposing broken page or cursor metadata.",
+    "issue_suggestion": "Assert the pagination fields that clients rely on, not only the item list length.",
+    "issue_code": "assert response.json()['page'] == 2"
+  },
+  {
+    "title": "Avoid asserting implementation-specific SQL counts",
+    "description": "Checks how many ORM calls happened during a service method.",
+    "code": "def test_sync_orders(repo, service):\n    service.sync_orders()\n    assert repo.session.execute.call_count == 3\n",
+    "issue_line": 3,
+    "issue_severity": "low",
+    "issue_title": "Test is coupled to internal query count details",
+    "issue_description": "Refactors that preserve behavior can still break this test if they change the internal call pattern.",
+    "issue_suggestion": "Assert the externally visible result unless the number of queries is the actual contract.",
+    "issue_code": "assert repo.saved_orders == expected_orders"
+  },
+  {
+    "title": "Seed minimal fixture data",
+    "description": "Loads a large fixture file when the test needs one user.",
+    "code": "def test_profile_page(load_fixture):\n    load_fixture('full-production-dump.json')\n    assert render_profile(1)\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Fixture setup is unnecessarily heavy",
+    "issue_description": "Large fixture payloads slow the suite down and make the scenario harder to understand.",
+    "issue_suggestion": "Create only the records needed for the test case.",
+    "issue_code": "user = make_user(id=1)"
+  },
+  {
+    "title": "Check HTTP status before parsing JSON",
+    "description": "Parses a response body immediately in an integration test.",
+    "code": "def test_summary(client):\n    data = client.get('/summary').json()\n    assert data['count'] == 4\n",
+    "issue_line": 2,
+    "issue_severity": "low",
+    "issue_title": "Test hides failures behind JSON parsing",
+    "issue_description": "If the route returns an error page, the test fails in a less informative place than the status assertion.",
+    "issue_suggestion": "Assert the HTTP status first, then inspect the parsed body.",
+    "issue_code": "response = client.get('/summary')\nassert response.status_code == 200"
+  },
+  {
+    "title": "Avoid duplicate coverage with copy-pasted tests",
+    "description": "Repeats the same authorization test for several roles with manual duplication.",
+    "code": "def test_admin_access():\n    assert can_open('admin')\n\ndef test_editor_access():\n    assert can_open('editor')\n",
+    "issue_line": 1,
+    "issue_severity": "low",
+    "issue_title": "The suite duplicates the same pattern manually",
+    "issue_description": "Copy-pasted cases are harder to extend consistently and tend to drift over time.",
+    "issue_suggestion": "Use a table-driven or parameterized test to cover the roles together.",
+    "issue_code": "@pytest.mark.parametrize('role', ['admin', 'editor'])"
+  },
+  {
+    "title": "Assert emitted metrics when they matter",
+    "description": "Exercises a cache miss path without checking observability output.",
+    "code": "def test_cache_miss(service):\n    service.load_dashboard()\n    assert service.cache_filled is True\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "Important observability side effect is untested",
+    "issue_description": "If dashboards or alerts depend on metrics, missing metric emission is a real regression.",
+    "issue_suggestion": "Assert the metric increment for the scenario that was exercised.",
+    "issue_code": "metrics.increment.assert_called_with('dashboard.cache_miss')"
+  },
+  {
+    "title": "Keep snapshot tests scoped and readable",
+    "description": "Snapshots an entire API response with unstable fields.",
+    "code": "it('matches response snapshot', async () => {\n  const response = await getReport();\n  expect(response).toMatchSnapshot();\n});\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "Snapshot includes noisy unstable fields",
+    "issue_description": "Large snapshots with timestamps and ids become hard to review and fail too often for low-signal reasons.",
+    "issue_suggestion": "Snapshot only the stable fields that represent the contract you care about.",
+    "issue_code": "expect({ total: response.total, status: response.status }).toMatchSnapshot();"
+  },
+  {
+    "title": "Make authorization intent explicit in fixtures",
+    "description": "Uses a default user fixture in an admin-only route test.",
+    "code": "def test_admin_dashboard(client, user):\n    client.login(user)\n    assert client.get('/admin').status_code == 200\n",
+    "issue_line": 3,
+    "issue_severity": "medium",
+    "issue_title": "Fixture does not guarantee the required role",
+    "issue_description": "If the default fixture stops being an admin, the test meaning changes unexpectedly.",
+    "issue_suggestion": "Construct a fixture with the explicit role required by the scenario.",
+    "issue_code": "admin_user = make_user(role='admin')"
+  },
+  {
+    "title": "Do not reuse production credentials in tests",
+    "description": "Builds an integration test with a real API key from the environment.",
+    "code": "def test_sync_live():\n    client = ExternalClient(api_key=os.environ['API_KEY'])\n    assert client.sync()\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Test depends on real credentials",
+    "issue_description": "Using live secrets makes the suite fragile, unsafe, and environment-dependent.",
+    "issue_suggestion": "Use test doubles or sandbox credentials isolated from production.",
+    "issue_code": "client = ExternalClient(api_key='test-key')"
+  },
+  {
+    "title": "Verify empty-state behavior explicitly",
+    "description": "Tests only the populated dashboard state.",
+    "code": "def test_dashboard(client):\n    seed_orders(3)\n    assert 'Orders' in client.get('/dashboard').text\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Empty-state contract is untested",
+    "issue_description": "Pages often break or degrade awkwardly when no data exists, and this scenario is not covered.",
+    "issue_suggestion": "Add a dedicated test for the no-data state and its message.",
+    "issue_code": "assert 'No orders yet' in client.get('/dashboard').text"
+  }
+]

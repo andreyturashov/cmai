@@ -1,0 +1,222 @@
+[
+  {
+    "title": "Add todo item",
+    "description": "Adds a new todo into local component state.",
+    "code": "import { useState } from \"react\";\n\nexport default function TodoList() {\n  const [items, setItems] = useState([]);\n\n  function addItem(label) {\n    items.push({ id: Date.now(), label });\n    setItems(items);\n  }\n\n  return <button onClick={() => addItem(\"New\")}>Add</button>;\n}\n",
+    "issue_line": 7,
+    "issue_severity": "medium",
+    "issue_title": "State array is mutated in place",
+    "issue_description": "React may miss the change because the same array reference is reused.",
+    "issue_suggestion": "Create a new array when updating state.",
+    "issue_code": "setItems((current) => [...current, { id: Date.now(), label }]);"
+  },
+  {
+    "title": "Load a user profile",
+    "description": "Fetches profile data whenever the selected user changes.",
+    "code": "import { useEffect, useState } from \"react\";\n\nexport default function Profile({ userId }) {\n  const [profile, setProfile] = useState(null);\n\n  useEffect(() => {\n    fetch(`/api/users/${userId}`)\n      .then((response) => response.json())\n      .then(setProfile);\n  }, []);\n\n    return <pre>{JSON.stringify(profile)}</pre>;\n}\n",
+    "issue_line": 10,
+    "issue_severity": "medium",
+    "issue_title": "Effect ignores userId changes",
+    "issue_description": "The request only runs once, so switching to a different user leaves stale profile data on screen.",
+    "issue_suggestion": "Include userId in the effect dependency list.",
+    "issue_code": "}, [userId]);"
+  },
+  {
+    "title": "Live clock component",
+    "description": "Updates the time every second.",
+    "code": "import { useEffect, useState } from \"react\";\n\nexport default function Clock() {\n    const [value, setValue] = useState(Date.now());\n\n    useEffect(() => {\n        setInterval(() => {\n            setValue(Date.now());\n        }, 1000);\n    }, []);\n\n    return <span>{value}</span>;\n}\n",
+    "issue_line": 7,
+    "issue_severity": "medium",
+    "issue_title": "Interval is never cleaned up",
+    "issue_description": "The timer keeps running after the component unmounts and leaks work.",
+    "issue_suggestion": "Store the timer id and clear it in the cleanup function.",
+    "issue_code": "const timerId = setInterval(() => {\n  setValue(Date.now());\n}, 1000);\nreturn () => clearInterval(timerId);"
+  },
+  {
+    "title": "Render message list",
+    "description": "Shows a list of messages in order.",
+    "code": "export default function MessageList({ messages }) {\n    return (\n        <ul>\n            {messages.map((message, index) => (\n                <li key={index}>{message.text}</li>\n            ))}\n        </ul>\n    );\n}\n",
+    "issue_line": 4,
+    "issue_severity": "low",
+    "issue_title": "Array index is used as the key",
+    "issue_description": "Reordering or inserting messages can confuse React reconciliation and produce stale rows.",
+    "issue_suggestion": "Use a stable message id as the key.",
+    "issue_code": "key={message.id}"
+  },
+  {
+    "title": "Increment twice",
+    "description": "Advances a counter by two when the button is clicked.",
+    "code": "import { useState } from \"react\";\n\nexport default function Counter() {\n    const [count, setCount] = useState(0);\n\n  function handleClick() {\n    setCount(count + 1);\n    setCount(count + 1);\n  }\n\n  return <button onClick={handleClick}>{count}</button>;\n}\n",
+    "issue_line": 7,
+    "issue_severity": "medium",
+    "issue_title": "Updates use stale state",
+    "issue_description": "Both updates capture the same count value, so the counter only increments once.",
+    "issue_suggestion": "Use the functional state updater when the next state depends on the previous value.",
+    "issue_code": "setCount((current) => current + 1);\nsetCount((current) => current + 1);"
+  },
+  {
+    "title": "Mirror prop into state",
+    "description": "Keeps an editable draft name in local state.",
+    "code": "import { useState } from \"react\";\n\nexport default function NameEditor({ name }) {\n  const [draft, setDraft] = useState(name);\n\n  return <input value={draft} onChange={(event) => setDraft(event.target.value)} />;\n}\n",
+    "issue_line": 4,
+    "issue_severity": "medium",
+    "issue_title": "Local state does not react to prop changes",
+    "issue_description": "If the parent passes a new name, the draft stays stuck on the first render value.",
+    "issue_suggestion": "Sync the local draft when the prop changes or avoid duplicating the prop in state.",
+    "issue_code": "useEffect(() => {\n  setDraft(name);\n}, [name]);"
+  },
+  {
+    "title": "Search box request",
+    "description": "Fetches suggestions for the current search term.",
+    "code": "import { useEffect, useState } from \"react\";\n\nexport default function SearchBox({ term }) {\n  const [results, setResults] = useState([]);\n\n  useEffect(() => {\n    fetch(`/api/search?q=${term}`)\n      .then((response) => response.json())\n      .then(setResults);\n  }, [term]);\n\n  return <div>{results.length}</div>;\n}\n",
+    "issue_line": 7,
+    "issue_severity": "medium",
+    "issue_title": "Stale requests can win the race",
+    "issue_description": "A slower response for an older term can overwrite the latest results.",
+    "issue_suggestion": "Cancel stale requests or ignore outdated responses.",
+    "issue_code": "const controller = new AbortController();\nfetch(`/api/search?q=${term}`, { signal: controller.signal })\nreturn () => controller.abort();"
+  },
+  {
+    "title": "Toggle panel visibility",
+    "description": "Shows and hides a details panel.",
+    "code": "import { useState } from \"react\";\n\nexport default function PanelToggle() {\n  const [open, setOpen] = useState(false);\n\n  return <button onClick={() => setOpen(!open)}>{open ? \"Hide\" : \"Show\"}</button>;\n}\n",
+    "issue_line": 6,
+    "issue_severity": "low",
+    "issue_title": "Toggle uses captured state",
+    "issue_description": "A functional updater is safer when multiple events can queue before render.",
+    "issue_suggestion": "Toggle from the current state value passed by React.",
+    "issue_code": "onClick={() => setOpen((current) => !current)}"
+  },
+  {
+    "title": "Profile avatar image",
+    "description": "Displays a profile avatar from a remote URL.",
+    "code": "export default function Avatar({ user }) {\n  return <img src={user.avatarUrl} />;\n}\n",
+    "issue_line": 2,
+    "issue_severity": "low",
+    "issue_title": "Image lacks accessible alt text",
+    "issue_description": "Screen readers do not get a useful description of the avatar.",
+    "issue_suggestion": "Provide an informative alt attribute.",
+    "issue_code": "return <img src={user.avatarUrl} alt={`${user.name} avatar`} />;"
+  },
+  {
+    "title": "Sort products in render",
+    "description": "Shows a sorted list of products.",
+    "code": "export default function ProductList({ products }) {\n  products.sort((left, right) => left.name.localeCompare(right.name));\n\n  return (\n    <ul>\n      {products.map((product) => (\n        <li key={product.id}>{product.name}</li>\n      ))}\n    </ul>\n  );\n}\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Props are mutated during render",
+    "issue_description": "Sorting the incoming array changes parent-owned data and can cause surprising side effects.",
+    "issue_suggestion": "Sort a copy instead of mutating props.",
+    "issue_code": "const sortedProducts = [...products].sort((left, right) => left.name.localeCompare(right.name));"
+  },
+  {
+    "title": "Filter list items",
+    "description": "Builds a filtered list from a query string.",
+    "code": "import { useState } from \"react\";\n\nexport default function FilteredList({ items }) {\n  const [query, setQuery] = useState(\"\");\n  const visible = items.filter((item) => item.name.includes(query.toLowerCase()));\n\n  return <input value={query} onChange={(event) => setQuery(event.target.value)} />;\n}\n",
+    "issue_line": 5,
+    "issue_severity": "medium",
+    "issue_title": "Comparison normalizes only one side",
+    "issue_description": "Lowercasing the query but not the item name makes filtering case-sensitive in one direction.",
+    "issue_suggestion": "Normalize both values before comparing.",
+    "issue_code": "const visible = items.filter((item) => item.name.toLowerCase().includes(query.toLowerCase()));"
+  },
+  {
+    "title": "Map notification count",
+    "description": "Displays the unread notification count.",
+    "code": "export default function NotificationBadge({ notifications }) {\n  const unread = notifications.filter((notification) => !notification.read).length;\n\n  if (!unread) {\n    return 0;\n  }\n\n  return <span>{unread}</span>;\n}\n",
+    "issue_line": 5,
+    "issue_severity": "low",
+    "issue_title": "Component returns a bare number",
+    "issue_description": "Returning 0 renders text unexpectedly instead of rendering nothing.",
+    "issue_suggestion": "Return null when the badge should be hidden.",
+    "issue_code": "if (!unread) {\n  return null;\n}"
+  },
+  {
+    "title": "Compose CSS classes",
+    "description": "Builds a class string for a button.",
+    "code": "export default function Button({ primary }) {\n  const className = [\"button\", primary && \"button-primary\"].join(\" \");\n  return <button className={className}>Save</button>;\n}\n",
+    "issue_line": 2,
+    "issue_severity": "low",
+    "issue_title": "False values leak into the class list",
+    "issue_description": "When primary is false, the class string becomes 'button false'.",
+    "issue_suggestion": "Filter falsy entries before joining.",
+    "issue_code": "const className = [\"button\", primary && \"button-primary\"].filter(Boolean).join(\" \");"
+  },
+  {
+    "title": "Render a Markdown preview",
+    "description": "Shows Markdown coming from user input.",
+    "code": "export default function Preview({ html }) {\n  return <div dangerouslySetInnerHTML={{ __html: html }} />;\n}\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Unsanitized HTML is rendered directly",
+    "issue_description": "User-controlled HTML can execute scripts in the browser.",
+    "issue_suggestion": "Sanitize HTML before rendering or render Markdown safely.",
+    "issue_code": "const safeHtml = DOMPurify.sanitize(html);"
+  },
+  {
+    "title": "Handle form submission",
+    "description": "Saves a profile form when the user submits it.",
+    "code": "export default function ProfileForm() {\n  function handleSubmit() {\n    fetch(\"/api/profile\", { method: \"POST\" });\n  }\n\n  return <form onSubmit={handleSubmit}><button type=\"submit\">Save</button></form>;\n}\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Submit handler does not prevent default",
+    "issue_description": "The browser performs a full page reload before the fetch can complete.",
+    "issue_suggestion": "Accept the submit event and call preventDefault().",
+    "issue_code": "function handleSubmit(event) {\n  event.preventDefault();"
+  },
+  {
+    "title": "Read window width",
+    "description": "Shows the current viewport width.",
+    "code": "import { useEffect, useState } from \"react\";\n\nexport default function WindowWidth() {\n  const [width, setWidth] = useState(window.innerWidth);\n\n  useEffect(() => {\n    window.addEventListener(\"resize\", () => setWidth(window.innerWidth));\n  }, []);\n\n  return <span>{width}</span>;\n}\n",
+    "issue_line": 7,
+    "issue_severity": "medium",
+    "issue_title": "Resize listener is never removed",
+    "issue_description": "The component leaks event listeners across mounts.",
+    "issue_suggestion": "Store the handler and remove it in cleanup.",
+    "issue_code": "const handleResize = () => setWidth(window.innerWidth);\nwindow.addEventListener(\"resize\", handleResize);\nreturn () => window.removeEventListener(\"resize\", handleResize);"
+  },
+  {
+    "title": "Update selected tab",
+    "description": "Shows the content of the currently active tab.",
+    "code": "import { useState } from \"react\";\n\nexport default function Tabs({ items }) {\n  const [selectedId, setSelectedId] = useState(items[0].id);\n\n  return (\n    <div>\n      {items.map((item) => (\n        <button key={item.id} onClick={setSelectedId(item.id)}>{item.label}</button>\n      ))}\n    </div>\n  );\n}\n",
+    "issue_line": 8,
+    "issue_severity": "medium",
+    "issue_title": "Click handler executes during render",
+    "issue_description": "setSelectedId runs immediately instead of when the button is clicked.",
+    "issue_suggestion": "Wrap the state update in a function.",
+    "issue_code": "onClick={() => setSelectedId(item.id)}"
+  },
+  {
+    "title": "Fetch project list once",
+    "description": "Loads projects and stores them in component state.",
+    "code": "import { useEffect, useState } from \"react\";\n\nexport default function Projects() {\n  const [projects, setProjects] = useState([]);\n\n  useEffect(async () => {\n    const response = await fetch(\"/api/projects\");\n    const data = await response.json();\n    setProjects(data);\n  }, []);\n\n  return <div>{projects.length}</div>;\n}\n",
+    "issue_line": 6,
+    "issue_severity": "medium",
+    "issue_title": "Effect callback is async",
+    "issue_description": "useEffect expects a cleanup function or nothing, not a Promise.",
+    "issue_suggestion": "Create an inner async function and call it from the effect.",
+    "issue_code": "useEffect(() => {\n  async function loadProjects() {\n    ...\n  }\n  loadProjects();\n}, []);"
+  },
+  {
+    "title": "Toggle favorite product",
+    "description": "Adds or removes a product id from favorites.",
+    "code": "import { useState } from \"react\";\n\nexport default function FavoriteToggle({ productId }) {\n  const [favorites, setFavorites] = useState([]);\n\n  function toggleFavorite() {\n    if (favorites.includes(productId)) {\n      setFavorites(favorites.filter((id) => id !== productId));\n      return;\n    }\n\n    setFavorites([...favorites, productId]);\n  }\n\n  return <button onClick={toggleFavorite}>Toggle</button>;\n}\n",
+    "issue_line": 6,
+    "issue_severity": "low",
+    "issue_title": "Updates depend on captured state",
+    "issue_description": "Queued clicks can apply stale favorite state.",
+    "issue_suggestion": "Use a functional state update based on the latest array.",
+    "issue_code": "setFavorites((current) => current.includes(productId) ? current.filter((id) => id !== productId) : [...current, productId]);"
+  },
+  {
+    "title": "Render theme from localStorage",
+    "description": "Reads a persisted theme from localStorage.",
+    "code": "import { useState } from \"react\";\n\nexport default function ThemeLabel() {\n  const [theme] = useState(localStorage.getItem(\"theme\") || \"light\");\n  return <span>{theme}</span>;\n}\n",
+    "issue_line": 4,
+    "issue_severity": "medium",
+    "issue_title": "Browser API is read during render",
+    "issue_description": "Direct localStorage access breaks in server rendering and makes initialization harder to control.",
+    "issue_suggestion": "Use a lazy initializer guarded for the browser.",
+    "issue_code": "const [theme] = useState(() => window.localStorage.getItem(\"theme\") || \"light\");"
+  }
+]

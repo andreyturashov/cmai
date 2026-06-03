@@ -7,10 +7,10 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
+from app.data.seed_data import TASKS
 from app.db import AsyncSessionFactory
 from app.models import TaskIssueRecord, TaskRecord
 from app.schemas import Task
-from app.seed_data import TASKS
 
 
 def _task_record_from_schema(task: Task) -> TaskRecord:

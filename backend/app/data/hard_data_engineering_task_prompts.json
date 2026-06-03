@@ -1,0 +1,112 @@
+[
+  {
+    "title": "Deduplicate on business key plus version window",
+    "description": "Merges events using only event id even though the source reuses ids across versions.",
+    "code": "def merge_events(events, table):\n    for event in events:\n        table.upsert(event, key='event_id')\n",
+    "issue_line": 3,
+    "issue_severity": "critical",
+    "issue_title": "Deduplication key is too weak for the source semantics",
+    "issue_description": "If event ids are reused across versions or retries, a one-column dedup key can collapse distinct records incorrectly.",
+    "issue_suggestion": "Use the true business key and ordering/version field when deduplicating incoming events.",
+    "issue_code": "table.upsert(event, key=['event_id', 'version'])"
+  },
+  {
+    "title": "Do not partition event-time reports by ingestion date",
+    "description": "Builds a fact table partitioned by when the batch arrived.",
+    "code": "df = normalize(source_rows)\ndf.write.partitionBy('ingested_date').parquet(output)\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Data layout does not match analytical time semantics",
+    "issue_description": "Queries by business event time will scan the wrong partitions when ingestion lags behind event production.",
+    "issue_suggestion": "Partition by event-time date when that is the primary reporting dimension.",
+    "issue_code": "df.write.partitionBy('event_date').parquet(output)"
+  },
+  {
+    "title": "Enforce monotonic watermark progression",
+    "description": "Loads incrementally based on the max updated_at seen in the last batch.",
+    "code": "def next_watermark(rows):\n    return max(row['updated_at'] for row in rows)\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Watermark can move backward on late or partial batches",
+    "issue_description": "Using only the latest row from one batch can make incremental loading skip or duplicate changes.",
+    "issue_suggestion": "Advance the watermark monotonically with a persisted checkpoint and safety overlap.",
+    "issue_code": "return max(saved_watermark, batch_max)\n"
+  },
+  {
+    "title": "Avoid unbounded small-file amplification",
+    "description": "Writes one parquet file per source message.",
+    "code": "for message in stream:\n    spark.createDataFrame([message]).write.mode('append').parquet(output)\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Pipeline creates a small-file problem",
+    "issue_description": "One-file-per-message output hurts downstream scan performance and metadata overhead.",
+    "issue_suggestion": "Batch records into larger output files or compact them before publishing.",
+    "issue_code": "buffer.append(message)\nif len(buffer) >= 10000: write_batch(buffer)"
+  },
+  {
+    "title": "Model slowly changing dimensions with effective windows",
+    "description": "Updates the customer dimension row in place when plan changes.",
+    "code": "def apply_plan_change(customer_id, new_plan):\n    warehouse.execute('UPDATE dim_customer SET plan = ? WHERE customer_id = ?', new_plan, customer_id)\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Historical dimension state is overwritten",
+    "issue_description": "Changing the dimension in place loses the ability to analyze facts against the correct historical attributes.",
+    "issue_suggestion": "Use effective start and end timestamps for dimension versions.",
+    "issue_code": "INSERT INTO dim_customer (customer_id, plan, effective_from, effective_to) VALUES (...) "
+  },
+  {
+    "title": "Validate metric units before combining sources",
+    "description": "Adds revenue from one feed in cents and another in dollars.",
+    "code": "def total_revenue(feed_a, feed_b):\n    return sum(row['amount'] for row in feed_a) + sum(row['amount'] for row in feed_b)\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Measures from different sources use incompatible units",
+    "issue_description": "Combining amounts without unit normalization silently corrupts financial metrics.",
+    "issue_suggestion": "Normalize all monetary values to one unit before aggregation.",
+    "issue_code": "normalized_b = [row['amount'] * 100 for row in feed_b]"
+  },
+  {
+    "title": "Pre-filter huge fact joins before the shuffle",
+    "description": "Joins all clickstream rows to all campaign rows before narrowing the date range.",
+    "code": "SELECT *\nFROM clicks c\nJOIN campaigns p ON c.campaign_id = p.id\nWHERE c.event_date BETWEEN '2026-05-01' AND '2026-05-31';\n",
+    "issue_line": 4,
+    "issue_severity": "medium",
+    "issue_title": "The expensive join happens before the selective filter",
+    "issue_description": "Large-scale joins should reduce data volume as early as possible to avoid excessive shuffle and compute cost.",
+    "issue_suggestion": "Push partition and date filters down before the join.",
+    "issue_code": "WITH filtered_clicks AS (SELECT * FROM clicks WHERE event_date BETWEEN ...)\n"
+  },
+  {
+    "title": "Monitor null-rate drift on critical dimensions",
+    "description": "Loads campaign facts without checking how many records lost attribution ids.",
+    "code": "def load_campaign_facts(rows, table):\n    table.write(rows)\n",
+    "issue_line": 2,
+    "issue_severity": "medium",
+    "issue_title": "Critical data quality drift is not measured",
+    "issue_description": "A surge in null dimension keys can silently break reporting before anyone notices.",
+    "issue_suggestion": "Emit and alert on null-rate metrics for key analytical dimensions.",
+    "issue_code": "null_rate = sum(1 for row in rows if row['campaign_id'] is None) / len(rows)"
+  },
+  {
+    "title": "Keep replay-safe raw zones immutable during reprocessing",
+    "description": "Reruns backfills by overwriting the raw landing path.",
+    "code": "def reprocess(batch_id, raw_path):\n    transformed = transform(read(raw_path))\n    write(raw_path, transformed)\n",
+    "issue_line": 3,
+    "issue_severity": "critical",
+    "issue_title": "Raw landing data is overwritten during replay",
+    "issue_description": "Mutating the raw zone destroys the original evidence needed for audit and deterministic reprocessing.",
+    "issue_suggestion": "Write replay outputs into a derived zone and keep the raw landing path immutable.",
+    "issue_code": "write(derived_path(batch_id), transformed)"
+  },
+  {
+    "title": "Align CDC deletes with snapshot rebuild semantics",
+    "description": "Builds a current-state table from inserts and updates, then rebuilds snapshots without tombstones.",
+    "code": "def rebuild_current(events):\n    state = {}\n    for event in events:\n        if event['op'] in {'insert', 'update'}:\n            state[event['id']] = event['row']\n    return state\n",
+    "issue_line": 4,
+    "issue_severity": "critical",
+    "issue_title": "Snapshot rebuild ignores delete tombstones",
+    "issue_description": "Current-state reconstruction will resurrect deleted entities if delete events are dropped from the replay logic.",
+    "issue_suggestion": "Carry tombstones through replay and remove deleted ids during rebuild.",
+    "issue_code": "elif event['op'] == 'delete':\n    state.pop(event['id'], None)"
+  }
+]
