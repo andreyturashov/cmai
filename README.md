@@ -2,6 +2,8 @@
 
 This project contains both backend and frontend for a PR review training platform.
 
+![Dashboard](docs/tasks.png)
+
 ## Features
 
 - Static PR review task with code snippet
