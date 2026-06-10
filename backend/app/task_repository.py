@@ -41,7 +41,10 @@ class TaskRepository:
         self.session = session
 
     async def list_tasks(
-        self, user_id: int | None = None, language: str | None = None
+        self,
+        user_id: int | None = None,
+        language: str | None = None,
+        complexity: str | None = None,
     ) -> list[Task]:
         tasks_query = (
             select(TaskRecord)
@@ -50,6 +53,8 @@ class TaskRepository:
         )
         if language:
             tasks_query = tasks_query.where(TaskRecord.language == language)
+        if complexity:
+            tasks_query = tasks_query.where(TaskRecord.complexity == complexity)
 
         tasks = (await self.session.scalars(tasks_query)).all()
 
