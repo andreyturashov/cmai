@@ -1,0 +1,112 @@
+[
+  {
+    "title": "Prevent arbitrary code execution via pickle",
+    "description": "Loads user-uploaded session state data.",
+    "code": "import pickle\n\ndef load_session_state(serialized_data):\n    # Reconstruct the user session state from raw bytes\n    return pickle.loads(serialized_data)\n",
+    "issue_line": 5,
+    "issue_severity": "critical",
+    "issue_title": "Arbitrary code execution via unsafe unpickling",
+    "issue_description": "Using pickle.loads on untrusted input allows attackers to execute arbitrary code by supplying a malicious payload with a custom __reduce__ method.",
+    "issue_suggestion": "Use a safe serialization format like JSON, or cryptographically sign the pickled data and verify the signature before loading.",
+    "issue_code": "import hmac, hashlib\n# Verify cryptographic signature before pickle.loads, or use json.loads"
+  },
+  {
+    "title": "Avoid blocking event loop with synchronous socket operations",
+    "description": "Fetches a URL synchronously inside an async function.",
+    "code": "import asyncio\nimport requests\n\nasync def fetch_api_data(url):\n    # Fetch data from external API\n    response = requests.get(url)\n    return response.json()\n",
+    "issue_line": 6,
+    "issue_severity": "critical",
+    "issue_title": "Synchronous I/O blocks the asyncio event loop",
+    "issue_description": "requests.get performs synchronous network I/O which blocks the event loop thread, stopping all other concurrent async tasks from running.",
+    "issue_suggestion": "Use an asynchronous HTTP client like httpx or aiohttp, or run the synchronous call in an executor thread.",
+    "issue_code": "return await asyncio.to_thread(requests.get, url)"
+  },
+  {
+    "title": "Fix shared state in custom descriptor",
+    "description": "A validator descriptor meant to track values per instance.",
+    "code": "class PositiveInteger:\n    def __init__(self):\n        self.value = None\n\n    def __get__(self, instance, owner):\n        return self.value\n\n    def __set__(self, instance, value):\n        if value < 0:\n            raise ValueError('Must be positive')\n        self.value = value\n",
+    "issue_line": 3,
+    "issue_severity": "critical",
+    "issue_title": "Descriptor stores state on itself instead of instance",
+    "issue_description": "Storing self.value inside the descriptor instance shares the value across all instances of the owner class, leaking state.",
+    "issue_suggestion": "Store the value in the instance's __dict__ using a unique key or the descriptor's attribute name.",
+    "issue_code": "instance.__dict__[self.name] = value"
+  },
+  {
+    "title": "Fix infinite recursion in dynamic attribute lookup",
+    "description": "Redirects missing attributes to a nested dictionary.",
+    "code": "class DynamicWrapper:\n    def __init__(self, data):\n        self.data = data\n\n    def __getattribute__(self, name):\n        if name in self.data:\n            return self.data[name]\n        return super().__getattribute__(name)\n",
+    "issue_line": 6,
+    "issue_severity": "critical",
+    "issue_title": "Infinite recursion in __getattribute__",
+    "issue_description": "Accessing self.data inside __getattribute__ calls __getattribute__ recursively, leading to a RecursionError.",
+    "issue_suggestion": "Use self.__dict__ or super().__getattribute__ to retrieve the 'data' attribute safely without triggering recursion, or implement __getattr__ instead.",
+    "issue_code": "data = super().__getattribute__('data')\nif name in data:\n    return data[name]"
+  },
+  {
+    "title": "Fix race condition in thread-unsafe counter",
+    "description": "Increments a shared counter concurrently across multiple threads.",
+    "code": "import threading\n\nclass ThreadSafeCounter:\n    def __init__(self):\n        self.count = 0\n\n    def increment(self):\n        # Increment the count from multiple threads\n        current = self.count\n        self.count = current + 1\n",
+    "issue_line": 9,
+    "issue_severity": "critical",
+    "issue_title": "Non-atomic operation causes race condition",
+    "issue_description": "Reading and writing self.count is not thread-safe. Multiple threads can read the same value before either writes the increment, leading to lost updates.",
+    "issue_suggestion": "Use a threading.Lock to synchronize access to the counter's state.",
+    "issue_code": "with self._lock:\n    self.count += 1"
+  },
+  {
+    "title": "Prevent memory leak in circular reference cache",
+    "description": "Caches calculated results for quick retrieval.",
+    "code": "class SimpleCache:\n    def __init__(self):\n        self.cache = {}\n\n    def set_value(self, key, obj):\n        self.cache[key] = obj\n        obj.cache_ref = self\n",
+    "issue_line": 7,
+    "issue_severity": "medium",
+    "issue_title": "Circular reference prevents garbage collection",
+    "issue_description": "Storing the cache reference back on the object creates a circular reference cycle which prevents immediate reference-counting cleanup.",
+    "issue_suggestion": "Use weakref to store a weak reference to the owner cache or avoid storing the cache reference on the object.",
+    "issue_code": "import weakref\nobj.cache_ref = weakref.ref(self)"
+  },
+  {
+    "title": "Fix incorrect exception handler type checking",
+    "description": "Catches multiple errors in a single block.",
+    "code": "def process_transaction(func):\n    try:\n        func()\n    except KeyError, ValueError as e:\n        log_error(e)\n",
+    "issue_line": 4,
+    "issue_severity": "critical",
+    "issue_title": "Invalid exception tuple syntax",
+    "issue_description": "In Python, writing 'except KeyError, ValueError' treats ValueError as the target name to bind the caught KeyError to, rather than catching both errors.",
+    "issue_suggestion": "Wrap multiple exceptions in a parenthesized tuple.",
+    "issue_code": "except (KeyError, ValueError) as e:"
+  },
+  {
+    "title": "Fix generators ignoring generator cancellation",
+    "description": "Performs database cleanup when the generator finishes.",
+    "code": "def query_records_generator(db_cursor):\n    try:\n        for row in db_cursor.execute('SELECT * FROM users'):\n            yield row\n    finally:\n        db_cursor.close()\n        # Trigger heavy sync sync logging here\n        log_cleanup_completed()\n",
+    "issue_line": 5,
+    "issue_severity": "medium",
+    "issue_title": "Blocking code in generator finally block",
+    "issue_description": "If a generator is closed prematurely, GeneratorExit is raised inside it. Placing heavy blocking sync operations in the finally block delays generator close.",
+    "issue_suggestion": "Keep finally blocks minimal or catch GeneratorExit explicitly to perform only lightweight cleanups.",
+    "issue_code": "except GeneratorExit:\n    db_cursor.close()\n    raise"
+  },
+  {
+    "title": "Avoid class-level mutable defaults",
+    "description": "Defines a record schema with custom permissions.",
+    "code": "class UserRecord:\n    permissions = []\n\n    def add_permission(self, perm):\n        self.permissions.append(perm)\n",
+    "issue_line": 2,
+    "issue_severity": "critical",
+    "issue_title": "Class attribute shares list across instances",
+    "issue_description": "permissions is defined as a class attribute, so all instances of UserRecord share the exact same permissions list.",
+    "issue_suggestion": "Define permissions inside the __init__ method as an instance attribute.",
+    "issue_code": "def __init__(self):\n    self.permissions = []"
+  },
+  {
+    "title": "Fix unsafe string formatting in raw SQL query",
+    "description": "Executes a query directly on the SQLite database.",
+    "code": "import sqlite3\n\ndef find_records_by_group(conn, group_name):\n    cursor = conn.cursor()\n    cursor.execute(\"SELECT * FROM user_groups WHERE name = '%s'\" % group_name)\n    return cursor.fetchall()\n",
+    "issue_line": 5,
+    "issue_severity": "critical",
+    "issue_title": "SQL Injection vulnerability via string formatting",
+    "issue_description": "Formatting the query string directly allows attackers to append arbitrary SQL commands, leading to SQL Injection.",
+    "issue_suggestion": "Use parameterized queries to let the database driver safely escape the parameters.",
+    "issue_code": "cursor.execute(\"SELECT * FROM user_groups WHERE name = ?\", (group_name,))"
+  }
+]

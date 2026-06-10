@@ -1,0 +1,112 @@
+[
+  {
+    "title": "Fix race condition in database field increment",
+    "description": "Increments the views count for an article.",
+    "code": "from django.shortcuts import get_object_or_404\nfrom .models import Article\n\ndef increment_views(request, article_id):\n    article = get_object_or_404(Article, pk=article_id)\n    article.views_count = article.views_count + 1\n    article.save()\n    return HttpResponse('ok')\n",
+    "issue_line": 6,
+    "issue_severity": "critical",
+    "issue_title": "Race condition in database update",
+    "issue_description": "Fetching, modifying, and saving a model instance is not atomic. If two requests execute concurrently, they can read the same count and one update will be lost.",
+    "issue_suggestion": "Use Django's F() expressions to perform the database update atomically on the database side.",
+    "issue_code": "from django.db.models import F\nArticle.objects.filter(pk=article_id).update(views_count=F('views_count') + 1)"
+  },
+  {
+    "title": "Prevent N+1 query explosion during serializer loop",
+    "description": "Lists all projects and their author names in a API view.",
+    "code": "from django.http import JsonResponse\nfrom .models import Project\n\ndef list_projects_api(request):\n    projects = Project.objects.all()\n    data = []\n    for project in projects:\n        data.append({\n            'id': project.id,\n            'title': project.title,\n            'author': project.author.username\n        })\n    return JsonResponse({'projects': data})\n",
+    "issue_line": 5,
+    "issue_severity": "medium",
+    "issue_title": "N+1 queries during lazy loading",
+    "issue_description": "Accessing project.author.username for each project executes a separate SQL query per project, causing an N+1 query pattern.",
+    "issue_suggestion": "Use select_related or prefetch_related to load foreign keys eagerly in a single database query.",
+    "issue_code": "projects = Project.objects.select_related('author').all()"
+  },
+  {
+    "title": "Prevent database locked/integrity errors in nested atomic blocks",
+    "description": "Runs user payments updates inside a transaction.",
+    "code": "from django.db import transaction\nfrom .models import Wallet\n\n@transaction.atomic\ndef process_wallet_payment(user_id, amount):\n    wallet = Wallet.objects.get(user_id=user_id)\n    try:\n        with transaction.atomic():\n            wallet.balance -= amount\n            wallet.save()\n    except Exception:\n        # Ignore errors and try logging\n        log_failed_attempt(user_id)\n",
+    "issue_line": 8,
+    "issue_severity": "critical",
+    "issue_title": "Swallowing database exceptions inside transaction.atomic",
+    "issue_description": "If a database error occurs inside a nested atomic block, the transaction is marked as dirty. Swallowing the exception and continuing to use the connection causes a TransactionManagementError.",
+    "issue_suggestion": "Do not swallow exceptions inside atomic blocks, or use savepoints explicitly and let the parent atomic block roll back correctly.",
+    "issue_code": "# Let exception propagate or raise custom exception to ensure transaction rollback"
+  },
+  {
+    "title": "Fix class-level QuerySet caching in views",
+    "description": "Displays lists of active promotional offers.",
+    "code": "from django.views.generic import ListView\nfrom .models import Promotion\n\nclass PromotionListView(ListView):\n    # Display list of currently active promotions\n    queryset = Promotion.objects.filter(is_active=True)\n    template_name = 'promotions.html'\n",
+    "issue_line": 6,
+    "issue_severity": "critical",
+    "issue_title": "Class-level queryset caching",
+    "issue_description": "Defining the queryset as a class-level attribute caches the results when the server starts. New or modified promotions won't show up without a server restart.",
+    "issue_suggestion": "Override the get_queryset method to evaluate the query dynamically on each request.",
+    "issue_code": "def get_queryset(self):\n    return Promotion.objects.filter(is_active=True)"
+  },
+  {
+    "title": "Fix session validation bypass in custom middleware",
+    "description": "Checks if the request is authenticated.",
+    "code": "class CustomAuthMiddleware:\n    def __init__(self, get_response):\n        self.get_response = get_response\n\n    def __call__(self, request):\n        if 'user_id' in request.session:\n            # Bypasses normal Django backend validation\n            request.is_authenticated_user = True\n        return self.get_response(request)\n",
+    "issue_line": 6,
+    "issue_severity": "critical",
+    "issue_title": "Custom auth middleware bypasses user backend validation",
+    "issue_description": "Trusting 'user_id' in session directly without validating it against the active authentication backends or checking if the user is active bypasses security constraints.",
+    "issue_suggestion": "Use Django's built-in get_user helper to resolve the user and check user.is_authenticated.",
+    "issue_code": "from django.contrib.auth import get_user\nrequest.user = get_user(request)"
+  },
+  {
+    "title": "Fix database router bypass using raw connection",
+    "description": "Fetches analytics data directly from the replica connection.",
+    "code": "from django.db import connections\n\ndef get_analytics_metrics():\n    # Fetch metrics using replica connection directly\n    cursor = connections['replica'].cursor()\n    cursor.execute('SELECT COUNT(*) FROM user_events')\n    return cursor.fetchone()[0]\n",
+    "issue_line": 5,
+    "issue_severity": "medium",
+    "issue_title": "Hardcoded database alias bypasses multi-db router",
+    "issue_description": "Bypassing the database router by hardcoding connections['replica'] breaks setups where routers dynamically choose read/write paths or handle failover.",
+    "issue_suggestion": "Use the Django ORM and specify using() if needed, or rely on a database router to select the proper connection alias.",
+    "issue_code": "from django.db import router\ndb_alias = router.db_for_read(UserEvent)\n# Use db_alias dynamically"
+  },
+  {
+    "title": "Prevent arbitrary path traversal in custom storage save",
+    "description": "Saves an uploaded user file to the filesystem.",
+    "code": "import os\nfrom django.conf import settings\n\ndef save_user_file(file_name, file_content):\n    # Save the file to the media directory\n    target_path = os.path.join(settings.MEDIA_ROOT, file_name)\n    with open(target_path, 'wb') as f:\n        f.write(file_content)\n",
+    "issue_line": 6,
+    "issue_severity": "critical",
+    "issue_title": "Path traversal via raw filename input",
+    "issue_description": "Using os.path.join on a raw user-supplied filename allows directory traversal (e.g. '../configs/settings.py') to overwrite files outside MEDIA_ROOT.",
+    "issue_suggestion": "Use os.path.basename on the filename or Django's get_valid_filename helper to sanitize the filename before joining.",
+    "issue_code": "from django.utils.text import get_valid_filename\nsafe_name = get_valid_filename(os.path.basename(file_name))"
+  },
+  {
+    "title": "Prevent cross-site scripting (XSS) via safe template filter",
+    "description": "A custom template filter to format user comments.",
+    "code": "from django import template\nfrom django.utils.safestring import mark_safe\n\nregister = template.Library()\n\n@register.filter(name='format_user_text')\ndef format_user_text(value):\n    # Wrap raw user string in bold tags\n    return mark_safe(f'<b>{value}</b>')\n",
+    "issue_line": 9,
+    "issue_severity": "critical",
+    "issue_title": "Stored XSS via unsafe mark_safe usage",
+    "issue_description": "Calling mark_safe on a template filter input containing unescaped user text lets attackers inject malicious HTML/script tags directly into the page.",
+    "issue_suggestion": "Escape the input string using Django's escape() helper before wrapping it in safe tags.",
+    "issue_code": "from django.utils.html import escape\nsafe_value = escape(value)\nreturn mark_safe(f'<b>{safe_value}</b>')"
+  },
+  {
+    "title": "Fix custom form field validation clean method bypass",
+    "description": "A custom field for validating hex color codes.",
+    "code": "from django import forms\nimport re\n\nclass HexColorField(forms.CharField):\n    def validate(self, value):\n        # Check if the hex color format matches\n        if not re.match(r'^#[0-9a-fA-F]{6}$', value):\n            raise forms.ValidationError('Invalid hex color')\n",
+    "issue_line": 5,
+    "issue_severity": "medium",
+    "issue_title": "Form field validation does not run super class validation",
+    "issue_description": "Overriding validate without calling super().validate(value) bypasses required base validation constraints like max_length or required checks.",
+    "issue_suggestion": "Always call super().validate(value) in custom form field validation methods.",
+    "issue_code": "super().validate(value)\nif not re.match(r'^#[0-9a-fA-F]{6}$', value):\n    raise forms.ValidationError('Invalid hex color')"
+  },
+  {
+    "title": "Prevent sync database signals blocking transaction scope",
+    "description": "Performs external sync operations in a post_save signal.",
+    "code": "from django.db.models.signals import post_save\nfrom django.dispatch import receiver\nimport requests\nfrom .models import Order\n\n@receiver(post_save, sender=Order)\ndef notify_external_shipping(sender, instance, **kwargs):\n    # Make synchronous API call inside the signal handler\n    requests.post('https://shipping-api.com/notify', json={'id': instance.id})\n",
+    "issue_line": 9,
+    "issue_severity": "medium",
+    "issue_title": "Blocking synchronous HTTP request inside database signal",
+    "issue_description": "Making synchronous HTTP calls inside post_save signals blocks the thread executing the database transaction, significantly increasing query durations and pool contention.",
+    "issue_suggestion": "Offload the external API notification to a background task runner (e.g. Celery or a background thread) or use transaction.on_commit.",
+    "issue_code": "from django.db import transaction\ntransaction.on_commit(lambda: trigger_shipping_task(instance.id))"
+  }
+]

@@ -218,5 +218,115 @@
     "issue_description": "Anyone who can hit the route can approve reimbursements.",
     "issue_suggestion": "Require the proper manager permission before updating the status.",
     "issue_code": "if not request.user.has_perm(\"billing.can_approve_reimbursement\"):\n    return HttpResponseForbidden()"
+  },
+  {
+    "title": "Verify payment webhook signature",
+    "description": "Processes payment webhook event notifications.",
+    "code": "from django.http import HttpResponse\nimport json\n\ndef stripe_webhook(request):\n    payload = json.loads(request.body)\n    # Process webhook events (e.g. payment_intent.succeeded)\n    handle_webhook_event(payload)\n    return HttpResponse(status=200)\n",
+    "issue_line": 5,
+    "issue_severity": "critical",
+    "issue_title": "Missing webhook signature verification",
+    "issue_description": "Processing webhook payloads directly without verifying the signature header allows attackers to forge payment success events.",
+    "issue_suggestion": "Verify webhook signature using Stripe's SDK before processing the payload.",
+    "issue_code": "sig_header = request.META['HTTP_STRIPE_SIGNATURE']\nevent = stripe.Webhook.construct_event(request.body, sig_header, endpoint_secret)"
+  },
+  {
+    "title": "Export user data download path",
+    "description": "Generates a CSV of user history and stores it.",
+    "code": "import os\nfrom django.conf import settings\n\ndef export_user_history(user_id, data):\n    # Write exported user history to static directory\n    file_path = os.path.join(settings.STATIC_ROOT, f'exports/{user_id}.csv')\n    with open(file_path, 'w') as f:\n        f.write(data)\n",
+    "issue_line": 6,
+    "issue_severity": "critical",
+    "issue_title": "Exported files stored in public static directory",
+    "issue_description": "Storing sensitive user exports inside STATIC_ROOT makes them publicly accessible to anyone guessing the URL pattern.",
+    "issue_suggestion": "Use a private media storage wrapper or sign downloads with temp access tokens.",
+    "issue_code": "file_path = os.path.join(settings.PRIVATE_STORAGE_ROOT, f'exports/{user_id}.csv')"
+  },
+  {
+    "title": "Bulk update counters directly",
+    "description": "Deactivates and updates stats for a batch of projects.",
+    "code": "from .models import Project\n\ndef deactivate_stale_projects(project_ids):\n    # Deactivate projects and update their count\n    Project.objects.filter(id__in=project_ids).update(is_active=False)\n",
+    "issue_line": 5,
+    "issue_severity": "medium",
+    "issue_title": "Bulk update does not trigger model save or signals",
+    "issue_description": "QuerySet.update() does not instantiate models or run pre_save/post_save signals, causing side-effects (e.g. audit logging or caching) to be skipped.",
+    "issue_suggestion": "Iterate over the queryset and save each instance, or trigger necessary updates/signals manually.",
+    "issue_code": "for project in Project.objects.filter(id__in=project_ids):\n    project.is_active = False\n    project.save()"
+  },
+  {
+    "title": "Redirect to next path parameter",
+    "description": "Redirects users back to their original page after logging in.",
+    "code": "from django.shortcuts import redirect\n\ndef post_login_redirect(request):\n    next_url = request.GET.get('next', '/')\n    return redirect(next_url)\n",
+    "issue_line": 5,
+    "issue_severity": "critical",
+    "issue_title": "Unvalidated open redirect vulnerability",
+    "issue_description": "Redirecting directly to the user-supplied 'next' parameter without validation allows attackers to redirect users to external phishing sites.",
+    "issue_suggestion": "Use django.utils.http.url_has_allowed_host_and_scheme to ensure the URL is local.",
+    "issue_code": "from django.utils.http import url_has_allowed_host_and_scheme\nif not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):\n    next_url = '/'"
+  },
+  {
+    "title": "Django admin custom delete action",
+    "description": "Custom action in Django admin to delete selected items.",
+    "code": "from django.contrib import admin\n\ndef force_delete_action(modeladmin, request, queryset):\n    # Delete the selected records directly\n    queryset.delete()\n",
+    "issue_line": 5,
+    "issue_severity": "medium",
+    "issue_title": "Admin action ignores object-level delete permissions",
+    "issue_description": "Calling queryset.delete() directly in a custom admin action bypasses the has_delete_permission check for staff users.",
+    "issue_suggestion": "Check the user's permission before executing deletion.",
+    "issue_code": "if not modeladmin.has_delete_permission(request):\n    raise PermissionDenied"
+  },
+  {
+    "title": "SQL injection in queryset RawSQL extra field",
+    "description": "Sorts items using a custom database field calculation.",
+    "code": "from django.db.models.expressions import RawSQL\nfrom .models import Item\n\ndef get_sorted_items(order_by_col):\n    # Sort items dynamically\n    return Item.objects.annotate(\n        val=RawSQL(f'select {order_by_col} from item_meta where item_id = id', ())\n    ).order_by('val')\n",
+    "issue_line": 7,
+    "issue_severity": "critical",
+    "issue_title": "SQL Injection via string interpolation in RawSQL",
+    "issue_description": "Interpolating the column name directly into the RawSQL expression allows attackers to inject malicious SQL queries.",
+    "issue_suggestion": "Strictly map allowed column names to a whitelist or use standard ORM expressions.",
+    "issue_code": "if order_by_col not in ALLOWED_COLS:\n    raise ValueError('Invalid column')"
+  },
+  {
+    "title": "Password reset token generation response",
+    "description": "Creates a token and sends the password reset email.",
+    "code": "from django.contrib.auth.tokens import default_token_generator\nfrom django.http import JsonResponse\n\ndef request_password_reset(request, user):\n    token = default_token_generator.make_token(user)\n    send_reset_email(user.email, token)\n    return JsonResponse({'status': 'sent', 'debug_token': token})\n",
+    "issue_line": 7,
+    "issue_severity": "critical",
+    "issue_title": "Sensitive token returned in API response",
+    "issue_description": "Returning the generated password reset token in the JSON response allows anyone querying the API to hijack the password reset flow.",
+    "issue_suggestion": "Never expose authentication or reset tokens in API responses.",
+    "issue_code": "return JsonResponse({'status': 'sent'})"
+  },
+  {
+    "title": "Cache profile detail page globally",
+    "description": "Caches the profile detail page for 10 minutes.",
+    "code": "from django.views.decorators.cache import cache_page\nfrom django.shortcuts import render\n\n@cache_page(600)\ndef user_profile_view(request, username):\n    # Render the user's private settings dashboard\n    return render(request, 'profile.html', {'user': request.user})\n",
+    "issue_line": 4,
+    "issue_severity": "critical",
+    "issue_title": "Caching private user pages globally",
+    "issue_description": "cache_page caches the response globally by default. The first user loading the page will populate the cache, and subsequent users will see their private profile data.",
+    "issue_suggestion": "Use cache keys that include the session/user ID, or use Vary headers to vary caching by session.",
+    "issue_code": "@vary_on_cookie\n# Or cache user data manually in code"
+  },
+  {
+    "title": "Infinite save loop in model signals",
+    "description": "Updates the last modified author when a post is saved.",
+    "code": "from django.db import models\n\nclass Post(models.Model):\n    title = models.CharField(max_length=100)\n\n    def save(self, *args, **kwargs):\n        super().save(*args, **kwargs)\n        # Update related logs\n        self.update_log_reference()\n\n    def update_log_reference(self):\n        self.save()  # Triggers post save logic again\n",
+    "issue_line": 11,
+    "issue_severity": "critical",
+    "issue_title": "Infinite recursion in model save method",
+    "issue_description": "Calling self.save() inside the save lifecycle triggers the save method again recursively, leading to a RecursionError.",
+    "issue_suggestion": "Perform updates before calling super().save(), or update database fields using update() directly without calling save().",
+    "issue_code": "Post.objects.filter(pk=self.pk).update(last_modified=timezone.now())"
+  },
+  {
+    "title": "Row locking without transaction scope",
+    "description": "Selects and locks a transaction row for processing.",
+    "code": "from .models import Transaction\n\ndef process_pending_transaction(txn_id):\n    # Lock the transaction row to prevent parallel processing\n    txn = Transaction.objects.select_for_update().get(id=txn_id)\n    txn.status = 'processed'\n    txn.save()\n",
+    "issue_line": 5,
+    "issue_severity": "medium",
+    "issue_title": "select_for_update called without active transaction",
+    "issue_description": "Calling select_for_update in autocommit mode does not hold the lock beyond the query execution, rendering it useless for locking rows across modifications.",
+    "issue_suggestion": "Wrap the operation inside a transaction.atomic block.",
+    "issue_code": "from django.db import transaction\nwith transaction.atomic():\n    txn = Transaction.objects.select_for_update().get(id=txn_id)"
   }
 ]
