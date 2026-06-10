@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { api } from './api/client';
 import AuthControls from './components/AuthControls';
 import LeftPanel from './components/LeftPanel';
@@ -84,6 +84,20 @@ export default function App() {
   const [language, setLanguage] = useState('python');
   const [currentUser, setCurrentUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(false);
+  const [complexity, setComplexity] = useState('all');
+
+  const filteredTaskList = useMemo(() => {
+    return taskList.filter((t) => complexity === 'all' || t.complexity === complexity);
+  }, [taskList, complexity]);
+
+  const handleComplexityChange = (newComplexity) => {
+    setComplexity(newComplexity);
+    setTaskIndex(0);
+    setComments([]);
+    setAnswer('');
+    setAiAnalysis(null);
+    setShowReference(false);
+  };
 
   useEffect(() => {
     function handlePopState() {
@@ -137,14 +151,14 @@ export default function App() {
     if (path !== REVIEW_PATH) return;
 
     async function loadSelectedTask() {
-      if (!taskList.length) {
+      if (!filteredTaskList.length) {
         setTask(null);
         return;
       }
 
       try {
         setError('');
-        const selected = taskList[taskIndex];
+        const selected = filteredTaskList[taskIndex];
         const fullTask = await api.getTaskById(selected.id);
         setTask(fullTask);
       } catch (e) {
@@ -153,12 +167,12 @@ export default function App() {
     }
 
     loadSelectedTask();
-  }, [taskList, taskIndex, path]);
+  }, [filteredTaskList, taskIndex, path]);
 
   function moveTask(nextIndex) {
-    if (!taskList.length) return;
+    if (!filteredTaskList.length) return;
 
-    const boundedIndex = nextIndex >= taskList.length ? 0 : nextIndex;
+    const boundedIndex = nextIndex >= filteredTaskList.length ? 0 : nextIndex;
     setTaskIndex(boundedIndex);
     setComments([]);
     setAnswer('');
@@ -406,34 +420,53 @@ export default function App() {
                   </button>
                 ))}
               </div>
-              <button onClick={() => moveTask(taskIndex + 1)} disabled={!taskList.length}>
+              <div className="complexity-toggle" data-testid="complexity-filter">
+                {['all', 'easy', 'medium', 'hard'].map((level) => (
+                  <button
+                    key={level}
+                    className={
+                      complexity === level ? `complexity-active complexity-btn-${level}` : ''
+                    }
+                    onClick={() => handleComplexityChange(level)}
+                  >
+                    {level === 'all' ? 'All' : level.charAt(0).toUpperCase() + level.slice(1)}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => moveTask(taskIndex + 1)} disabled={!filteredTaskList.length}>
                 Next Task
               </button>
             </div>
           </div>
 
-          <div className="layout-grid">
-            <LeftPanel task={task} aiAnalysis={aiAnalysis} aiLoading={aiLoading} />
-            <CodeReviewPanel
-              code={task?.code || ''}
-              language={task?.language || 'python'}
-              instructions={task?.instructions || []}
-              responseMode={task?.submission_mode || 'comments'}
-              comments={comments}
-              answer={answer}
-              answerEditorKey={task?.id || `${language}-${taskIndex}`}
-              referenceIssues={showReference ? task?.reference_issues || [] : []}
-              referenceIssueCount={task?.reference_issues?.length || 0}
-              showReference={showReference}
-              onToggleReference={() => setShowReference((v) => !v)}
-              onAddComment={(c) => setComments((prev) => [...prev, c])}
-              onEditComment={(idx, updated) =>
-                setComments((prev) => prev.map((c, i) => (i === idx ? updated : c)))
-              }
-              onAnswerChange={setAnswer}
-              onSubmitReview={submitReview}
-            />
-          </div>
+          {filteredTaskList.length === 0 ? (
+            <div className="no-tasks-fallback card">
+              <p>No tasks match the selected complexity filter.</p>
+            </div>
+          ) : (
+            <div className="layout-grid">
+              <LeftPanel task={task} aiAnalysis={aiAnalysis} aiLoading={aiLoading} />
+              <CodeReviewPanel
+                code={task?.code || ''}
+                language={task?.language || 'python'}
+                instructions={task?.instructions || []}
+                responseMode={task?.submission_mode || 'comments'}
+                comments={comments}
+                answer={answer}
+                answerEditorKey={task?.id || `${language}-${taskIndex}`}
+                referenceIssues={showReference ? task?.reference_issues || [] : []}
+                referenceIssueCount={task?.reference_issues?.length || 0}
+                showReference={showReference}
+                onToggleReference={() => setShowReference((v) => !v)}
+                onAddComment={(c) => setComments((prev) => [...prev, c])}
+                onEditComment={(idx, updated) =>
+                  setComments((prev) => prev.map((c, i) => (i === idx ? updated : c)))
+                }
+                onAnswerChange={setAnswer}
+                onSubmitReview={submitReview}
+              />
+            </div>
+          )}
         </section>
       )}
     </main>

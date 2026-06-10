@@ -7,6 +7,9 @@ from app.data.task_prompt_data import (
     EXTRA_PYTHON_TASK_PROMPTS,
     FASTAPI_TASK_PROMPTS,
     HARD_DATA_ENGINEERING_TASK_PROMPTS,
+    HARD_DJANGO_TASK_PROMPTS,
+    HARD_PYTHON_QUESTION_PROMPTS,
+    HARD_PYTHON_TASK_PROMPTS,
     HARD_SYSTEM_DESIGN_TASK_PROMPTS,
     HARD_TESTING_TASK_PROMPTS,
     HARD_TYPESCRIPT_TASK_PROMPTS,
@@ -8063,6 +8066,16 @@ TASKS = [
         build_simple_python_question_task(
             index,
             prompt,
+            language="python_questions",
+            task_prefix="hard-python-question",
+            issue_prefix="hard-python-question",
+        )
+        for index, prompt in enumerate(HARD_PYTHON_QUESTION_PROMPTS[:20], start=1)
+    ],
+    *[
+        build_simple_python_question_task(
+            index,
+            prompt,
             language="asyncio",
             task_prefix="asyncio-question",
             issue_prefix="asyncio-question",
@@ -8265,6 +8278,22 @@ TASKS = [
     ],
     *[
         build_single_issue_review_task(
+            task_id=f"hard-python-task-{index}",
+            language="python",
+            prompt=prompt,
+        )
+        for index, prompt in enumerate(HARD_PYTHON_TASK_PROMPTS[:10], start=1)
+    ],
+    *[
+        build_single_issue_review_task(
+            task_id=f"hard-django-task-{index}",
+            language="django",
+            prompt=prompt,
+        )
+        for index, prompt in enumerate(HARD_DJANGO_TASK_PROMPTS[:10], start=1)
+    ],
+    *[
+        build_single_issue_review_task(
             task_id=f"sql-task-{index}",
             language="sql",
             prompt=prompt,
@@ -8278,6 +8307,9 @@ HARD_TASK_ID_PREFIXES = (
     "hard-system-design-task-",
     "hard-typescript-task-",
     "hard-data-engineering-task-",
+    "hard-python-task-",
+    "hard-django-task-",
+    "hard-python-question-",
 )
 
 TASKS = [

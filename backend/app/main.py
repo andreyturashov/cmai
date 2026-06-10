@@ -394,9 +394,12 @@ async def get_tasks(
     current_user: CurrentUserDependency,
     task_repository: TaskRepositoryDependency,
     language: str | None = Query(None),
+    complexity: str | None = Query(None),
 ) -> list:
     user_id = current_user.id if current_user is not None else None
-    filtered = await task_repository.list_tasks(user_id=user_id, language=language)
+    filtered = await task_repository.list_tasks(
+        user_id=user_id, language=language, complexity=complexity
+    )
     return [
         {
             "id": task.id,

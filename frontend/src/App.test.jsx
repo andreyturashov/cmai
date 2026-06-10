@@ -963,6 +963,37 @@ describe('App', () => {
     Math.random.mockRestore();
   });
 
+  it('filters tasks by complexity', async () => {
+    const tasks = [
+      { id: 'task-1', title: 'T1', language: 'python', complexity: 'easy' },
+      { id: 'task-2', title: 'T2', language: 'python', complexity: 'hard' },
+    ];
+    api.getTasks.mockResolvedValue(tasks);
+    api.getTaskById.mockImplementation((id) => {
+      const matched = tasks.find((t) => t.id === id);
+      return Promise.resolve({ ...fullTask, ...matched });
+    });
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByText('T1')).toBeInTheDocument());
+
+    // Click on 'Hard' complexity filter
+    await userEvent.click(screen.getByText('Hard'));
+
+    // Should load T2
+    await waitFor(() => expect(screen.getByText('T2')).toBeInTheDocument());
+
+    // Click on 'Easy' complexity filter
+    await userEvent.click(screen.getByText('Easy'));
+
+    // Should load T1 again
+    await waitFor(() => expect(screen.getByText('T1')).toBeInTheDocument());
+
+    // Click on 'All' complexity filter
+    await userEvent.click(screen.getByText('All'));
+    await waitFor(() => expect(screen.getByText('T1')).toBeInTheDocument());
+  });
+
   it('submits review and shows AI analysis', async () => {
     api.createReview.mockResolvedValue({ id: 'r1' });
     api.aiAnalyze.mockResolvedValue({
